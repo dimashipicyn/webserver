@@ -28,7 +28,6 @@ void webserv::EventPool::runEventLoop() {
     webserv::logger.log(webserv::Logger::INFO, "Run event loop");
     while (true) {
         int nEvent = kevent(mKqueue, NULL, 0, eventList, NUM_EVENTS, NULL);
-        std::cout << nEvent << std::endl;
         if (nEvent == -1) {
             throw std::runtime_error("EventPool: kevent()");
         }
@@ -38,6 +37,7 @@ void webserv::EventPool::runEventLoop() {
             }
 
             int fd = (int)eventList[i].ident;
+            std::cout << fd << std::endl;
 
             // если соединение закрыто
             if (eventList[i].flags & EV_EOF) {
@@ -46,9 +46,13 @@ void webserv::EventPool::runEventLoop() {
             }
 
             // если сокет есть среди слушающих, принимаем новое соединение
-            else if (mFindSocket(fd).first)
+            //else if (mFindSocket(fd).first)
+            else if (fd == mListenSockets[0].getListenSocket())
             {
-                int newConnect = mFindSocket(fd).second.acceptConnection(); //FIXME throw ex
+                Socket s = mListenSockets[0];
+                std::cout << s.getListenSocket() << std::endl;
+                //int newConnect = mFindSocket(fd).second.acceptConnection(); //FIXME throw ex
+                int newConnect = s.acceptConnection(); //FIXME throw ex
 
                 // добавляем в ядро новый дескриптор
                 EV_SET(&chEvent, newConnect, EVFILT_READ, EV_ADD, 0, 0, 0);
@@ -62,8 +66,8 @@ void webserv::EventPool::runEventLoop() {
                 buffer[ret] = 0;
 
                 // добавляем в ядро с евентом врайт
-                //EV_SET(&chEvent, fd, EVFILT_WRITE, EV_ADD | EV_ONESHOT, 0, 0, NULL);
-                //kevent(mKqueue, &chEvent, 1, NULL, 0, NULL);
+                EV_SET(&chEvent, fd, EVFILT_WRITE, EV_ADD | EV_ONESHOT, 0, 0, NULL);
+                kevent(mKqueue, &chEvent, 1, NULL, 0, NULL);
             }
             else if (eventList[i].filter == EVFILT_WRITE) {
                 std::cout << "Write in socket " << fd << std::endl;
@@ -79,7 +83,7 @@ void webserv::EventPool::runEventLoop() {
     }
 }
 
-std::pair<bool, const webserv::Socket&> webserv::EventPool::mFindSocket(int fd) {
+std::pair<bool, const webserv::Socket> webserv::EventPool::mFindSocket(int fd) {
     std::vector<webserv::Socket>::iterator it = mListenSockets.begin();
     std::vector<webserv::Socket>::iterator ite = mListenSockets.end();
 
@@ -90,13 +94,15 @@ std::pair<bool, const webserv::Socket&> webserv::EventPool::mFindSocket(int fd) 
     return std::make_pair(false, *it);
 }
 
-void webserv::EventPool::addListenSocket(webserv::Socket socket) {
+void webserv::EventPool::addListenSocket(webserv::Socket& socket) {
 
     struct kevent chEvent;
 
-    EV_SET(&chEvent, 0, EVFILT_READ, EV_ADD, 0, 0, NULL);
-    int res = kevent(mKqueue, &chEvent, 1, NULL, 0, NULL); // FIXME handle error
-    std::cout << res << std::endl;
+    EV_SET(&chEvent, socket.getListenSocket(), EVFILT_READ, EV_ADD, 0, 0, NULL);
+    int res = kevent(mKqueue, &chEvent, 1, NULL, 0, NULL);
+    if (res == -1) {
+        throw std::runtime_error("EventPool: addListenSocket: kevent()");
+    }
     mListenSockets.push_back(socket);
     webserv::logger.log(webserv::Logger::INFO, "Add listen socket");
 }

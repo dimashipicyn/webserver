@@ -61,3 +61,15 @@ int webserv::Socket::acceptConnection() const
 int webserv::Socket::getListenSocket() const {
     return mListenSocket;
 }
+
+webserv::Socket::Socket(const webserv::Socket &socket) {
+    operator=(socket);
+}
+
+webserv::Socket &webserv::Socket::operator=(const webserv::Socket &socket) {
+    mListenSocket = socket.mListenSocket;
+    mPort = socket.mPort;
+    mHost = socket.mHost;
+    mAddress = socket.mAddress;
+    return *this;
+}
