@@ -7,6 +7,10 @@
 
 #include <vector>
 #include <sys/event.h>
+#include <deque>
+#include <map>
+#include "Job.h"
+#include "Socket.h"
 
 namespace webserv {
     class EventPool {
@@ -16,10 +20,14 @@ namespace webserv {
         EventPool();
         virtual ~EventPool();
 
-        void                                addEvent(struct kevent ev);
-        const std::vector<struct kevent>    getEvents() const;
+        void        runEventLoop();
+        void        addListenSocket(webserv::Socket socket);
     private:
-        int                 mKqueue;
+        std::pair<bool, const webserv::Socket&>          mFindSocket(int fd);
+        int                             mKqueue;
+        std::vector<webserv::Socket>    mListenSockets;
+        std::deque<webserv::Job>        mWorkerJobDeque;
+        std::map<int, webserv::Job>     mServerJobDeque;
     };
 }
 

@@ -2,8 +2,8 @@
 // Created by Lajuana Bespin on 10/29/21.
 //
 
-#ifndef WEBSERV_HTTPSERVER_H
-#define WEBSERV_HTTPSERVER_H
+#ifndef WEBSERV_SOCKET_H
+#define WEBSERV_SOCKET_H
 #include <iostream>
 #include <netinet/in.h>
 #include <sys/fcntl.h>
@@ -12,17 +12,17 @@
 
 
 namespace webserv {
-    class HttpServer {
+    class Socket {
     public:
-        HttpServer(const std::string& host, int port);
-        ~HttpServer();
+        Socket(const std::string& host, int port);
+        ~Socket();
 
         /***
          * Принимает соединение на слушающем сокете.
          * Throw exception если не удалось принять соединение.
          * @return Новый сокет с принятым соединением.
          */
-        int     acceptConnection();
+        int     acceptConnection() const;
         int     getListenSocket() const;
 
     private:
@@ -33,4 +33,4 @@ namespace webserv {
     };
 }
 
-#endif //WEBSERV_HTTPSERVER_H
+#endif //WEBSERV_SOCKET_H
