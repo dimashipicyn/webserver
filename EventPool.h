@@ -23,7 +23,6 @@ namespace webserv {
         void        runEventLoop();
         void        addListenSocket(webserv::Socket& socket);
     private:
-        std::pair<bool, const webserv::Socket>          mFindSocket(int fd);
         int                             mKqueue;
         std::vector<webserv::Socket>    mListenSockets;
         std::deque<webserv::Job>        mWorkerJobDeque;
