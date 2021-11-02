@@ -9,7 +9,6 @@
 
 namespace webserv {
     struct Job {
-        int             sockFd;
         std::string     response;
         std::string     request;
     };

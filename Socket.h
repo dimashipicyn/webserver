@@ -16,9 +16,9 @@ namespace webserv {
     public:
         Socket(const std::string& host, int port);
         ~Socket();
-        Socket() {};
-        Socket(const Socket& socket);
-        Socket& operator=(const Socket& socket);
+        //Socket() {};
+        Socket(const Socket& socket) = delete;
+        Socket& operator=(const Socket& socket) = delete;
 
         /***
          * Принимает соединение на слушающем сокете.

@@ -20,11 +20,11 @@ namespace webserv {
         EventPool();
         virtual ~EventPool();
 
-        void        runEventLoop();
+        void        eventLoop();
         void        addListenSocket(webserv::Socket& socket);
     private:
         int                             mKqueue;
-        std::vector<webserv::Socket>    mListenSockets;
+        std::map<int, webserv::Socket&>    mListenSockets;
         std::deque<webserv::Job>        mWorkerJobDeque;
         std::map<int, webserv::Job>     mServerJobDeque;
     };

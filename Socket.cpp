@@ -25,7 +25,7 @@ webserv::Socket::Socket(const std::string &host, int port)
 
     // инициализируем структуру
     mAddress.sin_family = AF_INET; // domain AF_INET для ipv4, AF_INET6 для ipv6, AF_UNIX для локальных сокетов
-    mAddress.sin_addr.s_addr = inet_addr(mHost.c_str()); // любой адрес
+    mAddress.sin_addr.s_addr = inet_addr(mHost.c_str()); // адрес host, format "127.0.0.1"
     mAddress.sin_port = htons( mPort ); // host-to-network short
 
     socklen_t addrLen = sizeof(mAddress);
@@ -49,7 +49,7 @@ webserv::Socket::~Socket()
 int webserv::Socket::acceptConnection() const
 {
     int         newConnection;
-    socklen_t   addrLen = sizeof(mAddress);
+    socklen_t   addrLen = sizeof(struct sockaddr);
 
     // проверяем входящее соединение
     if ((newConnection = ::accept(mListenSocket, (struct sockaddr *)&mAddress, &addrLen)) < 0) {
@@ -61,15 +61,18 @@ int webserv::Socket::acceptConnection() const
 int webserv::Socket::getListenSocket() const {
     return mListenSocket;
 }
-
+/*
 webserv::Socket::Socket(const webserv::Socket &socket) {
+    std::cout << "socket copy" << std::endl;
     operator=(socket);
 }
 
 webserv::Socket &webserv::Socket::operator=(const webserv::Socket &socket) {
+    std::cout << "socket =" << std::endl;
     mListenSocket = socket.mListenSocket;
     mPort = socket.mPort;
     mHost = socket.mHost;
     mAddress = socket.mAddress;
     return *this;
 }
+*/
