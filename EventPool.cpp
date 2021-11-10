@@ -92,11 +92,11 @@ void webserv::EventPool::eventLoop() {
 void webserv::EventPool::addListenSocket(webserv::Socket& socket) {
     struct kevent chEvent;
 
-    EV_SET(&chEvent, socket.getListenSocket(), EVFILT_READ, EV_ADD | EV_CLEAR, 0, 0, NULL);
+    EV_SET(&chEvent, socket.getSockFd(), EVFILT_READ, EV_ADD | EV_CLEAR, 0, 0, NULL);
     int res = kevent(mKqueue, &chEvent, 1, NULL, 0, NULL);
     if (res == -1) {
         throw std::runtime_error("register socket descriptor for kqueue() fail");
     }
-    mListenSockets.insert(std::pair<int, webserv::Socket&>(socket.getListenSocket(), socket));
+    mListenSockets.insert(std::pair<int, webserv::Socket&>(socket.getSockFd(), socket));
     webserv::logger.log(webserv::Logger::INFO, "Add listen socket");
 }

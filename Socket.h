@@ -16,22 +16,22 @@ namespace webserv {
     public:
         Socket(const std::string& host, int port);
         ~Socket();
-        //Socket() {};
-        Socket(const Socket& socket) = delete;
-        Socket& operator=(const Socket& socket) = delete;
+
 
         /***
          * Принимает соединение на слушающем сокете.
          * Throw exception если не удалось принять соединение.
-         * @return Новый сокет с принятым соединением.
+         * @return Новый дескриптор с принятым соединением.
          */
         int     acceptConnection() const;
-        int     getListenSocket() const;
+        int     getSockFd() const;
 
     private:
-        int                 mListenSocket;
-        int                 mPort;
-        std::string         mHost;
+        Socket(const Socket& socket) {};
+        Socket& operator=(const Socket& socket) {};
+
+    private:
+        int                 mSockFd;
         struct sockaddr_in  mAddress;
     };
 }
