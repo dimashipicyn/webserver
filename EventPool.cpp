@@ -5,6 +5,8 @@
 #include <unistd.h>
 #include "EventPool.h"
 #include "Logger.h"
+#include "Request.h"
+#include "Response.h"
 
 webserv::EventPool::EventPool()
 : mKqueue(0), mListenSockets()
@@ -53,9 +55,10 @@ void webserv::EventPool::eventLoop() {
             {
                 int newConnect = mListenSockets.find(fd)->second.acceptConnection();
 
-                Job *job = new Job; // новая задача
+                //Job *job = new Job; // новая задача
+                Request *r = new Request();
                 // добавляем в ядро новый дескриптор
-                EV_SET(&chEvent, newConnect, EVFILT_READ, EV_ADD, 0, 0, job);
+                EV_SET(&chEvent, newConnect, EVFILT_READ, EV_ADD, 0, 0, r);
                 kevent(mKqueue, &chEvent, 1, NULL, 0, NULL);
 
                 webserv::logger.log(webserv::Logger::INFO, "Add new connection");
@@ -65,25 +68,25 @@ void webserv::EventPool::eventLoop() {
             {
                 webserv::logger.log(webserv::Logger::INFO, "Read in socket");
 
-                Job *job = reinterpret_cast<Job *>(eventList[i].udata);
-                int ret = read(fd, buffer, BUFFER_SIZE);
-                buffer[ret] = 0;
-                job->request.append(buffer);
+                
 
-                if (ret < BUFFER_SIZE) {
-                    // добавляем в ядро с евентом врайт
-                    EV_SET(&chEvent, fd, EVFILT_WRITE, EV_ADD | EV_ONESHOT, 0, 0, job);
-                    kevent(mKqueue, &chEvent, 1, NULL, 0, NULL);
-                }
+                Request *req = reinterpret_cast<Request *>(eventList[i].udata);
+                req->read(fd);
+                std::cout << *req << std::endl;
+                Response *resp = new Response();
+                
+                // добавляем в ядро с евентом врайт
+                EV_SET(&chEvent, fd, EVFILT_WRITE, EV_ADD | EV_ONESHOT, 0, 0, resp);
+                kevent(mKqueue, &chEvent, 1, NULL, 0, NULL);
             }
             // пишем в сокет
             else if (eventList[i].filter == EVFILT_WRITE)
             {
                 webserv::logger.log(webserv::Logger::INFO, "Write in socket");
 
-                Job *job = reinterpret_cast<Job *>(eventList[i].udata);
-                int res = write(fd, job->request.c_str(), job->request.size());
-                job->request.clear();
+                Response *resp = reinterpret_cast<Response *>(eventList[i].udata);
+                resp->write(fd);
+                close(fd);
             }
         }
     }

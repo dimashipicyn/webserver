@@ -11,4 +11,7 @@ add_executable(webserv
         EventPool.h
         Logger.cpp
         Logger.h
-        Job.h)
+        Job.h
+        utils.cpp
+        Request.cpp
+        Response.cpp)
