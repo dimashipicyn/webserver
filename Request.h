@@ -10,22 +10,31 @@
 
 class Request {
 public:
+    enum State {
+        READING,
+        PARSING,
+        FINISH
+    };
+public:
     Request();
     ~Request();
 
-    void read(int fd);
+    int read(int fd);
 
     const std::string &getMethod() const;
-
     const std::string &getVersion() const;
-
     const std::string &getPath() const;
 
+    State getState() const;
+
 private:
-    Request(const Request& request) {};
+    Request(const Request& request) : state(READING), MAX_BUFFER_SIZE(10240) {};
     Request& operator=(const Request& request) {};
 
 private:
+    State                               state;
+    std::string                         buffer;
+    const int                           MAX_BUFFER_SIZE;
     std::string                         m_Method;
     std::string                         m_Version;
     std::string                         m_Path;

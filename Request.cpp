@@ -5,24 +5,52 @@
 #include <fstream>
 #include <iostream>
 #include <vector>
+#include <unistd.h>
 #include "Request.h"
 #include "utils.h"
 
-Request::Request() {
-
+Request::Request() : state(READING), MAX_BUFFER_SIZE(10240) {
 }
 
 Request::~Request() {
 
 }
 
-void Request::read(int fd) {
-    std::string line;
-    get_next_line(fd, line);
-    std::vector<std::string> words = split(line, ' ');
-    m_Method = words[0];
-    m_Path = words[1];
-    m_Version = words[2];
+int Request::read(int fd) {
+    const int buffersize = 1024;
+    char buf[buffersize];
+    int ret;
+
+    switch (state) {
+        case READING:
+            ret = ::read(fd, buf, buffersize);
+            if ( ret == -1 ) {
+                return -1;
+            }
+            buf[ret] = '\0';
+            buffer.append(buf);
+
+            if ( buffer.size() >= MAX_BUFFER_SIZE ||
+                 buffer.find("\n\n") != std::string::npos ||
+                 buffer.find("\r\n\r\n") != std::string::npos )
+            {
+                state = PARSING;
+            }
+            std::cout << "Reading" << std::endl;
+            break;
+        case PARSING:
+            std::cout << "Parsing" << std::endl;
+            state = FINISH;
+            break;
+        case FINISH:
+            std::cout << "Finish" << std::endl;
+            break;
+    }
+    return 0;
+}
+
+Request::State Request::getState() const {
+    return state;
 }
 
 std::ostream& operator<<(std::ostream& os, const Request& request) {
