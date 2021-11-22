@@ -5,8 +5,8 @@ set(CMAKE_CXX_STANDARD 98)
 
 add_executable(webserv
         main.cpp
-        Socket.cpp
-        Socket.h
+        Listener.cpp
+        Listener.h
         EventPool.cpp
         EventPool.h
         Logger.cpp

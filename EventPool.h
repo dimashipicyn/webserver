@@ -5,31 +5,38 @@
 #ifndef WEBSERV_EVENTPOOL_H
 #define WEBSERV_EVENTPOOL_H
 
-#include <vector>
-#include <sys/event.h>
-#include <deque>
-#include <map>
-#include "Job.h"
-#include "Socket.h"
-
 namespace webserv {
     class EventPool {
     public:
-        static const int NUM_EVENTS = 1000;
+        struct Event;
+        typedef void (*acceptCB)(EventPool *evt, int sd, struct sockaddr *addr);
+        typedef void (*eventCB)(EventPool *evt, struct Event *event, std::uint16_t flags, std::uintptr_t ctx);
+        typedef void (*readCB)(EventPool *evt, struct Event *event, std::uintptr_t ctx);
+        typedef void (*writeCB)(EventPool *evt, struct Event *event, std::uintptr_t ctx);
+
+        enum type {
+            READ  = -1,
+            WRITE = -2,
+            TIMER = -7
+        };
+
+        struct Event {
+            explicit    Event(int sd);
+                        ~Event();
+            void        setCb(readCB rcb, writeCB wcb, eventCB ecb, std::uintptr_t ctx);
+            int         getSd();
+        };
+
     public:
         EventPool();
         virtual ~EventPool();
 
-        void        eventLoop();
-        void        addListenSocket(webserv::Socket& socket);
-    private:
-        int                             mKqueue;
-
-        std::map<int, webserv::Socket&> mListenSockets;
-        std::deque<webserv::Job>        mWorkerJobDeque;
-        std::map<int, webserv::Job>     mServerJobDeque;
+        void eventLoop();
+        void addListenSocket(struct sockaddr *addr, acceptCB acceptCb);
+        void addEvent(struct Event *event);
+        void eventEnable(struct Event *event, std::int16_t flags);
+        void eventDisable(struct Event *event, std::int16_t flags);
     };
 }
-
 
 #endif //WEBSERV_EVENTPOOL_H
