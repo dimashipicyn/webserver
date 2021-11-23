@@ -1,5 +1,5 @@
 #include <sys/event.h>
-#include "Listener.h"
+#include "TcpSocket.h"
 #include "EventPool.h"
 
 using namespace webserv;
@@ -11,14 +11,14 @@ void eventCallBack(EventPool *evp, EventPool::Event *event, std::uint16_t flags,
 }
 
 void writeCallBack(EventPool *evp, EventPool::Event *event, std::uintptr_t ctx) {
-    int sd = event->getSd();
+    int sd = event->getSock();
     char *msg = "hello world";
     ::write(sd, msg, strlen(msg));
     evp->eventDisable(event, EventPool::WRITE);
 }
 
 void readCallBack(EventPool *evp, EventPool::Event *event, std::uintptr_t ctx) {
-    int sd = event->getSd();
+    int sd = event->getSock();
     char buf[1024] = {0};
     read(sd, buf, 1024);
     std::cout << buf << std::endl;
@@ -28,9 +28,9 @@ void readCallBack(EventPool *evp, EventPool::Event *event, std::uintptr_t ctx) {
 void acceptCallBack(EventPool *evt, int sd, struct sockaddr *addr) {
 
     int conn = ::accept(sd, addr, (socklen_t[]){sizeof(struct sockaddr)});
-    webserv::EventPool::Event *event = new webserv::EventPool::Event(conn);
+    EventPool::Event *event = new EventPool::Event(conn, addr);
     event->setCb(readCallBack, writeCallBack, eventCallBack, 0);
-    evt->addEvent(event);
+    evt->eventAdd(event);
     evt->eventEnable(event, EventPool::READ);
 }
 
@@ -38,7 +38,7 @@ int main()
 {
     webserv::EventPool  eventPool;
 
-    eventPool.addListenSocket(0, acceptCallBack);
+    eventPool.addListener(0, acceptCallBack);
     eventPool.eventLoop();
 
     return 0;

@@ -20,22 +20,38 @@ namespace webserv {
             TIMER = -7
         };
 
-        struct Event {
-            explicit    Event(int sd);
-                        ~Event();
-            void        setCb(readCB rcb, writeCB wcb, eventCB ecb, std::uintptr_t ctx);
-            int         getSd();
+        class Event {
+        public:
+            Event(int sock, struct sockaddr *addr);
+            ~Event();
+
+            void            setCb(readCB rcb, writeCB wcb, eventCB ecb, std::uintptr_t ctx);
+            int             getSock();
+            struct sockaddr *getAddr();
+            std::uintptr_t  getCtx();
+
+        public:
+            int             m_sock;
+            struct sockaddr *m_addr;
+            std::uintptr_t  m_ctx;
+            readCB          m_readCb;
+            writeCB         m_writeCb;
+            eventCB         m_eventCb;
         };
 
     public:
         EventPool();
-        virtual ~EventPool();
+        ~EventPool();
 
         void eventLoop();
-        void addListenSocket(struct sockaddr *addr, acceptCB acceptCb);
-        void addEvent(struct Event *event);
+        void addListener(int sock, struct sockaddr *addr, acceptCB acceptCb);
+        void eventAdd(struct Event *event);
         void eventEnable(struct Event *event, std::int16_t flags);
         void eventDisable(struct Event *event, std::int16_t flags);
+
+    private:
+        int                                                     mKqueue;
+        std::map<int, std::pair<struct sockaddr *, acceptCB> >  mListenSockets;
     };
 }
 

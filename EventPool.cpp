@@ -12,67 +12,34 @@
 #include <arpa/inet.h>
 #include <iostream>
 #include "Logger.h"
+#include "EventPool.h"
 
-namespace webserv {
-    class EventPool {
-    public:
-        struct Event;
-        typedef void (*acceptCB)(EventPool *evt, int sd, struct sockaddr *addr);
-        typedef void (*eventCB)(EventPool *evt, struct Event *event, std::uint16_t flags, std::uintptr_t ctx);
-        typedef void (*readCB)(EventPool *evt, struct Event *event, std::uintptr_t ctx);
-        typedef void (*writeCB)(EventPool *evt, struct Event *event, std::uintptr_t ctx);
+webserv::EventPool::Event::Event(int sock, struct sockaddr *addr)
+        : m_sock(sock), m_addr(addr), m_ctx(0), m_readCb(nullptr), m_writeCb(nullptr), m_eventCb(nullptr) {
 
-        enum type {
-            READ  = -1,
-            WRITE = -2,
-            TIMER = -7
-        };
-
-        struct Event {
-            explicit Event(int sd);
-            ~Event();
-            void setCb(readCB rcb, writeCB wcb, eventCB ecb, std::uintptr_t ctx);
-            int getSd();
-            int             sd;
-            std::uintptr_t  usrCtx;
-            readCB          readCb;
-            writeCB         writeCb;
-            eventCB         eventCb;
-        };
-
-    public:
-        EventPool();
-        virtual ~EventPool();
-
-        void eventLoop();
-        void addListenSocket(struct sockaddr *addr, acceptCB acceptCb);
-        void addEvent(struct Event *event);
-        void eventEnable(struct Event *event, std::int16_t flags);
-        void eventDisable(struct Event *event, std::int16_t flags);
-
-    private:
-        int                                                     mKqueue;
-        std::map<int, std::pair<struct sockaddr *, acceptCB> >  mListenSockets;
-    };
 }
-
-webserv::EventPool::Event::Event(int sd) : sd(sd) {}
 
 webserv::EventPool::Event::~Event() {
-    ::close(sd);
+    ::close(m_sock);
 }
 
-void webserv::EventPool::Event::setCb(webserv::EventPool::readCB rcb, webserv::EventPool::writeCB wcb,
-                                      webserv::EventPool::eventCB ecb, std::uintptr_t ctx)
-{
-        usrCtx = ctx;
-        readCb = rcb;
-        eventCb = ecb;
-        writeCb = wcb;
+void webserv::EventPool::Event::setCb(readCB rcb, writeCB wcb, eventCB ecb, std::uintptr_t ctx) {
+    m_ctx = ctx;
+    m_readCb = rcb;
+    m_eventCb = ecb;
+    m_writeCb = wcb;
 }
 
-int webserv::EventPool::Event::getSd() {
-    return sd;
+int webserv::EventPool::Event::getSock() {
+    return m_sock;
+}
+
+struct sockaddr *webserv::EventPool::Event::getAddr() {
+    return m_addr;
+}
+
+std::uintptr_t webserv::EventPool::Event::getCtx() {
+    return m_ctx;
 }
 
 webserv::EventPool::EventPool()
@@ -88,22 +55,22 @@ webserv::EventPool::~EventPool() {
 
 }
 
-void webserv::EventPool::addEvent(struct Event *event) {
+void webserv::EventPool::eventAdd(struct Event *event) {
     struct kevent chEvent = {};
-    EV_SET(&chEvent, event->sd, 0, 0, 0, 0, event);
-    kevent(mKqueue, &chEvent, 1, NULL, 0, NULL);
+    EV_SET(&chEvent, event->getSock(), 0, 0, 0, 0, event);
+    kevent(mKqueue, &chEvent, 1, NULL, 0, nullptr);
 }
 
 void webserv::EventPool::eventEnable(struct Event *event, std::int16_t flags) {
     struct kevent chEvent = {};
-    EV_SET(&chEvent, event->sd, flags, EV_ADD|EV_ENABLE, 0, 0, event);
-    kevent(mKqueue, &chEvent, 1, NULL, 0, NULL);
+    EV_SET(&chEvent, event->getSock(), flags, EV_ADD|EV_ENABLE, 0, 0, event);
+    kevent(mKqueue, &chEvent, 1, nullptr, 0, nullptr);
 }
 
 void webserv::EventPool::eventDisable(struct Event *event, std::int16_t flags) {
     struct kevent chEvent = {};
-    EV_SET(&chEvent, event->sd, flags, EV_DISABLE, 0, 0, event);
-    kevent(mKqueue, &chEvent, 1, NULL, 0, NULL);
+    EV_SET(&chEvent, event->getSock(), flags, EV_DISABLE, 0, 0, event);
+    kevent(mKqueue, &chEvent, 1, nullptr, 0, nullptr);
 }
 
 void webserv::EventPool::eventLoop() {
@@ -115,7 +82,7 @@ void webserv::EventPool::eventLoop() {
 
     webserv::logger.log(webserv::Logger::INFO, "Run event loop");
     while (true) {
-        int nEvent = kevent(mKqueue, NULL, 0, eventList, NUM_EVENTS, NULL);
+        int nEvent = kevent(mKqueue, nullptr, 0, eventList, NUM_EVENTS, nullptr);
 
         if (nEvent == -1) {
             throw std::runtime_error("EventPool: kevent()");
@@ -144,13 +111,13 @@ void webserv::EventPool::eventLoop() {
             else if (eventList[i].filter == EVFILT_READ)
             {
                 webserv::logger.log(webserv::Logger::INFO, "Read in socket");
-                event->readCb(this, event, event->usrCtx);
+                event->m_readCb(this, event, event->getCtx());
             }
             // пишем в сокет
             else if (eventList[i].filter == EVFILT_WRITE)
             {
                 webserv::logger.log(webserv::Logger::INFO, "Write in socket");
-                event->writeCb(this, event, event->usrCtx);
+                event->m_writeCb(this, event, event->getCtx());
             }
             else if (eventList[i].filter == EVFILT_TIMER)
             {
@@ -160,62 +127,14 @@ void webserv::EventPool::eventLoop() {
     }
 }
 
-static int createListener(struct sockaddr *addr) {
-    int sd;
-    // Creating socket file descriptor
-    // SOCK_STREAM потоковый сокет
-    // IPPROTO_TCP протокол TCP
-    if ( (sd = socket(AF_INET, SOCK_STREAM, 0)) == 0 ) {
-        throw std::runtime_error("Listener: create socket failed");
-    }
-
-    // неблокирующий сокет
-    if ( fcntl(sd, F_SETFL, O_NONBLOCK) == -1 ) {
-        ::close(sd);
-        throw std::runtime_error("Listener: fcntl failed");
-    }
-
-    // опции сокета, для переиспользования локальных адресов
-    if ( setsockopt(sd, SOL_SOCKET, SO_REUSEADDR, (int[]){1}, sizeof(int)) ) {
-        ::close(sd);
-        throw std::runtime_error("Listener: setsockopt failed");
-    }
-
-    struct sockaddr_in  m_address;
-    m_address.sin_family = AF_INET; // domain AF_INET для ipv4, AF_INET6 для ipv6, AF_UNIX для локальных сокетов
-    m_address.sin_addr.s_addr = inet_addr("127.0.0.1"); // адрес host, format "127.0.0.1"
-    m_address.sin_port = htons(1234); // host-to-network short
-
-    socklen_t addrLen = sizeof(m_address);
-    // связывает сокет с конкретным адресом
-    if (bind(sd, (struct sockaddr *)&m_address, addrLen) < 0 ) {
-        ::close(sd);
-        perror("listener");
-        throw std::runtime_error("Listener: bind socket failed");
-    }
-
-    // готовит сокет к принятию входящих соединений
-    if (listen(sd, SOMAXCONN) < 0 ) {
-        ::close(sd);
-        throw std::runtime_error("Listener: listen socket failed");
-    }
-    return sd;
-}
-
-void webserv::EventPool::addListenSocket(struct sockaddr *addr, acceptCB acceptCb) {
+void webserv::EventPool::addListener(int sock, struct sockaddr *addr, acceptCB acceptCb) {
     struct kevent chEvent = {0};
-    int sd = -1;
-    try {
-        sd = createListener(addr);
-    }
-    catch (std::exception &e) {
-        throw ;
-    }
-    EV_SET(&chEvent, sd, EVFILT_READ, EV_ADD | EV_CLEAR, 0, 0, NULL);
-    int res = kevent(mKqueue, &chEvent, 1, NULL, 0, NULL);
-    if (res == -1) {
+
+    EV_SET(&chEvent, sock, EVFILT_READ, EV_ADD | EV_CLEAR, 0, 0, NULL);
+    int res = kevent(mKqueue, &chEvent, 1, nullptr, 0, nullptr);
+    if ( res == -1 ) {
         throw std::runtime_error("register socket descriptor for kqueue() fail");
     }
-    mListenSockets.insert(std::make_pair(sd, std::make_pair(addr, acceptCb)));
+    mListenSockets.insert(std::make_pair(sock, std::make_pair(addr, acceptCb)));
     webserv::logger.log(webserv::Logger::INFO, "Add listen socket");
 }
