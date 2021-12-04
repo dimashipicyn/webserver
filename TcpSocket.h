@@ -15,6 +15,7 @@ namespace webserv {
     class TcpSocket {
     public:
         TcpSocket(const std::string& host, int port);
+        TcpSocket(int sock, struct sockaddr addr);
         ~TcpSocket();
         TcpSocket(const TcpSocket& socket);
         TcpSocket& operator=(const TcpSocket& socket);
@@ -24,6 +25,7 @@ namespace webserv {
         void        connect();
         void        makeNonBlock();
         int         getSock() const;
+        struct sockaddr* getAddr();
 
     private:
         int                 m_sock;

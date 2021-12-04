@@ -37,6 +37,10 @@ webserv::TcpSocket::~TcpSocket()
     ::close(m_sock);
 }
 
+webserv::TcpSocket::TcpSocket(int sock, struct sockaddr addr) : m_sock(sock), m_addrLen(sizeof(struct sockaddr_in)), m_address()  {
+    std::memcpy(&m_address, &addr, sizeof(struct sockaddr));
+}
+
 webserv::TcpSocket::TcpSocket(const webserv::TcpSocket &socket) {
     operator=(socket);
 }
@@ -88,4 +92,8 @@ webserv::TcpSocket webserv::TcpSocket::accept() const
 
 int webserv::TcpSocket::getSock() const {
     return m_sock;
+}
+
+struct sockaddr* webserv::TcpSocket::getAddr() {
+    return reinterpret_cast<struct sockaddr*>(&m_address);
 }
