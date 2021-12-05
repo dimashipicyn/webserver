@@ -15,11 +15,13 @@ Kqueue::~Kqueue() {
 
 }
 
-void Kqueue::getEvents(std::vector<struct ev>& events) {
+int Kqueue::getEvents(std::vector<struct ev>& events) {
+    struct timespec tmout = {5, 0};
+
     if (events.size() != nEvents_.size()) {
         nEvents_.resize(events.size());
     }
-    int n = kevent(kq, chEvents_.data(), chEvents_.size(), nEvents_.data(), nEvents_.size(), nullptr);
+    int n = kevent(kq, chEvents_.data(), chEvents_.size(), nEvents_.data(), nEvents_.size(), &tmout);
     if (n == -1) {
         std::runtime_error("kevent() error");
     }
@@ -45,19 +47,20 @@ void Kqueue::getEvents(std::vector<struct ev>& events) {
         events[i] = event;
     }
     chEvents_.clear();
+    return n;
 }
 
-void Kqueue::setEvent(int fd, std::uint16_t flags, void *ctx) {
+void Kqueue::setEvent(int fd, std::uint16_t flags, void *ctx, std::int64_t time) {
     struct kevent event = {};
 
     if (flags & M_READ) {
-        event.filter = EVFILT_READ;
+        event.filter |= EVFILT_READ;
     }
-    else if (flags & M_WRITE) {
-        event.filter = EVFILT_WRITE;
+    if (flags & M_WRITE) {
+        event.filter |= EVFILT_WRITE;
     }
-    else if (flags & M_TIMER) {
-        event.filter = EVFILT_TIMER;
+    if (flags & M_TIMER) {
+        event.filter |= EVFILT_TIMER;
     }
     if (flags & M_ENABLE) {
         event.flags |= EV_ENABLE;
@@ -71,7 +74,11 @@ void Kqueue::setEvent(int fd, std::uint16_t flags, void *ctx) {
     if (flags & M_ONESHOT) {
         event.flags |= EV_ONESHOT;
     }
+    if (flags & M_CLEAR) {
+        event.flags |= EV_CLEAR;
+    }
     event.ident = fd;
     event.udata = ctx;
+    event.data = time;
     chEvents_.push_back(event);
 }

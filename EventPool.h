@@ -2,12 +2,13 @@
 // Created by Lajuana Bespin on 10/29/21.
 //
 
-#include <map>
-
 #ifndef WEBSERV_EVENTPOOL_H
 #define WEBSERV_EVENTPOOL_H
 
-namespace webserv {    
+#include <map>
+#include "kqueue.h"
+
+namespace webserv {
     class EventPool;
 
     class IEventAcceptor {
@@ -33,11 +34,17 @@ namespace webserv {
     class EventPool {
     public:
         enum {
-            READ  = -1,
-            WRITE = -2,
-            TIMER = -7
+            M_READ = 1,
+            M_WRITE = 2,
+            M_TIMER = 4,
+            M_EOF = 8, // return value
+            M_ERROR = 16, // return value
+            M_ENABLE = 32,
+            M_DISABLE = 64,
+            M_ADD = 128,
+            M_ONESHOT = 256,
+            M_CLEAR = 512
         };
-
         struct Event {
             Event(int sock, struct sockaddr *addr);
             ~Event();
@@ -63,9 +70,10 @@ namespace webserv {
 
         void eventLoop();
         void addListener(int sock, struct sockaddr *addr, IEventAcceptor *acceptor);
-        void addEvent(int sock, struct sockaddr *addr);
+        void addEvent(int sock, struct sockaddr *addr, std::uint16_t flags, std::int64_t time = 0);
 
         // event methods
+        void eventSetFlags(std::uint16_t flags, std::int64_t time = 0);
         void eventSetAccepter(IEventAcceptor *acceptor);
         void eventSetReader(IEventReader *reader);
         void eventSetWriter(IEventWriter *writer);
@@ -84,13 +92,10 @@ namespace webserv {
         IEventWriter*       eventGetWriter();
         IEventHandler*      eventGetHandler();
 
-        void eventEnable(std::int16_t flags, std::int32_t time = 0);
-        void eventDisable(std::int16_t flags);
-
     private:
-        int                              mKqueue;
+        Kqueue                           poll_;
         Event                            *event_;
-        std::map<int, struct sockaddr*>  mListenSockets;
+        std::map<int, struct sockaddr*>  listenSockets_;
     };
 }
 

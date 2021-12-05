@@ -13,7 +13,7 @@
 #include <iostream>
 #include "Logger.h"
 #include "EventPool.h"
-
+#include "kqueue.h"
 ///
 /// \brief webserv::EventPool::Event::Event
 /// \param sock
@@ -53,12 +53,8 @@ void webserv::EventPool::Event::setCb(
 }
 
 webserv::EventPool::EventPool()
-: mKqueue(0), mListenSockets()
+: poll_(), listenSockets_()
 {
-    mKqueue = kqueue();
-    if (mKqueue == -1) {
-        throw std::runtime_error("EventPool: kqueue()");
-    }
 }
 
 webserv::EventPool::~EventPool() {
@@ -71,67 +67,52 @@ void webserv::EventPool::eventSetCb(
         webserv::IEventWriter *writer,
         webserv::IEventHandler *handler
         ) {
-    struct kevent chEvent = {};
+    assert(event_);
     event_->setCb(acc, reader, writer, handler);
-    EV_SET(&chEvent, event_->sock, 0, 0, 0, 0, event_);
-    kevent(mKqueue, &chEvent, 1, NULL, 0, nullptr);
 }
 
-void webserv::EventPool::eventEnable(std::int16_t flags, std::int32_t time) {
-    struct kevent chEvent = {};
-    assert(event_);
-    EV_SET(&chEvent, event_->sock, flags, EV_ADD|EV_ENABLE, 0, time, event_);
-    kevent(mKqueue, &chEvent, 1, nullptr, 0, nullptr);
-}
-
-void webserv::EventPool::eventDisable(std::int16_t flags) {
-    struct kevent chEvent = {};
-    assert(event_);
-    EV_SET(&chEvent, event_->sock, flags, EV_DISABLE, 0, 0, event_);
-    kevent(mKqueue, &chEvent, 1, nullptr, 0, nullptr);
+void webserv::EventPool::eventSetFlags(std::uint16_t flags, std::int64_t time) {
+    poll_.setEvent(event_->sock, flags, event_, time);
 }
 
 int webserv::EventPool::eventGetSock() {
     return event_->sock;
 }
 
-
 void webserv::EventPool::eventLoop() {
-    const int       NUM_EVENTS = 1024;
-    struct kevent   eventList[NUM_EVENTS];
+    int sizeEvents = 1024;
+    std::vector<Kqueue::ev> events(sizeEvents);
 
     webserv::logger.log(webserv::Logger::INFO, "Run event loop");
+
     while (true) {
-        int nEvent = kevent(mKqueue, nullptr, 0, eventList, NUM_EVENTS, nullptr);
+        int n = poll_.getEvents(events);
 
-        if (nEvent == -1) {
-            throw std::runtime_error("EventPool: kevent()");
-        }
-
-        for (int i = 0; i < nEvent; ++i)
+        for (int i = 0; i < n; ++i)
         {
-            int sock = static_cast<int>(eventList[i].ident);
-            event_ = reinterpret_cast<Event*>(eventList[i].udata); // current event
+            int sock = events[i].fd;
+            std::uint16_t flags = events[i].flags;
+            event_ = reinterpret_cast<Event*>(events[i].ctx); // current event
 
             if ( !event_ ) { // FIXME
                 continue;
             }
 
-            if ( eventList[i].flags & (EV_EOF|EV_ERROR) )
+            if ( flags & (M_EOF|M_ERROR) )
             {
                 webserv::logger.log(webserv::Logger::ERROR, "Event socket error");
                 webserv::logger.log(webserv::Logger::INFO, "Event socket disconnect");
 
                 if ( event_->handler )
                 {
-                    event_->handler->event(this, eventList[i].flags);
+                    event_->handler->event(this, flags);
                 }
             }
             // если сокет есть среди слушающих, принимаем новое соединение
-            else if ( mListenSockets.find(sock) != mListenSockets.end() )
+            else if ( listenSockets_.find(sock) != listenSockets_.end() )
             {
                 webserv::logger.log(webserv::Logger::INFO, "Add new connection");
-                std::map<int, struct sockaddr*>::iterator it = mListenSockets.find(sock);
+                std::map<int, struct sockaddr*>::iterator it = listenSockets_.find(sock);
 
                 if ( event_->acceptor )
                 {
@@ -139,7 +120,7 @@ void webserv::EventPool::eventLoop() {
                 }
             }
             // читаем с сокета
-            else if ( eventList[i].filter == EVFILT_READ )
+            else if ( flags & M_READ )
             {
                 webserv::logger.log(webserv::Logger::INFO, "Read in socket");
 
@@ -149,7 +130,7 @@ void webserv::EventPool::eventLoop() {
                 }
             }
             // пишем в сокет
-            else if ( eventList[i].filter == EVFILT_WRITE )
+            else if ( flags & M_WRITE )
             {
                 webserv::logger.log(webserv::Logger::INFO, "Write in socket");
 
@@ -158,32 +139,28 @@ void webserv::EventPool::eventLoop() {
                     event_->writer->write(this);
                 }
             }
-            else if ( eventList[i].filter == EVFILT_TIMER )
-            {
-                webserv::logger.log(webserv::Logger::INFO, "Query timeout!");
+            else {
+                webserv::logger.log(webserv::Logger::INFO, "Other events");
+
+                if ( event_->handler )
+                {
+                    event_->handler->event(this, flags);
+                }
             }
         }
     }
 }
 
-void webserv::EventPool::addEvent(int sock, struct sockaddr *addr) {
+void webserv::EventPool::addEvent(int sock, struct sockaddr *addr, std::uint16_t flags, std::int64_t time) {
     event_ = new Event(sock, addr);
 
-    struct kevent chEvent = {};
-    EV_SET(&chEvent, event_->sock, 0, 0, 0, 0, event_);
-    kevent(mKqueue, &chEvent, 1, NULL, 0, nullptr);
+    poll_.setEvent(sock, flags, event_, time);
 }
 
 void webserv::EventPool::addListener(int sock, struct sockaddr *addr, IEventAcceptor *acceptor) {
-    struct kevent chEvent = {};
-
-    Event *event = new Event(sock, addr);
-    event->setCb(acceptor, nullptr, nullptr, nullptr);
-    EV_SET(&chEvent, sock, EVFILT_READ, EV_ADD | EV_CLEAR, 0, 0, reinterpret_cast<void*>(event));
-    int res = kevent(mKqueue, &chEvent, 1, nullptr, 0, nullptr);
-    if ( res == -1 ) {
-        throw std::runtime_error("register socket descriptor for kqueue() fail");
-    }
-    mListenSockets.insert(std::make_pair(sock, addr));
+    event_ = new Event(sock, addr);
+    event_->setCb(acceptor, nullptr, nullptr, nullptr);
+    poll_.setEvent(sock, M_READ|M_ADD|M_CLEAR, event_); // fixme, add ev_clear
+    listenSockets_.insert(std::make_pair(sock, addr));
     webserv::logger.log(webserv::Logger::INFO, "Add listen socket");
 }

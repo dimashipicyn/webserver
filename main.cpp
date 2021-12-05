@@ -4,7 +4,7 @@
 
 class Handler : public webserv::IEventHandler {
     virtual void event(webserv::EventPool *evPool, std::uint16_t flags) {
-        if ( flags & EV_ERROR || flags & EV_EOF ) {
+        if ( flags & (webserv::EventPool::M_EOF | webserv::EventPool::M_ERROR) ) {
             std::cerr << "event error\n";
         }
         std::cout << "eventer\n";
@@ -20,8 +20,8 @@ public:
     ::write(sock, "Server: ", 8);
     ::write(sock, buffer.c_str(), buffer.size());
     buffer.clear();
-    evPool->eventDisable(webserv::EventPool::WRITE);
-    evPool->eventDisable(webserv::EventPool::TIMER);
+    evPool->eventSetFlags(webserv::EventPool::M_WRITE | webserv::EventPool::M_DISABLE);
+    evPool->eventSetFlags(webserv::EventPool::M_TIMER | webserv::EventPool::M_DISABLE);
     std::cout << "writer\n";
     }
 
@@ -37,8 +37,8 @@ public:
         ::read(sock, buf, 1024);
         std::cout << buf << std::endl;
         writer_->buffer.append(buf);
-        evPool->eventEnable(webserv::EventPool::WRITE);
-        evPool->eventEnable(webserv::EventPool::TIMER, 5000);
+        evPool->eventSetFlags(webserv::EventPool::M_WRITE | webserv::EventPool::M_ADD | webserv::EventPool::M_ENABLE);
+        evPool->eventSetFlags(webserv::EventPool::M_TIMER | webserv::EventPool::M_ADD | webserv::EventPool::M_ENABLE, 1000);
         std::cout << "reader\n";
     }
 
@@ -51,7 +51,7 @@ class Accepter : public webserv::IEventAcceptor {
 public:
     virtual void accept(webserv::EventPool *evPool, int sock, struct sockaddr *addr) {
         int conn = ::accept(sock, addr, (socklen_t[]){sizeof(struct sockaddr)});
-        evPool->addEvent(conn, addr);
+        evPool->addEvent(conn, addr, webserv::EventPool::M_READ | webserv::EventPool::M_ADD);
         Reader *reader = new Reader;
         Writer *writer = new Writer;
         Handler *handler = new Handler;
@@ -59,7 +59,6 @@ public:
         reader->writer_ = writer;
         writer->reader_ = reader;
         evPool->eventSetCb(nullptr, reader, writer, handler);
-        evPool->eventEnable(webserv::EventPool::READ);
         std::cout << "accept\n";
     }
 };

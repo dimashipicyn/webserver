@@ -17,7 +17,8 @@ public:
         M_ENABLE = 32,
         M_DISABLE = 64,
         M_ADD = 128,
-        M_ONESHOT = 256
+        M_ONESHOT = 256,
+        M_CLEAR = 512
     };
 
     struct ev {
@@ -26,8 +27,8 @@ public:
         void            *ctx;
     };
 
-    void    getEvents(std::vector<struct ev>& nEvents);
-    void    setEvent(int fd, std::uint16_t flags, void *ctx);
+    int     getEvents(std::vector<struct ev>& nEvents);
+    void    setEvent(int fd, std::uint16_t flags, void *ctx, std::int64_t time = 0);
 
 private:
     int                         kq;
