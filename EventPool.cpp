@@ -14,32 +14,42 @@
 #include "Logger.h"
 #include "EventPool.h"
 
+///
+/// \brief webserv::EventPool::Event::Event
+/// \param sock
+/// \param addr
+///
 webserv::EventPool::Event::Event(int sock, struct sockaddr *addr)
-        : m_sock(sock), m_addr(addr), m_ctx(0), m_readCb(nullptr), m_writeCb(nullptr), m_eventCb(nullptr) {
+    : sock(sock),
+      addr(addr),
+      acceptor(nullptr),
+      reader(nullptr),
+      writer(nullptr),
+      handler(nullptr)
+{
 
 }
 
 webserv::EventPool::Event::~Event() {
-    ::close(m_sock);
+    ::close(sock);
 }
 
-void webserv::EventPool::Event::setCb(readCB rcb, writeCB wcb, eventCB ecb, std::uintptr_t ctx) {
-    m_ctx = ctx;
-    m_readCb = rcb;
-    m_eventCb = ecb;
-    m_writeCb = wcb;
-}
-
-int webserv::EventPool::Event::getSock() {
-    return m_sock;
-}
-
-struct sockaddr *webserv::EventPool::Event::getAddr() {
-    return m_addr;
-}
-
-std::uintptr_t webserv::EventPool::Event::getCtx() {
-    return m_ctx;
+///
+/// \brief webserv::EventPool::Event::setCb set callBack classes
+/// \param re - pointer to reader
+/// \param wr - pointer to writer
+/// \param hr - pointer to handler
+///
+void webserv::EventPool::Event::setCb(
+        webserv::IEventAcceptor *acc,
+        webserv::IEventReader *re,
+        webserv::IEventWriter *wr,
+        webserv::IEventHandler *hr)
+{
+    acceptor = acc;
+    reader = re;
+    writer = wr;
+    handler = hr;
 }
 
 webserv::EventPool::EventPool()
@@ -55,24 +65,36 @@ webserv::EventPool::~EventPool() {
 
 }
 
-void webserv::EventPool::eventSetCb(Event *event, readCB rcb, writeCB wcb, eventCB ecb, std::uintptr_t ctx) {
+void webserv::EventPool::eventSetCb(
+        webserv::IEventAcceptor *acc,
+        webserv::IEventReader *reader,
+        webserv::IEventWriter *writer,
+        webserv::IEventHandler *handler
+        ) {
     struct kevent chEvent = {};
-    event->setCb(rcb, wcb, ecb, ctx);
-    EV_SET(&chEvent, event->getSock(), 0, 0, 0, 0, event);
+    event_->setCb(acc, reader, writer, handler);
+    EV_SET(&chEvent, event_->sock, 0, 0, 0, 0, event_);
     kevent(mKqueue, &chEvent, 1, NULL, 0, nullptr);
 }
 
-void webserv::EventPool::eventEnable(Event *event, std::int16_t flags, std::int32_t time) {
+void webserv::EventPool::eventEnable(std::int16_t flags, std::int32_t time) {
     struct kevent chEvent = {};
-    EV_SET(&chEvent, event->getSock(), flags, EV_ADD|EV_ENABLE, 0, time, event);
+    assert(event_);
+    EV_SET(&chEvent, event_->sock, flags, EV_ADD|EV_ENABLE, 0, time, event_);
     kevent(mKqueue, &chEvent, 1, nullptr, 0, nullptr);
 }
 
-void webserv::EventPool::eventDisable(Event *event, std::int16_t flags) {
+void webserv::EventPool::eventDisable(std::int16_t flags) {
     struct kevent chEvent = {};
-    EV_SET(&chEvent, event->getSock(), flags, EV_DISABLE, 0, 0, event);
+    assert(event_);
+    EV_SET(&chEvent, event_->sock, flags, EV_DISABLE, 0, 0, event_);
     kevent(mKqueue, &chEvent, 1, nullptr, 0, nullptr);
 }
+
+int webserv::EventPool::eventGetSock() {
+    return event_->sock;
+}
+
 
 void webserv::EventPool::eventLoop() {
     const int       NUM_EVENTS = 1024;
@@ -88,48 +110,52 @@ void webserv::EventPool::eventLoop() {
 
         for (int i = 0; i < nEvent; ++i)
         {
-            int sd = static_cast<int>(eventList[i].ident);
-            void *udata = eventList[i].udata;
+            int sock = static_cast<int>(eventList[i].ident);
+            event_ = reinterpret_cast<Event*>(eventList[i].udata); // current event
 
-            if ( eventList[i].flags & EV_EOF || eventList[i].flags & EV_ERROR )
+            if ( !event_ ) { // FIXME
+                continue;
+            }
+
+            if ( eventList[i].flags & (EV_EOF|EV_ERROR) )
             {
                 webserv::logger.log(webserv::Logger::ERROR, "Event socket error");
                 webserv::logger.log(webserv::Logger::INFO, "Event socket disconnect");
-                Event *event = reinterpret_cast<Event*>(udata);
-                if ( event && event->m_eventCb )
+
+                if ( event_->handler )
                 {
-                    event->m_eventCb(this, event, eventList[i].flags, event->getCtx());
+                    event_->handler->event(this, eventList[i].flags);
                 }
             }
             // если сокет есть среди слушающих, принимаем новое соединение
-            else if ( mListenSockets.find(sd) != mListenSockets.end() )
+            else if ( mListenSockets.find(sock) != mListenSockets.end() )
             {
                 webserv::logger.log(webserv::Logger::INFO, "Add new connection");
-                std::map<int, struct sockaddr*>::iterator it = mListenSockets.find(sd);
-                acceptCB acb = reinterpret_cast<acceptCB>(udata);
-                if ( acb )
+                std::map<int, struct sockaddr*>::iterator it = mListenSockets.find(sock);
+
+                if ( event_->acceptor )
                 {
-                    acb(this, sd, it->second); //acceptcb call
+                    event_->acceptor->accept(this, sock, it->second); //acceptcb call
                 }
             }
             // читаем с сокета
             else if ( eventList[i].filter == EVFILT_READ )
             {
                 webserv::logger.log(webserv::Logger::INFO, "Read in socket");
-                Event *event = reinterpret_cast<Event*>(udata);
-                if ( event && event->m_readCb )
+
+                if ( event_->reader )
                 {
-                    event->m_readCb(this, event, event->getCtx());
+                    event_->reader->read(this);
                 }
             }
             // пишем в сокет
             else if ( eventList[i].filter == EVFILT_WRITE )
             {
                 webserv::logger.log(webserv::Logger::INFO, "Write in socket");
-                Event *event = reinterpret_cast<Event*>(udata);
-                if ( event && event->m_writeCb )
+
+                if ( event_->writer )
                 {
-                    event->m_writeCb(this, event, event->getCtx());
+                    event_->writer->write(this);
                 }
             }
             else if ( eventList[i].filter == EVFILT_TIMER )
@@ -140,10 +166,20 @@ void webserv::EventPool::eventLoop() {
     }
 }
 
-void webserv::EventPool::addListener(int sock, struct sockaddr *addr, acceptCB acceptCb) {
+void webserv::EventPool::addEvent(int sock, struct sockaddr *addr) {
+    event_ = new Event(sock, addr);
+
+    struct kevent chEvent = {};
+    EV_SET(&chEvent, event_->sock, 0, 0, 0, 0, event_);
+    kevent(mKqueue, &chEvent, 1, NULL, 0, nullptr);
+}
+
+void webserv::EventPool::addListener(int sock, struct sockaddr *addr, IEventAcceptor *acceptor) {
     struct kevent chEvent = {};
 
-    EV_SET(&chEvent, sock, EVFILT_READ, EV_ADD | EV_CLEAR, 0, 0, reinterpret_cast<void*>(acceptCb));
+    Event *event = new Event(sock, addr);
+    event->setCb(acceptor, nullptr, nullptr, nullptr);
+    EV_SET(&chEvent, sock, EVFILT_READ, EV_ADD | EV_CLEAR, 0, 0, reinterpret_cast<void*>(event));
     int res = kevent(mKqueue, &chEvent, 1, nullptr, 0, nullptr);
     if ( res == -1 ) {
         throw std::runtime_error("register socket descriptor for kqueue() fail");

@@ -14,4 +14,6 @@ add_executable(webserv
         Job.h
         utils.cpp
         Request.cpp
-        Response.cpp)
+        Response.cpp
+        kqueue.cpp
+        kqueue.h)

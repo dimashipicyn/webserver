@@ -7,38 +7,54 @@
 #ifndef WEBSERV_EVENTPOOL_H
 #define WEBSERV_EVENTPOOL_H
 
-namespace webserv {
+namespace webserv {    
+    class EventPool;
+
+    class IEventAcceptor {
+    public:
+        virtual void accept(EventPool *evPool, int sock, struct sockaddr *addr) = 0;
+    };
+
+    class IEventReader {
+    public:
+        virtual void read(EventPool *evPool) = 0;
+    };
+
+    class IEventWriter {
+    public:
+        virtual void write(EventPool *evPool) = 0;
+    };
+
+    class IEventHandler {
+    public:
+        virtual void event(EventPool *evPool, std::uint16_t flags) = 0;
+    };
+
     class EventPool {
     public:
-        class Event;
-        typedef void (*acceptCB)(EventPool *evt, int sd, struct sockaddr *addr);
-        typedef void (*eventCB)(EventPool *evt, Event *event, std::uint16_t flags, std::uintptr_t ctx);
-        typedef void (*readCB)(EventPool *evt, Event *event, std::uintptr_t ctx);
-        typedef void (*writeCB)(EventPool *evt, Event *event, std::uintptr_t ctx);
-
-        enum type {
+        enum {
             READ  = -1,
             WRITE = -2,
             TIMER = -7
         };
 
-        class Event {
-        public:
+        struct Event {
             Event(int sock, struct sockaddr *addr);
             ~Event();
 
-            void            setCb(readCB rcb, writeCB wcb, eventCB ecb, std::uintptr_t ctx);
-            int             getSock();
-            struct sockaddr *getAddr();
-            std::uintptr_t  getCtx();
+            void            setCb(
+                IEventAcceptor *acceptor,
+                IEventReader *reader,
+                IEventWriter *writer,
+                IEventHandler *handler
+            );
 
-        public:
-            int             m_sock;
-            struct sockaddr *m_addr;
-            std::uintptr_t  m_ctx;
-            readCB          m_readCb;
-            writeCB         m_writeCb;
-            eventCB         m_eventCb;
+            int             sock;
+            struct sockaddr *addr;
+            IEventAcceptor  *acceptor;
+            IEventReader    *reader;
+            IEventWriter    *writer;
+            IEventHandler   *handler;
         };
 
     public:
@@ -46,13 +62,34 @@ namespace webserv {
         ~EventPool();
 
         void eventLoop();
-        void addListener(int sock, struct sockaddr *addr, acceptCB acceptCb);
-        void eventSetCb(Event *event, readCB rcb, writeCB wcb, eventCB ecb, std::uintptr_t ctx);
-        void eventEnable(Event *event, std::int16_t flags, std::int32_t time = 0);
-        void eventDisable(Event *event, std::int16_t flags);
+        void addListener(int sock, struct sockaddr *addr, IEventAcceptor *acceptor);
+        void addEvent(int sock, struct sockaddr *addr);
+
+        // event methods
+        void eventSetAccepter(IEventAcceptor *acceptor);
+        void eventSetReader(IEventReader *reader);
+        void eventSetWriter(IEventWriter *writer);
+        void eventSetHandler(IEventHandler *handler);
+        void eventSetCb(
+                IEventAcceptor *acceptor,
+                IEventReader *reader,
+                IEventWriter *writer,
+                IEventHandler *handler
+                );
+
+        int                 eventGetSock();
+        struct sockaddr*    eventGetAddr();
+        IEventAcceptor*     eventGetAcceptor();
+        IEventReader*       eventGetReader();
+        IEventWriter*       eventGetWriter();
+        IEventHandler*      eventGetHandler();
+
+        void eventEnable(std::int16_t flags, std::int32_t time = 0);
+        void eventDisable(std::int16_t flags);
 
     private:
         int                              mKqueue;
+        Event                            *event_;
         std::map<int, struct sockaddr*>  mListenSockets;
     };
 }
