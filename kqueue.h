@@ -5,20 +5,23 @@
 
 class Kqueue {
 public:
-    Kqueue();
+    Kqueue(); //throw exception
     ~Kqueue();
 
     enum {
-        M_READ = 1,
-        M_WRITE = 2,
-        M_TIMER = 4,
-        M_EOF = 8,
-        M_ERROR = 16,
-        M_ENABLE = 32,
-        M_DISABLE = 64,
-        M_ADD = 128,
-        M_ONESHOT = 256,
-        M_CLEAR = 512
+        M_READ      = 1 << 0,   //
+        M_WRITE     = 1 << 1,   // general flags, set and returned
+        M_TIMER     = 1 << 2,   //
+
+        M_ENABLE    = 1 << 3,   //
+        M_DISABLE   = 1 << 4,   //
+        M_ADD       = 1 << 5,   // action flags, only set
+        M_ONESHOT   = 1 << 6,   // allow mixed
+        M_CLEAR     = 1 << 7,   //
+        M_DELETE    = 1 << 8,   //
+
+        M_EOF       = 1 << 9,   // returned values
+        M_ERROR     = 1 << 10   //
     };
 
     struct ev {
@@ -27,8 +30,9 @@ public:
         void            *ctx;
     };
 
-    int     getEvents(std::vector<struct ev>& nEvents);
-    void    setEvent(int fd, std::uint16_t flags, void *ctx, std::int64_t time = 0);
+    // modified vector, return n modified < nEvents.size()
+    int     getEvents(std::vector<struct ev>& nEvents);                                 // throw exception
+    void    setEvent(int fd, std::uint16_t flags, void *ctx, std::int64_t time = 0);    // throw exception
 
 private:
     int                         kq;

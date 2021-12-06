@@ -2,7 +2,7 @@
 #include "TcpSocket.h"
 #include "EventPool.h"
 
-class Handler : public webserv::IEventHandler {
+class Handler : public webserv::EventPool::IEventHandler {
     virtual void event(webserv::EventPool *evPool, std::uint16_t flags) {
         if ( flags & (webserv::EventPool::M_EOF | webserv::EventPool::M_ERROR) ) {
             std::cerr << "event error\n";
@@ -13,7 +13,7 @@ class Handler : public webserv::IEventHandler {
 
 class Reader;
 
-class Writer : public webserv::IEventWriter {
+class Writer : public webserv::EventPool::IEventWriter {
 public:
     virtual void write(webserv::EventPool *evPool) {
     int sock = evPool->eventGetSock();
@@ -29,7 +29,7 @@ public:
     std::string buffer;
 };
 
-class Reader : public webserv::IEventReader {
+class Reader : public webserv::EventPool::IEventReader {
 public:
     virtual void read(webserv::EventPool *evPool) {
         char buf[1024] = {0};
@@ -47,7 +47,7 @@ public:
 };
 
 
-class Accepter : public webserv::IEventAcceptor {
+class Accepter : public webserv::EventPool::IEventAcceptor {
 public:
     virtual void accept(webserv::EventPool *evPool, int sock, struct sockaddr *addr) {
         int conn = ::accept(sock, addr, (socklen_t[]){sizeof(struct sockaddr)});
@@ -70,7 +70,7 @@ int main()
     s.makeNonBlock();
     s.listen();
     eventPool.addListener(s.getSock(), s.getAddr(), new Accepter);
-    eventPool.eventLoop();
+    eventPool.start();
 
     return 0;
 }
