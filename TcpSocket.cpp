@@ -5,40 +5,48 @@
 #include "TcpSocket.h"
 
 webserv::TcpSocket::TcpSocket(const std::string &host, int port)
-        : m_sock(-1), m_addrLen(sizeof(m_address)), m_address()
+        : sock_(-1),
+          addrLen_(sizeof(address_)),
+          address_()
 {
     // Creating socket file descriptor
     // SOCK_STREAM потоковый сокет
     // IPPROTO_TCP протокол TCP
-    if ( (m_sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) == 0 ) {
+    if ( (sock_ = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) == 0 ) {
         throw std::runtime_error("TcpSocket: create socket failed");
     }
 
     // опции сокета, для переиспользования локальных адресов
-    if ( setsockopt(m_sock, SOL_SOCKET, SO_REUSEADDR, (int[]){1}, sizeof(int)) ) {
-        ::close(m_sock);
+    if ( setsockopt(sock_, SOL_SOCKET, SO_REUSEADDR, (int[]){1}, sizeof(int)) ) {
+        ::close(sock_);
         throw std::runtime_error("TcpSocket: setsockopt failed");
     }
 
+    struct sockaddr_in addr;
     // инициализируем структуру
-    m_address.sin_family = AF_INET; // domain AF_INET для ipv4, AF_INET6 для ipv6, AF_UNIX для локальных сокетов
-    m_address.sin_addr.s_addr = inet_addr(host.c_str()); // адрес host, format "127.0.0.1"
-    m_address.sin_port = htons(port); // host-to-network short
+    addr.sin_family = AF_INET; // domain AF_INET для ipv4, AF_INET6 для ipv6, AF_UNIX для локальных сокетов
+    addr.sin_addr.s_addr = inet_addr(host.c_str()); // адрес host, format "127.0.0.1"
+    addr.sin_port = htons(port); // host-to-network short
+    std::memcpy(&address_, &addr, addrLen_);
 
     // связывает сокет с конкретным адресом
-    if ( bind(m_sock, reinterpret_cast<sockaddr*>(&m_address), m_addrLen) < 0 ) {
-        ::close(m_sock);
+    if ( bind(sock_, reinterpret_cast<sockaddr*>(&address_), addrLen_) < 0 ) {
+        ::close(sock_);
         throw std::runtime_error("TcpSocket: bind socket failed");
     }
 }
 
 webserv::TcpSocket::~TcpSocket()
 {
-    ::close(m_sock);
+    ::close(sock_);
 }
 
-webserv::TcpSocket::TcpSocket(int sock, struct sockaddr addr) : m_sock(sock), m_addrLen(sizeof(struct sockaddr_in)), m_address()  {
-    std::memcpy(&m_address, &addr, sizeof(struct sockaddr));
+webserv::TcpSocket::TcpSocket(int sock, const struct sockaddr& addr)
+    : sock_(sock),
+      addrLen_(sizeof(struct sockaddr_in)),
+      address_()
+{
+    std::memcpy(&address_, &addr, sizeof(struct sockaddr));
 }
 
 webserv::TcpSocket::TcpSocket(const webserv::TcpSocket &socket) {
@@ -48,29 +56,29 @@ webserv::TcpSocket::TcpSocket(const webserv::TcpSocket &socket) {
 webserv::TcpSocket &webserv::TcpSocket::operator=(const webserv::TcpSocket &socket) {
     if ( &socket == this )
         return *this;
-    m_sock = ::dup(socket.m_sock);
-    m_address = socket.m_address;
-    m_addrLen = socket.m_addrLen;
+    sock_ = ::dup(socket.sock_);
+    address_ = socket.address_;
+    addrLen_ = socket.addrLen_;
     return *this;
 }
 
 
 void webserv::TcpSocket::listen() const {
     // готовит сокет к принятию входящих соединений
-    if ( ::listen(m_sock, SOMAXCONN) < 0 ) {
+    if ( ::listen(sock_, SOMAXCONN) < 0 ) {
         throw std::runtime_error("TcpSocket: listen socket failed");
     }
 }
 
-void webserv::TcpSocket::connect() {
-    if ( ::connect(m_sock, reinterpret_cast<sockaddr*>(&m_address), m_addrLen ) < 0 ) {
+void webserv::TcpSocket::connect() const {
+    if ( ::connect(sock_, &address_, addrLen_) < 0 ) {
         throw std::runtime_error("TcpSocket: connect socket failed");
     }
 }
 
-void webserv::TcpSocket::makeNonBlock() {
+void webserv::TcpSocket::makeNonBlock() const {
     // неблокирующий сокет
-    if ( fcntl(m_sock, F_SETFL, O_NONBLOCK) == -1 ) {
+    if ( fcntl(sock_, F_SETFL, O_NONBLOCK) == -1 ) {
         throw std::runtime_error("TcpSocket: fcntl failed");
     }
 }
@@ -78,22 +86,18 @@ void webserv::TcpSocket::makeNonBlock() {
 webserv::TcpSocket webserv::TcpSocket::accept() const
 {
     int         conn;
-    socklen_t   addrLen = sizeof(struct sockaddr);
 
     // проверяем входящее соединение
-    if ( (conn = ::accept(m_sock, (struct sockaddr *)&m_address, &addrLen)) < 0 ) {
+    if ( (conn = ::accept(sock_, (struct sockaddr *)&address_, (socklen_t[]){sizeof(struct sockaddr)})) < 0 ) {
         throw std::runtime_error("TcpSocket: accept failed");
     }
-    webserv::TcpSocket t(*this);
-    ::close(t.m_sock);
-    t.m_sock = conn;
-    return t;
+    return webserv::TcpSocket(conn, address_);
 }
 
 int webserv::TcpSocket::getSock() const {
-    return m_sock;
+    return sock_;
 }
 
-struct sockaddr* webserv::TcpSocket::getAddr() {
-    return reinterpret_cast<struct sockaddr*>(&m_address);
+const struct sockaddr& webserv::TcpSocket::getAddr() const {
+    return address_;
 }

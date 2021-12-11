@@ -8,8 +8,10 @@
 #include <map>
 #include "kqueue.h"
 
+
 namespace webserv {
 
+class TcpSocket;
 
     class EventPool {
     public:
@@ -56,7 +58,7 @@ namespace webserv {
 
         void start(); // throw exception
         void stop();
-        void addListener(int sock, struct sockaddr *addr, IEventAcceptor *acceptor);
+        void addListener(webserv::TcpSocket sock, IEventAcceptor *acceptor);
         void addEvent(int sock, struct sockaddr *addr, std::uint16_t flags, std::int64_t time = 0);
 
         // event methods
@@ -103,7 +105,7 @@ namespace webserv {
         bool                             running_;
         Kqueue                           poll_;
         Event                            *currentEvent_;
-        std::map<int, struct sockaddr*>  listenSockets_;
+        std::map<int, struct sockaddr>  listenSockets_;
     };
 }
 

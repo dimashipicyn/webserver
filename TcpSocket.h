@@ -15,22 +15,22 @@ namespace webserv {
     class TcpSocket {
     public:
         TcpSocket(const std::string& host, int port);
-        TcpSocket(int sock, struct sockaddr addr);
+        TcpSocket(int sock, const struct sockaddr& addr);
         ~TcpSocket();
         TcpSocket(const TcpSocket& socket);
         TcpSocket& operator=(const TcpSocket& socket);
 
         TcpSocket   accept() const;
         void        listen() const;
-        void        connect();
-        void        makeNonBlock();
+        void        connect() const;
+        void        makeNonBlock() const;
         int         getSock() const;
-        struct sockaddr* getAddr();
+        const struct sockaddr& getAddr() const;
 
     private:
-        int                 m_sock;
-        socklen_t           m_addrLen;
-        struct sockaddr_in  m_address;
+        int                 sock_;
+        socklen_t           addrLen_;
+        struct sockaddr     address_;
     };
 }
 

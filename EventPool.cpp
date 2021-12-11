@@ -11,9 +11,11 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <iostream>
+
 #include "Logger.h"
 #include "EventPool.h"
 #include "kqueue.h"
+#include "TcpSocket.h"
 
 webserv::EventPool::EventPool()
     : poll_(),
@@ -147,15 +149,16 @@ void webserv::EventPool::addEvent(int sock, struct sockaddr *addr, std::uint16_t
     }
 }
 
-void webserv::EventPool::addListener(int sock, struct sockaddr *addr, IEventAcceptor *acceptor) {
+void webserv::EventPool::addListener(webserv::TcpSocket sock, IEventAcceptor *acceptor)
+{
     try {
-        currentEvent_ = new Event(sock, addr);
+        currentEvent_ = new Event(sock, sock.getAddr());
         if (!currentEvent_) {
             throw std::bad_alloc();
         }
         currentEvent_->setCb(acceptor, nullptr, nullptr, nullptr);
-        poll_.setEvent(sock, M_READ|M_ADD|M_CLEAR, currentEvent_);
-        listenSockets_.insert(std::make_pair(sock, addr));
+        poll_.setEvent(sock.getSock(), M_READ|M_ADD|M_CLEAR, currentEvent_);
+        listenSockets_.insert(std::make_pair(sock, sock.getAddr()));
         webserv::logger.log(webserv::Logger::INFO, "Add listen socket");
     } catch (std::exception &e) {
         webserv::logger.log(webserv::Logger::ERROR, "Fail add listen socket");
