@@ -7,12 +7,13 @@
 
 #include <map>
 #include <string>
+#include <sstream>
 
 class Request {
 public:
     enum State {
         READING,
-        PARSING,
+        ERROR,
         FINISH
     };
 public:
@@ -26,14 +27,15 @@ public:
     const std::string &getPath() const;
 
     State getState() const;
+    void reset();
 
 private:
     Request(const Request& request) : state(READING), MAX_BUFFER_SIZE(10240) {};
-    Request& operator=(const Request& request) {};
+    Request& operator=(const Request& request) {return *this;};
 
 private:
     State                               state;
-    std::string                         buffer;
+    std::stringstream                   buffer;
     const int                           MAX_BUFFER_SIZE;
     std::string                         m_Method;
     std::string                         m_Version;

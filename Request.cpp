@@ -21,30 +21,18 @@ int Request::read(int fd) {
     char buf[buffersize];
     int ret;
 
-    switch (state) {
-        case READING:
+    if (state == READING) {
             ret = ::read(fd, buf, buffersize);
             if ( ret == -1 ) {
+                state = ERROR;
                 return -1;
             }
             buf[ret] = '\0';
-            buffer.append(buf);
-
-            if ( buffer.size() >= MAX_BUFFER_SIZE ||
-                 buffer.find("\n\n") != std::string::npos ||
-                 buffer.find("\r\n\r\n") != std::string::npos )
-            {
-                state = PARSING;
-            }
-            std::cout << "Reading" << std::endl;
-            break;
-        case PARSING:
-            std::cout << "Parsing" << std::endl;
+            buffer.str(buf);
+            buffer >> m_Method >> m_Path >> m_Version;
+            buffer.str("");
+            buffer.clear();
             state = FINISH;
-            break;
-        case FINISH:
-            std::cout << "Finish" << std::endl;
-            break;
     }
     return 0;
 }
@@ -70,4 +58,11 @@ const std::string &Request::getVersion() const {
 
 const std::string &Request::getPath() const {
     return m_Path;
+}
+
+void Request::reset() {
+    //m_Method = "";
+   // m_Path = "";
+    //m_Version = "";
+    state = READING;
 }

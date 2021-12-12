@@ -10,7 +10,6 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 
-
 namespace webserv {
     class TcpSocket {
     public:
@@ -26,6 +25,7 @@ namespace webserv {
         void        makeNonBlock() const;
         int         getSock() const;
         const struct sockaddr& getAddr() const;
+        struct sockaddr* getAddr();
 
     private:
         int                 sock_;

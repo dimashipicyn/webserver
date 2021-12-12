@@ -5,15 +5,16 @@ set(CMAKE_CXX_STANDARD 98)
 
 add_executable(webserv
         main.cpp
-        TcpSocket.cpp
         TcpSocket.h
-        EventPool.cpp
+        TcpSocket.cpp
         EventPool.h
+        EventPool.cpp
         Logger.cpp
-        Logger.h
-        Job.h
         utils.cpp
+        Request.h
         Request.cpp
+        Response.h
         Response.cpp
         kqueue.cpp
-        kqueue.h)
+        http.cpp
+        http.h)

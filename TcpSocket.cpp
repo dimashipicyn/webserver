@@ -101,3 +101,7 @@ int webserv::TcpSocket::getSock() const {
 const struct sockaddr& webserv::TcpSocket::getAddr() const {
     return address_;
 }
+
+struct sockaddr* webserv::TcpSocket::getAddr() {
+    return &address_;
+}

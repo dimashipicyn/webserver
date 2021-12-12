@@ -58,7 +58,7 @@ class TcpSocket;
 
         void start(); // throw exception
         void stop();
-        void addListener(webserv::TcpSocket sock, IEventAcceptor *acceptor);
+        void addListener(int sock, struct sockaddr *addr, IEventAcceptor *acceptor);
         void addEvent(int sock, struct sockaddr *addr, std::uint16_t flags, std::int64_t time = 0);
 
         // event methods
@@ -105,7 +105,7 @@ class TcpSocket;
         bool                             running_;
         Kqueue                           poll_;
         Event                            *currentEvent_;
-        std::map<int, struct sockaddr>  listenSockets_;
+        std::map<int, struct sockaddr*>  listenSockets_;
     };
 }
 

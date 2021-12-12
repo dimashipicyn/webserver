@@ -149,16 +149,16 @@ void webserv::EventPool::addEvent(int sock, struct sockaddr *addr, std::uint16_t
     }
 }
 
-void webserv::EventPool::addListener(webserv::TcpSocket sock, IEventAcceptor *acceptor)
+void webserv::EventPool::addListener(int sock, struct sockaddr *addr, IEventAcceptor *acceptor)
 {
     try {
-        currentEvent_ = new Event(sock, sock.getAddr());
+        currentEvent_ = new Event(sock, addr);
         if (!currentEvent_) {
             throw std::bad_alloc();
         }
         currentEvent_->setCb(acceptor, nullptr, nullptr, nullptr);
-        poll_.setEvent(sock.getSock(), M_READ|M_ADD|M_CLEAR, currentEvent_);
-        listenSockets_.insert(std::make_pair(sock, sock.getAddr()));
+        poll_.setEvent(sock, M_READ|M_ADD|M_CLEAR, currentEvent_);
+        listenSockets_.insert(std::make_pair(sock, addr));
         webserv::logger.log(webserv::Logger::INFO, "Add listen socket");
     } catch (std::exception &e) {
         webserv::logger.log(webserv::Logger::ERROR, "Fail add listen socket");
