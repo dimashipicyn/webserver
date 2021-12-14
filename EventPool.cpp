@@ -17,18 +17,18 @@
 #include "kqueue.h"
 #include "TcpSocket.h"
 
-webserv::EventPool::EventPool()
+EventPool::EventPool()
     : poll_(),
       currentEvent_(nullptr),
       listenSockets_()
 {
 }
 
-webserv::EventPool::~EventPool() {
+EventPool::~EventPool() {
 
 }
 
-void webserv::EventPool::eventSetCb(
+void EventPool::eventSetCb(
         IEventAcceptor *acc,
         IEventReader *reader,
         IEventWriter *writer,
@@ -37,47 +37,47 @@ void webserv::EventPool::eventSetCb(
     currentEvent_->setCb(acc, reader, writer, handler);
 }
 
-void webserv::EventPool::eventSetFlags(std::uint16_t flags, std::int64_t time) {
+void EventPool::eventSetFlags(std::uint16_t flags, std::int64_t time) {
     poll_.setEvent(currentEvent_->sock, flags, currentEvent_, time);
 }
 
-void webserv::EventPool::eventSetAccepter(IEventAcceptor *acceptor) {
+void EventPool::eventSetAccepter(IEventAcceptor *acceptor) {
     currentEvent_->acceptor = acceptor;
 }
 
-void webserv::EventPool::eventSetReader(IEventReader *reader) {
+void EventPool::eventSetReader(IEventReader *reader) {
     currentEvent_->reader = reader;
 }
-void webserv::EventPool::eventSetWriter(IEventWriter *writer) {
+void EventPool::eventSetWriter(IEventWriter *writer) {
     currentEvent_->writer = writer;
 }
-void webserv::EventPool::eventSetHandler(IEventHandler *handler) {
+void EventPool::eventSetHandler(IEventHandler *handler) {
     currentEvent_->handler = handler;
 }
 
-int webserv::EventPool::eventGetSock() const {
+int EventPool::eventGetSock() const {
     return currentEvent_->sock;
 }
 
-struct sockaddr* webserv::EventPool::eventGetAddr() const {
+struct sockaddr* EventPool::eventGetAddr() const {
     return currentEvent_->addr;
 }
 
-webserv::EventPool::IEventAcceptor* webserv::EventPool::eventGetAcceptor() const {
+EventPool::IEventAcceptor* EventPool::eventGetAcceptor() const {
     return currentEvent_->acceptor;
 }
 
-webserv::EventPool::IEventReader* webserv::EventPool::eventGetReader() const {
+EventPool::IEventReader* EventPool::eventGetReader() const {
     return currentEvent_->reader;
 }
-webserv::EventPool::IEventWriter* webserv::EventPool::eventGetWriter() const {
+EventPool::IEventWriter* EventPool::eventGetWriter() const {
     return currentEvent_->writer;
 }
-webserv::EventPool::IEventHandler* webserv::EventPool::eventGetHandler() const {
+EventPool::IEventHandler* EventPool::eventGetHandler() const {
     return currentEvent_->handler;
 }
 
-void webserv::EventPool::start() {
+void EventPool::start() {
     int sizeEvents = 1024;
     std::vector<Kqueue::ev> events(sizeEvents);
 
@@ -136,7 +136,7 @@ void webserv::EventPool::start() {
     }
 }
 
-void webserv::EventPool::addEvent(int sock, struct sockaddr *addr, std::uint16_t flags, std::int64_t time) {
+void EventPool::addEvent(int sock, struct sockaddr *addr, std::uint16_t flags, std::int64_t time) {
     try {
         currentEvent_ = new Event(sock, addr);
         if (!currentEvent_) {
@@ -149,7 +149,7 @@ void webserv::EventPool::addEvent(int sock, struct sockaddr *addr, std::uint16_t
     }
 }
 
-void webserv::EventPool::addListener(int sock, struct sockaddr *addr, IEventAcceptor *acceptor)
+void EventPool::addListener(int sock, struct sockaddr *addr, IEventAcceptor *acceptor)
 {
     try {
         currentEvent_ = new Event(sock, addr);
@@ -166,14 +166,14 @@ void webserv::EventPool::addListener(int sock, struct sockaddr *addr, IEventAcce
     }
 }
 
-void webserv::EventPool::stop() {
+void EventPool::stop() {
     running_ = false;
 }
 
 //////////////////////////////////////
 /////////////// Event ////////////////
 //////////////////////////////////////
-webserv::EventPool::Event::Event(int sock, struct sockaddr *addr)
+EventPool::Event::Event(int sock, struct sockaddr *addr)
     : sock(sock),
       addr(addr),
       acceptor(nullptr),
@@ -184,11 +184,11 @@ webserv::EventPool::Event::Event(int sock, struct sockaddr *addr)
 
 }
 
-webserv::EventPool::Event::~Event() {
+EventPool::Event::~Event() {
     ::close(sock);
 }
 
-void webserv::EventPool::Event::setCb(
+void EventPool::Event::setCb(
         IEventAcceptor *acc,
         IEventReader *re,
         IEventWriter *wr,

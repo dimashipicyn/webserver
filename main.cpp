@@ -5,6 +5,7 @@
 
 class ddd : public IHandle {
 public:
+    virtual ~ddd() {};
     void handler(int conn, const Request& req) {
         std::cout << "handler calling" << std::endl;
         std::string s("hello world\n");
@@ -15,7 +16,8 @@ public:
 
 int main()
 {
-    HTTP serve("127.0.0.1");
+    EventPool evPool;
+    HTTP serve(&evPool, "127.0.0.1");
     ddd h;
 
     serve.handle("/docs", &h);
