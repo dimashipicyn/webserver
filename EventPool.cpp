@@ -17,6 +17,12 @@
 #include "kqueue.h"
 #include "TcpSocket.h"
 
+EventPool::IEventAcceptor::~IEventAcceptor() {}
+EventPool::IEventHandler::~IEventHandler() {}
+EventPool::IEventReader::~IEventReader() {}
+EventPool::IEventWriter::~IEventWriter() {}
+
+
 EventPool::EventPool()
     : poll_(),
       currentEvent_(nullptr),
@@ -132,11 +138,21 @@ void EventPool::start() {
                     currentEvent_->writer->write(this);
                 }
             }
+
+            if (removeCurrentEvent_) {
+                delete(currentEvent_->acceptor);
+                delete(currentEvent_->reader);
+                delete(currentEvent_->writer);
+                delete(currentEvent_->handler);
+                delete(currentEvent_);
+            }
+
         } // end for
     }
 }
 
-void EventPool::addEvent(int sock, struct sockaddr *addr, std::uint16_t flags, std::int64_t time) {
+void EventPool::addEvent(int sock, struct sockaddr *addr, std::uint16_t flags, std::int64_t time)
+{
     try {
         currentEvent_ = new Event(sock, addr);
         if (!currentEvent_) {
@@ -148,6 +164,13 @@ void EventPool::addEvent(int sock, struct sockaddr *addr, std::uint16_t flags, s
         webserv::logger.log(webserv::Logger::ERROR, e.what());
     }
 }
+
+void EventPool::removeEvent()
+{
+    removeCurrentEvent_ = true;
+    webserv::logger.log(webserv::Logger::INFO, "Remove event");
+}
+
 
 void EventPool::addListener(int sock, struct sockaddr *addr, IEventAcceptor *acceptor)
 {

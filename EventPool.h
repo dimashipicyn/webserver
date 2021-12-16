@@ -15,21 +15,25 @@ public:
 
     class IEventAcceptor {
     public:
+        virtual ~IEventAcceptor();
         virtual void accept(EventPool *evPool, int sock, struct sockaddr *addr) = 0;
     };
 
     class IEventReader {
     public:
+        virtual~IEventReader();
         virtual void read(EventPool *evPool) = 0;
     };
 
     class IEventWriter {
     public:
+        virtual ~IEventWriter();
         virtual void write(EventPool *evPool) = 0;
     };
 
     class IEventHandler {
     public:
+        virtual ~IEventHandler();
         virtual void event(EventPool *evPool, std::uint16_t flags) = 0;
     };
 
@@ -57,6 +61,7 @@ public:
     void stop();
     void addListener(int sock, struct sockaddr *addr, IEventAcceptor *acceptor);
     void addEvent(int sock, struct sockaddr *addr, std::uint16_t flags, std::int64_t time = 0);
+    void removeEvent();
 
         // event methods
     void eventSetFlags(std::uint16_t flags, std::int64_t time = 0);
@@ -102,6 +107,7 @@ private:
     bool                             running_;
     Kqueue                           poll_;
     Event                            *currentEvent_;
+    bool                             removeCurrentEvent_;
     std::map<int, struct sockaddr*>  listenSockets_;
 };
 

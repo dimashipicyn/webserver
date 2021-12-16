@@ -22,17 +22,18 @@ int Request::read(int fd) {
     int ret;
 
     if (state == READING) {
-            ret = ::read(fd, buf, buffersize);
-            if ( ret == -1 ) {
-                state = ERROR;
-                return -1;
-            }
-            buf[ret] = '\0';
-            buffer.str(buf);
-            buffer >> m_Method >> m_Path >> m_Version;
-            buffer.str("");
-            buffer.clear();
-            state = FINISH;
+        ret = ::read(fd, buf, buffersize);
+        if ( ret == -1 ) {
+            state = ERROR;
+            return -1;
+        }
+        buf[ret] = '\0';
+        buffer.str(buf);
+        buffer >> m_Method >> m_Path >> m_Version;
+
+        buffer.str("");
+        buffer.clear();
+        state = FINISH;
     }
     return 0;
 }

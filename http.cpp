@@ -8,6 +8,7 @@ class Handler : public EventPool::IEventHandler {
     virtual void event(EventPool *evPool, std::uint16_t flags) {
         if ( flags & (EventPool::M_EOF | EventPool::M_ERROR) ) {
             std::cerr << "event error\n";
+            evPool->removeEvent();
         }
         std::cout << "eventer\n";
     }
@@ -28,6 +29,7 @@ public:
             request.read(sock);
         }
         if (request.getState() == Request::ERROR) {
+            evPool->removeEvent();
             std::cout << "error" << std::endl; // FIXME
         }
         if (request.getState() == Request::FINISH) {
@@ -87,8 +89,9 @@ void HTTP::accept(EventPool *evPool, int sock, struct sockaddr *addr)
                      , EventPool::M_READ
                      | EventPool::M_ADD);
     ReadWriter  *readWriter_ = new ReadWriter(this);
+    Handler *h = new Handler;
 
-    evPool->eventSetCb(nullptr, readWriter_, readWriter_, nullptr);
+    evPool->eventSetCb(nullptr, readWriter_, readWriter_, h);
     std::cout << "accept\n";
 }
 
