@@ -28,21 +28,24 @@ int Kqueue::getEvents(std::vector<struct ev>& events) {
         std::runtime_error("kevent() error");
     }
     for (int i = 0; i < n; ++i) {
-        struct ev event = {};
+        struct ev event = {0, 0, 0};
         if (nEvents_[i].flags & EV_EOF) {
             event.flags |= M_EOF;
         }
         if (nEvents_[i].flags & EV_ERROR) {
             event.flags |= M_ERROR;
         }
-        if (nEvents_[i].filter == EVFILT_READ) {
-            event.flags |= M_READ;
-        }
-        if (nEvents_[i].filter == EVFILT_WRITE) {
-            event.flags |= M_WRITE;
-        }
-        if (nEvents_[i].filter == EVFILT_TIMER) {
-            event.flags |= M_TIMER;
+        if (event.flags == 0) // dont have error, eof
+        {
+            if (nEvents_[i].filter == EVFILT_READ) {
+                event.flags |= M_READ;
+            }
+            if (nEvents_[i].filter == EVFILT_WRITE) {
+                event.flags |= M_WRITE;
+            }
+            if (nEvents_[i].filter == EVFILT_TIMER) {
+                event.flags |= M_TIMER;
+            }
         }
         event.fd = static_cast<std::int32_t>(nEvents_[i].ident);
         event.ctx = nEvents_[i].udata;

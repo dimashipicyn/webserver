@@ -99,7 +99,9 @@ void EventPool::start() {
             std::uint16_t flags = events[i].flags;
             currentEvent_ = reinterpret_cast<Event*>(events[i].ctx); // current event
 
+            ::printf("fd %d, flags %d\n", sock, flags);
             assert(currentEvent_);
+
 
             if ( currentEvent_->handler )
             {
@@ -138,15 +140,17 @@ void EventPool::start() {
                     currentEvent_->writer->write(this);
                 }
             }
-
+            // remove event
             if (removeCurrentEvent_) {
                 delete(currentEvent_->acceptor);
                 delete(currentEvent_->reader);
-                delete(currentEvent_->writer);
+                //delete(currentEvent_->writer);
                 delete(currentEvent_->handler);
-                delete(currentEvent_);
-            }
 
+                delete(currentEvent_);
+                currentEvent_ = nullptr;
+                removeCurrentEvent_ = false;
+            }
         } // end for
     }
 }

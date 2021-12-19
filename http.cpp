@@ -6,7 +6,7 @@
 
 class Handler : public EventPool::IEventHandler {
     virtual void event(EventPool *evPool, std::uint16_t flags) {
-        if ( flags & (EventPool::M_EOF | EventPool::M_ERROR) ) {
+        if ( flags & EventPool::M_EOF  || flags & EventPool::M_ERROR ) {
             std::cerr << "event error\n";
             evPool->removeEvent();
         }
@@ -53,7 +53,7 @@ public:
         }
         request.reset();
         evPool->eventSetFlags(EventPool::M_WRITE | EventPool::M_DISABLE);
-        evPool->eventSetFlags(EventPool::M_TIMER | EventPool::M_DISABLE);
+        //evPool->eventSetFlags(EventPool::M_TIMER | EventPool::M_DISABLE);
     }
 
     Request request;
@@ -84,6 +84,7 @@ HTTP::~HTTP()
 void HTTP::accept(EventPool *evPool, int sock, struct sockaddr *addr)
 {
     int conn = ::accept(sock, addr, (socklen_t[]){sizeof(struct sockaddr)});
+    std::cout << "new fd: " << conn << std::endl;
     evPool->addEvent(conn
                      , addr
                      , EventPool::M_READ

@@ -22,7 +22,7 @@ int Request::read(int fd) {
     int ret;
 
     if (state == READING) {
-        ret = ::read(fd, buf, buffersize);
+        ret = ::read(fd, buf, buffersize - 1);
         if ( ret == -1 ) {
             state = ERROR;
             return -1;
