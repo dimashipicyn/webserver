@@ -17,10 +17,10 @@
 #include "kqueue.h"
 #include "TcpSocket.h"
 
-EventPool::IEventAcceptor::~IEventAcceptor() {}
-EventPool::IEventHandler::~IEventHandler() {}
-EventPool::IEventReader::~IEventReader() {}
-EventPool::IEventWriter::~IEventWriter() {}
+IEventAcceptor::~IEventAcceptor() {}
+IEventHandler::~IEventHandler() {}
+IEventReader::~IEventReader() {}
+IEventWriter::~IEventWriter() {}
 
 
 EventPool::EventPool()
@@ -35,18 +35,19 @@ EventPool::~EventPool() {
 }
 
 void EventPool::eventSetCb(
-        IEventAcceptor *acc,
-        IEventReader *reader,
-        IEventWriter *writer,
-        IEventHandler *handler
+        std::auto_ptr<IEventAcceptor> acceptor,
+        std::auto_ptr<IEventReader> reader,
+        std::auto_ptr<IEventWriter> writer,
+        std::auto_ptr<IEventHandler> handler
         ) {
-    currentEvent_->setCb(acc, reader, writer, handler);
+    currentEvent_->setCb(acceptor, reader, writer, handler);
 }
 
 void EventPool::eventSetFlags(std::uint16_t flags, std::int64_t time) {
     poll_.setEvent(currentEvent_->sock, flags, currentEvent_, time);
 }
 
+/*
 void EventPool::eventSetAccepter(IEventAcceptor *acceptor) {
     currentEvent_->acceptor = acceptor;
 }
@@ -60,7 +61,7 @@ void EventPool::eventSetWriter(IEventWriter *writer) {
 void EventPool::eventSetHandler(IEventHandler *handler) {
     currentEvent_->handler = handler;
 }
-
+*/
 int EventPool::eventGetSock() const {
     return currentEvent_->sock;
 }
@@ -68,7 +69,7 @@ int EventPool::eventGetSock() const {
 struct sockaddr* EventPool::eventGetAddr() const {
     return currentEvent_->addr;
 }
-
+/*
 EventPool::IEventAcceptor* EventPool::eventGetAcceptor() const {
     return currentEvent_->acceptor;
 }
@@ -82,7 +83,7 @@ EventPool::IEventWriter* EventPool::eventGetWriter() const {
 EventPool::IEventHandler* EventPool::eventGetHandler() const {
     return currentEvent_->handler;
 }
-
+*/
 void EventPool::start() {
     int sizeEvents = 1024;
     std::vector<Kqueue::ev> events(sizeEvents);
@@ -103,10 +104,11 @@ void EventPool::start() {
             assert(currentEvent_);
 
 
-            if ( currentEvent_->handler )
+            if ( currentEvent_->handler.get() )
             {
                 currentEvent_->handler->event(this, flags);
             }
+
             // читаем с сокета
             if ( flags & M_READ )
             {
@@ -116,7 +118,7 @@ void EventPool::start() {
                     webserv::logger.log(webserv::Logger::INFO, "Add new connection");
 
                     std::map<int, struct sockaddr*>::iterator it = listenSockets_.find(sock);
-                    if ( currentEvent_->acceptor )
+                    if ( currentEvent_->acceptor.get() )
                     {
                         currentEvent_->acceptor->accept(this, sock, it->second); //acceptcb call
                     }
@@ -124,7 +126,7 @@ void EventPool::start() {
                 else
                 {
                     webserv::logger.log(webserv::Logger::INFO, "Read in socket");
-                    if ( currentEvent_->reader )
+                    if ( currentEvent_->reader.get() )
                     {
                         currentEvent_->reader->read(this);
                     }
@@ -135,18 +137,14 @@ void EventPool::start() {
             {
                 webserv::logger.log(webserv::Logger::INFO, "Write in socket");
 
-                if ( currentEvent_->writer )
+                if ( currentEvent_->writer.get() )
                 {
                     currentEvent_->writer->write(this);
                 }
             }
             // remove event
             if (removeCurrentEvent_) {
-                delete(currentEvent_->acceptor);
-                delete(currentEvent_->reader);
-                //delete(currentEvent_->writer);
-                delete(currentEvent_->handler);
-
+                //close(currentEvent_->sock);
                 delete(currentEvent_);
                 currentEvent_ = nullptr;
                 removeCurrentEvent_ = false;
@@ -176,14 +174,14 @@ void EventPool::removeEvent()
 }
 
 
-void EventPool::addListener(int sock, struct sockaddr *addr, IEventAcceptor *acceptor)
+void EventPool::addListener(int sock, struct sockaddr *addr, std::auto_ptr<IEventAcceptor> acceptor)
 {
     try {
         currentEvent_ = new Event(sock, addr);
         if (!currentEvent_) {
             throw std::bad_alloc();
         }
-        currentEvent_->setCb(acceptor, nullptr, nullptr, nullptr);
+        currentEvent_->acceptor = acceptor; // move pointer
         poll_.setEvent(sock, M_READ|M_ADD|M_CLEAR, currentEvent_);
         listenSockets_.insert(std::make_pair(sock, addr));
         webserv::logger.log(webserv::Logger::INFO, "Add listen socket");
@@ -212,17 +210,18 @@ EventPool::Event::Event(int sock, struct sockaddr *addr)
 }
 
 EventPool::Event::~Event() {
+    std::cout << "destr event\n";
     ::close(sock);
 }
 
 void EventPool::Event::setCb(
-        IEventAcceptor *acc,
-        IEventReader *re,
-        IEventWriter *wr,
-        IEventHandler *hr)
+        std::auto_ptr<IEventAcceptor> acc,
+        std::auto_ptr<IEventReader> re,
+        std::auto_ptr<IEventWriter> wr,
+        std::auto_ptr<IEventHandler> h)
 {
     acceptor = acc;
     reader = re;
     writer = wr;
-    handler = hr;
+    handler = h;
 }

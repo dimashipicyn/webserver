@@ -8,6 +8,7 @@
 
 
 class Request;
+class Response;
 
 ///
 /// callback interface class
@@ -18,10 +19,10 @@ class Request;
 class IHandle {
 public:
     virtual ~IHandle();
-    virtual void handler(int conn, const Request& req) = 0;
+    virtual void handler(Request& req, Response& resp) = 0;
 };
 
-class HTTP : public EventPool::IEventAcceptor
+class HTTP
 {
 public:
     explicit HTTP(EventPool *evPool, const std::string& host);
@@ -30,7 +31,6 @@ public:
     void handle(const std::string& path, IHandle *h);
     void start();
 
-    virtual void    accept(EventPool *evPool, int sock, struct sockaddr *addr);
     IHandle*        getHandle(const std::string& path);
 
 private:

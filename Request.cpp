@@ -62,8 +62,8 @@ const std::string &Request::getPath() const {
 }
 
 void Request::reset() {
-    //m_Method = "";
-   // m_Path = "";
-    //m_Version = "";
+    m_Method = "";
+    m_Path = "";
+    m_Version = "";
     state = READING;
 }

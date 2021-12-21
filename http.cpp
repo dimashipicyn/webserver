@@ -3,8 +3,9 @@
 #include "http.h"
 #include "EventPool.h"
 #include "Request.h"
+#include "Response.h"
 
-class Handler : public EventPool::IEventHandler {
+class Handler : public IEventHandler {
     virtual void event(EventPool *evPool, std::uint16_t flags) {
         if ( flags & EventPool::M_EOF  || flags & EventPool::M_ERROR ) {
             std::cerr << "event error\n";
@@ -15,13 +16,15 @@ class Handler : public EventPool::IEventHandler {
 };
 
 
-class ReadWriter
-        : public EventPool::IEventReader
-        , public EventPool::IEventWriter
+
+
+struct Reader : public IEventReader
 {
-public:
-    ReadWriter(HTTP *http) : http(http) {}
-    virtual void read(EventPool *evPool) {
+    Reader(HTTP& http) : request(), http(http) {
+
+    }
+    virtual void read(EventPool *evPool)
+    {
         std::cout << "reader\n";
         int sock = evPool->eventGetSock();
         if (request.getState() == Request::READING) {
@@ -45,19 +48,62 @@ public:
         }
     }
 
-    virtual void write(EventPool *evPool) {
-        std::cout << request << std::endl;
-        IHandle* h = http->getHandle(request.getPath());
-        if (h) {
-            h->handler(evPool->eventGetSock(), request);
+
+    Request request;
+    HTTP&    http;
+};
+
+struct Writer : public IEventWriter
+{
+    Writer(HTTP& http, Reader *reader) : response(), http(http), reader(reader) {
+
+    }
+    virtual void write(EventPool *evPool)
+    {
+        std::cout << reader->request << std::endl;
+        IHandle* callback = http.getHandle(reader->request.getPath());
+        if (callback) {
+            callback->handler(reader->request, response);
         }
-        request.reset();
+
+        // пишем в сокет
+        int sock = evPool->eventGetSock();
+        ::write(sock, response.getContent().c_str(), response.getContent().size());
+
+        // сброс
+        reader->request.reset();
+        response.reset();
+
+        // выключаем write
         evPool->eventSetFlags(EventPool::M_WRITE | EventPool::M_DISABLE);
         //evPool->eventSetFlags(EventPool::M_TIMER | EventPool::M_DISABLE);
     }
+    Response    response;
+    HTTP&       http;
+    Reader*     reader;
+};
 
-    Request request;
-    HTTP    *http;
+struct Accepter : public IEventAcceptor
+{
+    Accepter(HTTP& http) : http(http) {}
+
+    virtual void accept(EventPool *evPool, int sock, struct sockaddr *addr)
+    {
+        int conn = ::accept(sock, addr, (socklen_t[]){sizeof(struct sockaddr)});
+        std::cout << "new fd: " << conn << std::endl;
+        evPool->addEvent(conn
+                         , addr
+                         , EventPool::M_READ
+                         | EventPool::M_ADD);
+        std::auto_ptr<IEventReader>  reader(new Reader(http));
+        std::auto_ptr<IEventWriter>  writer(new Writer(http, static_cast<Reader*>(reader.get())));
+        std::auto_ptr<IEventHandler> handler(new Handler);
+
+        evPool->eventSetCb(std::auto_ptr<IEventAcceptor>(), reader, writer, handler);
+        std::cout << "accept\n";
+    }
+
+    HTTP& http;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -73,28 +119,16 @@ HTTP::HTTP(EventPool *evPool, const std::string& host)
 
     socket_.makeNonBlock();
     socket_.listen();
-    evPool_->addListener(socket_.getSock(), socket_.getAddr(), this);
+    std::auto_ptr<IEventAcceptor> accepter(new Accepter(*this));
+    evPool_->addListener(socket_.getSock(), socket_.getAddr(), accepter);
 }
 
 HTTP::~HTTP()
 {
-    delete evPool_;
+
 }
 
-void HTTP::accept(EventPool *evPool, int sock, struct sockaddr *addr)
-{
-    int conn = ::accept(sock, addr, (socklen_t[]){sizeof(struct sockaddr)});
-    std::cout << "new fd: " << conn << std::endl;
-    evPool->addEvent(conn
-                     , addr
-                     , EventPool::M_READ
-                     | EventPool::M_ADD);
-    ReadWriter  *readWriter_ = new ReadWriter(this);
-    Handler *h = new Handler;
 
-    evPool->eventSetCb(nullptr, readWriter_, readWriter_, h);
-    std::cout << "accept\n";
-}
 
 void HTTP::handle(const std::string& path, IHandle *h)
 {

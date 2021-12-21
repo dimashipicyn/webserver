@@ -9,34 +9,38 @@
 #include "kqueue.h"
 
 class TcpSocket;
+class EventPool;
+
+
+/*********** callbacks ****************/
+class IEventAcceptor {
+public:
+    virtual ~IEventAcceptor();
+    virtual void accept(EventPool *evPool, int sock, struct sockaddr *addr) = 0;
+};
+
+class IEventReader {
+public:
+    virtual~IEventReader();
+    virtual void read(EventPool *evPool) = 0;
+};
+
+class IEventWriter {
+public:
+    virtual ~IEventWriter();
+    virtual void write(EventPool *evPool) = 0;
+};
+
+class IEventHandler {
+public:
+    virtual ~IEventHandler();
+    virtual void event(EventPool *evPool, std::uint16_t flags) = 0;
+};
+/********** callbacks end **********/
+
 
 class EventPool {
 public:
-
-    class IEventAcceptor {
-    public:
-        virtual ~IEventAcceptor();
-        virtual void accept(EventPool *evPool, int sock, struct sockaddr *addr) = 0;
-    };
-
-    class IEventReader {
-    public:
-        virtual~IEventReader();
-        virtual void read(EventPool *evPool) = 0;
-    };
-
-    class IEventWriter {
-    public:
-        virtual ~IEventWriter();
-        virtual void write(EventPool *evPool) = 0;
-    };
-
-    class IEventHandler {
-    public:
-        virtual ~IEventHandler();
-        virtual void event(EventPool *evPool, std::uint16_t flags) = 0;
-    };
-
     enum {
         M_READ      = 1 << 0,   //
         M_WRITE     = 1 << 1,   // general flags, set and returned
@@ -59,7 +63,7 @@ public:
 
     void start(); // throw exception
     void stop();
-    void addListener(int sock, struct sockaddr *addr, IEventAcceptor *acceptor);
+    void addListener(int sock, struct sockaddr *addr, std::auto_ptr<IEventAcceptor> acceptor);
     void addEvent(int sock, struct sockaddr *addr, std::uint16_t flags, std::int64_t time = 0);
     void removeEvent();
 
@@ -70,10 +74,10 @@ public:
     void eventSetWriter(IEventWriter *writer);
     void eventSetHandler(IEventHandler *handler);
     void eventSetCb(
-            IEventAcceptor *acceptor,
-            IEventReader *reader,
-            IEventWriter *writer,
-            IEventHandler *handler
+            std::auto_ptr<IEventAcceptor> acceptor,
+            std::auto_ptr<IEventReader> reader,
+            std::auto_ptr<IEventWriter> writer,
+            std::auto_ptr<IEventHandler> handler
             );
 
     int                 eventGetSock() const;
@@ -89,18 +93,18 @@ private:
         ~Event();
 
         void            setCb(
-            IEventAcceptor *acceptor,
-            IEventReader *reader,
-            IEventWriter *writer,
-            IEventHandler *handler
+                std::auto_ptr<IEventAcceptor> acceptor,
+                std::auto_ptr<IEventReader> reader,
+                std::auto_ptr<IEventWriter> writer,
+                std::auto_ptr<IEventHandler> handler
         );
 
         int             sock;
         struct sockaddr *addr;
-        IEventAcceptor  *acceptor;
-        IEventReader    *reader;
-        IEventWriter    *writer;
-        IEventHandler   *handler;
+        std::auto_ptr<IEventAcceptor> acceptor;
+        std::auto_ptr<IEventReader> reader;
+        std::auto_ptr<IEventWriter> writer;
+        std::auto_ptr<IEventHandler> handler;
     };
 
 private:
