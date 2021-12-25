@@ -2,13 +2,13 @@
 #include "TcpSocket.h"
 #include "EventPool.h"
 #include "http.h"
+#include "Response.h"
 
 class ddd : public IHandle {
 public:
     void handler(int conn, const Request& req) {
-        std::cout << "handler calling" << std::endl;
-        std::string s("hello world\n");
-        ::write(conn, s.c_str(), s.size());
+        Response res;
+		res.write(conn);
     }
 };
 

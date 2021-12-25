@@ -13,6 +13,7 @@ class Response {
 public:
     Response();
     ~Response();
+	const std::string& getContent() const;
 
     void write(int fd);
 
@@ -21,7 +22,7 @@ private:
     Response& operator=(const Response& response) {};
 
 private:
-    std::string m;
+    std::string _output;
 };
 
 #endif //WEBSERV_RESPONSE_H
