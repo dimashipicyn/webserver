@@ -17,4 +17,10 @@ add_executable(webserv
         Response.cpp
         kqueue.cpp
         http.cpp
-        http.h)
+        http.h
+
+        settingsManager/SettingsManager.hpp
+        settingsManager/SettingsManager.cpp
+        settingsManager/Server.hpp
+        settingsManager/Server.cpp
+        )
