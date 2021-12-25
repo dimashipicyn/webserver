@@ -40,11 +40,11 @@ struct Reader : public IEventReader
             evPool->eventSetFlags(EventPool::M_WRITE
                                   | EventPool::M_ADD
                                   | EventPool::M_ENABLE);
-            //evPool->eventSetFlags(webserv::EventPool::M_TIMER
-            //                      | webserv::EventPool::M_ADD
-            //                      | webserv::EventPool::M_ENABLE
-            //                      , 1000
-            //                      );
+            evPool->eventSetFlags(EventPool::M_TIMER
+                                  | EventPool::M_ADD
+                                  | EventPool::M_ENABLE
+                                  , 1000
+                                  );
         }
     }
 
@@ -76,7 +76,7 @@ struct Writer : public IEventWriter
 
         // выключаем write
         evPool->eventSetFlags(EventPool::M_WRITE | EventPool::M_DISABLE);
-        //evPool->eventSetFlags(EventPool::M_TIMER | EventPool::M_DISABLE);
+        evPool->eventSetFlags(EventPool::M_TIMER | EventPool::M_DISABLE);
     }
     Response    response;
     HTTP&       http;
@@ -112,8 +112,8 @@ struct Accepter : public IEventAcceptor
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-HTTP::HTTP(EventPool *evPool, const std::string& host)
-    : evPool_(evPool), socket_(host, 1234), handleMap_()
+HTTP::HTTP(EventPool *evPool, const std::string& host, std::int16_t port)
+    : evPool_(evPool), socket_(host, port), handleMap_()
 {
     assert(evPool_); // user error
 

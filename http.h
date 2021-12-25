@@ -25,7 +25,7 @@ public:
 class HTTP
 {
 public:
-    explicit HTTP(EventPool *evPool, const std::string& host);
+    explicit HTTP(EventPool *evPool, const std::string& host, std::int16_t port);
     virtual ~HTTP();
 
     void handle(const std::string& path, IHandle *h);

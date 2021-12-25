@@ -31,29 +31,12 @@ public:
     }
 };
 
-class favicon : public IHandle {
-public:
-    virtual ~favicon() {};
-    void handler(Request& req, Response& resp)
-    {
-        /*
-        std::cout << req << std::endl;
-            std::stringstream ss;
-            ss << "HTTP/1.1 404 Not found\n\n";
-            ::write(conn, ss.str().c_str(), ss.str().size());
-        */
-    }
-};
-
-
 int main()
 {
     EventPool evPool;
-    HTTP serve(&evPool, "127.0.0.1");
+    HTTP serve(&evPool, "127.0.0.1", 1234);
     ddd h;
-    favicon favic;
     serve.handle("/", &h);
-    serve.handle("/favicon.ico", &favic);
     serve.start();
     return 0;
 }

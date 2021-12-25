@@ -111,6 +111,9 @@ private:
     bool                             running_;
     Kqueue                           poll_;
     Event                            *currentEvent_;
+    std::vector<Kqueue::ev>          changeEvents_;
+    std::int16_t                     currentFlags_;
+    std::int32_t                     currentTime_;
     bool                             removeCurrentEvent_;
     std::map<int, struct sockaddr*>  listenSockets_;
 };

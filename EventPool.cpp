@@ -44,7 +44,13 @@ void EventPool::eventSetCb(
 }
 
 void EventPool::eventSetFlags(std::uint16_t flags, std::int64_t time) {
-    poll_.setEvent(currentEvent_->sock, flags, currentEvent_, time);
+    Kqueue::ev event = {
+        .fd = currentEvent_->sock,
+        .flags = flags,
+        .ctx = currentEvent_,
+        .data = time
+    };
+    changeEvents_.push_back(event);
 }
 
 /*
@@ -96,6 +102,8 @@ void EventPool::start() {
 
         for (int i = 0; i < n; ++i)
         {
+            changeEvents_.clear();
+
             int sock = events[i].fd;
             std::uint16_t flags = events[i].flags;
             currentEvent_ = reinterpret_cast<Event*>(events[i].ctx); // current event
@@ -144,10 +152,12 @@ void EventPool::start() {
             }
             // remove event
             if (removeCurrentEvent_) {
-                //close(currentEvent_->sock);
                 delete(currentEvent_);
                 currentEvent_ = nullptr;
                 removeCurrentEvent_ = false;
+            }
+            else {
+                poll_.setEvent(changeEvents_);
             }
         } // end for
     }
@@ -160,7 +170,7 @@ void EventPool::addEvent(int sock, struct sockaddr *addr, std::uint16_t flags, s
         if (!currentEvent_) {
             throw std::bad_alloc();
         }
-        poll_.setEvent(sock, flags, currentEvent_, time);
+        eventSetFlags(flags, time);
     } catch (std::exception &e) {
         webserv::logger.log(webserv::Logger::ERROR, "Fail add event");
         webserv::logger.log(webserv::Logger::ERROR, e.what());
@@ -177,12 +187,14 @@ void EventPool::removeEvent()
 void EventPool::addListener(int sock, struct sockaddr *addr, std::auto_ptr<IEventAcceptor> acceptor)
 {
     try {
-        currentEvent_ = new Event(sock, addr);
-        if (!currentEvent_) {
+        Event *event = new Event(sock, addr);
+        if (!event) {
             throw std::bad_alloc();
         }
-        currentEvent_->acceptor = acceptor; // move pointer
-        poll_.setEvent(sock, M_READ|M_ADD|M_CLEAR, currentEvent_);
+        event->acceptor = acceptor; // move pointer
+        std::vector<Kqueue::ev> ch;
+        ch.push_back((Kqueue::ev){sock, M_READ|M_ADD|M_CLEAR, event, 0});
+        poll_.setEvent(ch);
         listenSockets_.insert(std::make_pair(sock, addr));
         webserv::logger.log(webserv::Logger::INFO, "Add listen socket");
     } catch (std::exception &e) {
