@@ -8,105 +8,90 @@
 #include <map>
 #include "kqueue.h"
 
-
-namespace webserv {
-
 class TcpSocket;
+class EventPool;
+struct Event;
 
-    class EventPool {
-    public:
 
-        class IEventAcceptor {
-        public:
-            virtual void accept(EventPool *evPool, int sock, struct sockaddr *addr) = 0;
-        };
+/*********** callbacks ****************/
+class IEventAcceptor {
+public:
+    virtual ~IEventAcceptor();
+    virtual void accept(EventPool *evPool, Event *event) = 0;
+};
 
-        class IEventReader {
-        public:
-            virtual void read(EventPool *evPool) = 0;
-        };
+class IEventReader {
+public:
+    virtual~IEventReader();
+    virtual void read(EventPool *evPool, Event *event) = 0;
+};
 
-        class IEventWriter {
-        public:
-            virtual void write(EventPool *evPool) = 0;
-        };
+class IEventWriter {
+public:
+    virtual ~IEventWriter();
+    virtual void write(EventPool *evPool, Event *event) = 0;
+};
 
-        class IEventHandler {
-        public:
-            virtual void event(EventPool *evPool, std::uint16_t flags) = 0;
-        };
+class IEventHandler {
+public:
+    virtual ~IEventHandler();
+    virtual void event(EventPool *evPool, Event *event, std::uint16_t flags) = 0;
+};
+/********** callbacks end **********/
 
-        enum {
-            M_READ      = 1 << 0,   //
-            M_WRITE     = 1 << 1,   // general flags, set and returned
-            M_TIMER     = 1 << 2,   //
+struct Event {
+    Event(int sock, struct sockaddr *addr);
+    ~Event();
 
-            M_ENABLE    = 1 << 3,   //
-            M_DISABLE   = 1 << 4,   //
-            M_ADD       = 1 << 5,   // action flags, only set
-            M_ONESHOT   = 1 << 6,   // allow mixed
-            M_CLEAR     = 1 << 7,   //
-            M_DELETE    = 1 << 8,   //
-
-            M_EOF       = 1 << 9,   // returned values
-            M_ERROR     = 1 << 10   //
-        };
-
-    public:
-        EventPool(); // throw exception
-        ~EventPool();
-
-        void start(); // throw exception
-        void stop();
-        void addListener(int sock, struct sockaddr *addr, IEventAcceptor *acceptor);
-        void addEvent(int sock, struct sockaddr *addr, std::uint16_t flags, std::int64_t time = 0);
-
-        // event methods
-        void eventSetFlags(std::uint16_t flags, std::int64_t time = 0);
-        void eventSetAccepter(IEventAcceptor *acceptor);
-        void eventSetReader(IEventReader *reader);
-        void eventSetWriter(IEventWriter *writer);
-        void eventSetHandler(IEventHandler *handler);
-        void eventSetCb(
-                IEventAcceptor *acceptor,
-                IEventReader *reader,
-                IEventWriter *writer,
-                IEventHandler *handler
-                );
-
-        int                 eventGetSock() const;
-        struct sockaddr*    eventGetAddr() const;
-        IEventAcceptor*     eventGetAcceptor() const;
-        IEventReader*       eventGetReader() const;
-        IEventWriter*       eventGetWriter() const;
-        IEventHandler*      eventGetHandler() const;
-
-    private:
-        struct Event {
-            Event(int sock, struct sockaddr *addr);
-            ~Event();
-
-            void            setCb(
-                IEventAcceptor *acceptor,
-                IEventReader *reader,
-                IEventWriter *writer,
-                IEventHandler *handler
+    void            setCb(
+            std::auto_ptr<IEventAcceptor> acceptor,
+            std::auto_ptr<IEventReader> reader,
+            std::auto_ptr<IEventWriter> writer,
+            std::auto_ptr<IEventHandler> handler
             );
 
-            int             sock;
-            struct sockaddr *addr;
-            IEventAcceptor  *acceptor;
-            IEventReader    *reader;
-            IEventWriter    *writer;
-            IEventHandler   *handler;
-        };
+    int             sock;
+    struct sockaddr *addr;
+    std::auto_ptr<IEventAcceptor> acceptor;
+    std::auto_ptr<IEventReader> reader;
+    std::auto_ptr<IEventWriter> writer;
+    std::auto_ptr<IEventHandler> handler;
+};
 
-    private:
-        bool                             running_;
-        Kqueue                           poll_;
-        Event                            *currentEvent_;
-        std::map<int, struct sockaddr*>  listenSockets_;
+class EventPool {
+public:
+    enum {
+        M_READ      = 1 << 0,   //
+        M_WRITE     = 1 << 1,   // general flags, set and returned
+        M_TIMER     = 1 << 2,   //
+
+        M_ENABLE    = 1 << 3,   //
+        M_DISABLE   = 1 << 4,   //
+        M_ADD       = 1 << 5,   // action flags, only set
+        M_ONESHOT   = 1 << 6,   // allow mixed
+        M_CLEAR     = 1 << 7,   //
+        M_DELETE    = 1 << 8,   //
+
+        M_EOF       = 1 << 9,   // returned values
+        M_ERROR     = 1 << 10   //
     };
-}
+
+public:
+    EventPool(); // throw exception
+    ~EventPool();
+
+    void start(); // throw exception
+    void stop();
+    void addListener(int sock, struct sockaddr *addr, std::auto_ptr<IEventAcceptor> acceptor);
+    void addEvent(Event *event, std::uint16_t flags, std::int64_t time = 0);
+    void removeEvent(Event *event);
+
+private:
+    Kqueue                      poll_;
+    std::vector<int>            listenSockets_;
+    std::vector<Kqueue::ev>     changeEvents_;
+    bool                        running_;
+    bool                        removed_;
+};
 
 #endif //WEBSERV_EVENTPOOL_H

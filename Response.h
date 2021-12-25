@@ -15,14 +15,17 @@ public:
     ~Response();
 	const std::string& getContent() const;
 
-    void write(int fd);
+    void setContent(const std::string& s);
+    const std::string& getContent();
+    void reset();
 
 private:
-    Response(const Response& response) {};
-    Response& operator=(const Response& response) {};
+    Response(const Response& response) {(void)response;};
+    Response& operator=(const Response& response) {(void)response;return *this;};
 
 private:
     std::string _output;
+
 };
 
 #endif //WEBSERV_RESPONSE_H

@@ -4,7 +4,7 @@
 
 #include "TcpSocket.h"
 
-webserv::TcpSocket::TcpSocket(const std::string &host, int port)
+TcpSocket::TcpSocket(const std::string &host, int port)
         : sock_(-1),
           addrLen_(sizeof(address_)),
           address_()
@@ -36,12 +36,12 @@ webserv::TcpSocket::TcpSocket(const std::string &host, int port)
     }
 }
 
-webserv::TcpSocket::~TcpSocket()
+TcpSocket::~TcpSocket()
 {
-    ::close(sock_);
+    //::close(sock_);
 }
 
-webserv::TcpSocket::TcpSocket(int sock, const struct sockaddr& addr)
+TcpSocket::TcpSocket(int sock, const struct sockaddr& addr)
     : sock_(sock),
       addrLen_(sizeof(struct sockaddr_in)),
       address_()
@@ -49,11 +49,11 @@ webserv::TcpSocket::TcpSocket(int sock, const struct sockaddr& addr)
     std::memcpy(&address_, &addr, sizeof(struct sockaddr));
 }
 
-webserv::TcpSocket::TcpSocket(const webserv::TcpSocket &socket) {
+TcpSocket::TcpSocket(const TcpSocket &socket) {
     operator=(socket);
 }
 
-webserv::TcpSocket &webserv::TcpSocket::operator=(const webserv::TcpSocket &socket) {
+TcpSocket &TcpSocket::operator=(const TcpSocket &socket) {
     if ( &socket == this )
         return *this;
     sock_ = ::dup(socket.sock_);
@@ -63,27 +63,27 @@ webserv::TcpSocket &webserv::TcpSocket::operator=(const webserv::TcpSocket &sock
 }
 
 
-void webserv::TcpSocket::listen() const {
+void TcpSocket::listen() const {
     // готовит сокет к принятию входящих соединений
     if ( ::listen(sock_, SOMAXCONN) < 0 ) {
         throw std::runtime_error("TcpSocket: listen socket failed");
     }
 }
 
-void webserv::TcpSocket::connect() const {
+void TcpSocket::connect() const {
     if ( ::connect(sock_, &address_, addrLen_) < 0 ) {
         throw std::runtime_error("TcpSocket: connect socket failed");
     }
 }
 
-void webserv::TcpSocket::makeNonBlock() const {
+void TcpSocket::makeNonBlock() const {
     // неблокирующий сокет
     if ( fcntl(sock_, F_SETFL, O_NONBLOCK) == -1 ) {
         throw std::runtime_error("TcpSocket: fcntl failed");
     }
 }
 
-webserv::TcpSocket webserv::TcpSocket::accept() const
+TcpSocket TcpSocket::accept() const
 {
     int         conn;
 
@@ -91,17 +91,17 @@ webserv::TcpSocket webserv::TcpSocket::accept() const
     if ( (conn = ::accept(sock_, (struct sockaddr *)&address_, (socklen_t[]){sizeof(struct sockaddr)})) < 0 ) {
         throw std::runtime_error("TcpSocket: accept failed");
     }
-    return webserv::TcpSocket(conn, address_);
+    return TcpSocket(conn, address_);
 }
 
-int webserv::TcpSocket::getSock() const {
+int TcpSocket::getSock() const {
     return sock_;
 }
 
-const struct sockaddr& webserv::TcpSocket::getAddr() const {
+const struct sockaddr& TcpSocket::getAddr() const {
     return address_;
 }
 
-struct sockaddr* webserv::TcpSocket::getAddr() {
+struct sockaddr* TcpSocket::getAddr() {
     return &address_;
 }
