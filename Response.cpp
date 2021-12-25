@@ -16,27 +16,14 @@ Response::Response() {
 Response::~Response() {
 }
 
-void Response::write(int fd) {
-	std::ifstream f(".\\wwwroot\\index.html");
-	std::string content = "<h1>404 Not Found</h1>";
-	int errorCode = 404;
-	if (f.good()){
-		std::string str ((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
-		content = str;
-		errorCode = 200;
-	}
-	f.close();
-	std::ostringstream oss;
-	oss << "HTTP/1.1 " << errorCode << " OK\r\n";
-	oss << "Cache-Control: no-cache, private\r\n";
-	oss << "Content-Type: text/html\r\n";
-	oss << "Content-Length: " << content.size() << "\r\n";
-	oss << "\r\n";
-	oss << content;
+void Response::setContent(const std::string &s) {
+    content_ = s;
+}
 
-		std::string output = oss.str();
-		int size = output.size() + 1;
+const std::string& Response::getContent() {
+    return content_;
+}
 
-
-	::write(fd, content.c_str(), size);
+void Response::reset() {
+    content_ = "";
 }
