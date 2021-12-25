@@ -38,7 +38,7 @@ TcpSocket::TcpSocket(const std::string &host, int port)
 
 TcpSocket::~TcpSocket()
 {
-    ::close(sock_);
+    //::close(sock_);
 }
 
 TcpSocket::TcpSocket(int sock, const struct sockaddr& addr)

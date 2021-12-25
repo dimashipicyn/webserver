@@ -13,7 +13,14 @@ Response::~Response() {
 
 }
 
-void Response::write(int fd) {
-    char *s = "HTTP/1.1 200 OK\n\n";
-    ::write(fd, s, strlen(s));
+void Response::setContent(const std::string &s) {
+    content_ = s;
+}
+
+const std::string& Response::getContent() {
+    return content_;
+}
+
+void Response::reset() {
+    content_ = "";
 }

@@ -28,11 +28,12 @@ public:
         std::int32_t    fd;
         std::uint16_t   flags;
         void            *ctx;
+        std::int32_t    data;
     };
 
     // modified vector, return n modified < nEvents.size()
     int     getEvents(std::vector<struct ev>& nEvents);                                 // throw exception
-    void    setEvent(int fd, std::uint16_t flags, void *ctx, std::int64_t time = 0);    // throw exception
+    void    setEvent(std::vector<struct ev>& changeEvents);    // throw exception
 
 private:
     int                         kq;

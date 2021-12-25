@@ -22,17 +22,18 @@ int Request::read(int fd) {
     int ret;
 
     if (state == READING) {
-            ret = ::read(fd, buf, buffersize);
-            if ( ret == -1 ) {
-                state = ERROR;
-                return -1;
-            }
-            buf[ret] = '\0';
-            buffer.str(buf);
-            buffer >> m_Method >> m_Path >> m_Version;
-            buffer.str("");
-            buffer.clear();
-            state = FINISH;
+        ret = ::read(fd, buf, buffersize - 1);
+        if ( ret == -1 ) {
+            state = ERROR;
+            return -1;
+        }
+        buf[ret] = '\0';
+        buffer.str(buf);
+        buffer >> m_Method >> m_Path >> m_Version;
+
+        buffer.str("");
+        buffer.clear();
+        state = FINISH;
     }
     return 0;
 }
@@ -61,8 +62,8 @@ const std::string &Request::getPath() const {
 }
 
 void Request::reset() {
-    //m_Method = "";
-   // m_Path = "";
-    //m_Version = "";
+    m_Method = "";
+    m_Path = "";
+    m_Version = "";
     state = READING;
 }
