@@ -1,5 +1,5 @@
 #include <iostream>
-
+#include "Logger.h"
 #include "http.h"
 #include "EventPool.h"
 #include "Request.h"
@@ -7,11 +7,11 @@
 
 class Handler : public IEventHandler {
     virtual void event(EventPool *evPool, Event *event, std::uint16_t flags) {
+        LOG_DEBUG("Event handler call\n");
         if ( flags & EventPool::M_EOF  || flags & EventPool::M_ERROR ) {
-            std::cerr << "event error\n";
+            LOG_DEBUG("Event error or eof, fd: %d\n", event->sock);
             evPool->removeEvent(event);
         }
-        std::cout << "eventer\n";
     }
 };
 
@@ -22,18 +22,16 @@ struct Reader : public IEventReader
     }
     virtual void read(EventPool *evPool, Event *event)
     {
-        std::cout << "reader\n";
+        LOG_DEBUG("Event reader call\n");
+
         int sock = event->sock;
         if (request.getState() == Request::READING) {
-            std::cout << "reading" << std::endl;
             request.read(sock);
         }
         if (request.getState() == Request::ERROR) {
             evPool->removeEvent(event);
-            std::cout << "error" << std::endl; // FIXME
         }
         if (request.getState() == Request::FINISH) {
-            std::cout << "finish" << std::endl;
             evPool->addEvent(event, EventPool::M_WRITE
                                   | EventPool::M_ADD
                                   | EventPool::M_ENABLE);
@@ -57,7 +55,8 @@ struct Writer : public IEventWriter
     }
     virtual void write(EventPool *evPool, Event *event)
     {
-        std::cout << reader->request << std::endl;
+        LOG_DEBUG("Event writer call\n");
+
         http.handler(reader->request, response);
 
         // пишем в сокет
@@ -66,7 +65,7 @@ struct Writer : public IEventWriter
 
         // сброс
         reader->request.reset();
-        response.reset();
+        //response.reset();
 
         // выключаем write
         evPool->addEvent(event, EventPool::M_WRITE | EventPool::M_DISABLE);
@@ -83,8 +82,10 @@ struct Accepter : public IEventAcceptor
 
     virtual void accept(EventPool *evPool, Event *event)
     {
+        LOG_DEBUG("Event accepter call\n");
         int conn = ::accept(event->sock, event->addr, (socklen_t[]){sizeof(struct sockaddr)});
-        std::cout << "new fd: " << conn << std::endl;
+
+        LOG_DEBUG("New connect fd: %d\n", conn);
 
         Event *newEvent = new Event(conn, event->addr);
 
@@ -93,8 +94,7 @@ struct Accepter : public IEventAcceptor
         std::auto_ptr<IEventHandler> handler(new Handler);
 
         newEvent->setCb(std::auto_ptr<IEventAcceptor>(), reader, writer, handler);
-        evPool->addEvent(newEvent, EventPool::M_READ | EventPool::M_ADD);
-        std::cout << "accept\n";
+        evPool->addEvent(newEvent, EventPool::M_READ | EventPool::M_ADD | EventPool::M_ENABLE);
     }
 
     HTTP& http;
@@ -123,6 +123,7 @@ HTTP::~HTTP()
 // здесь происходит обработка запроса
 void HTTP::handler(Request& request, Response& response)
 {
+    LOG_DEBUG("Http handler call\n");
     std::stringstream ss;
     std::string s("Hello Webserver!\n");
     ss << "HTTP/1.1 200 OK\n"

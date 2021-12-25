@@ -37,7 +37,7 @@ void EventPool::start() {
     int sizeEvents = 1024;
     std::vector<Kqueue::ev> events(sizeEvents);
 
-    webserv::logger.log(webserv::Logger::INFO, "Run event loop");
+    LOG_INFO("Run event loop\n");
 
     running_ = true;
     while (running_) {
@@ -48,7 +48,7 @@ void EventPool::start() {
             std::uint16_t flags = events[i].flags;
             Event *event = reinterpret_cast<Event*>(events[i].ctx); // current event
             removed_ = false;
-            ::printf("fd %d, flags %d\n", event->sock, flags);
+            LOG_DEBUG("Event fd %d, flags %d\n", event->sock, flags);
             assert(event);
 
 
@@ -64,7 +64,7 @@ void EventPool::start() {
                 std::vector<int>::iterator found = find(listenSockets_.begin(), listenSockets_.end(), event->sock);
                 if ( found != listenSockets_.end() )
                 {
-                    webserv::logger.log(webserv::Logger::INFO, "Add new connection");
+                    LOG_DEBUG("Create new connection\n");
 
                     if ( event->acceptor.get() )
                     {
@@ -73,7 +73,7 @@ void EventPool::start() {
                 }
                 else
                 {
-                    webserv::logger.log(webserv::Logger::INFO, "Read in socket");
+                    LOG_DEBUG("Reading in fd: %d\n", event->sock);
                     if ( event->reader.get() )
                     {
                         event->reader->read(this, event);
@@ -83,18 +83,13 @@ void EventPool::start() {
             // пишем в сокет
             if ( !removed_ && flags & M_WRITE )
             {
-                webserv::logger.log(webserv::Logger::INFO, "Write in socket");
+                LOG_DEBUG("Write in fd: %d\n", event->sock);
 
                 if ( event->writer.get() )
                 {
                     event->writer->write(this, event);
                 }
             }
-
-            if (!removed_) {
-                poll_.setEvent(changeEvents_);
-            }
-
         } // end for
     }
 }
@@ -102,19 +97,17 @@ void EventPool::start() {
 void EventPool::addEvent(Event *event, std::uint16_t flags, std::int64_t time)
 {
     try {
-        Kqueue::ev ev = {event->sock, flags, event, time};
-        changeEvents_.push_back(ev);
+        poll_.setEvent(event->sock, flags, event, time);
     } catch (std::exception &e) {
-        webserv::logger.log(webserv::Logger::ERROR, "Fail add event");
-        webserv::logger.log(webserv::Logger::ERROR, e.what());
+        LOG_DEBUG("Failed addEvent: %s\n", e.what());
     }
 }
 
 void EventPool::removeEvent(Event *event)
 {
+    LOG_DEBUG("Remove event fd: %d\n", event->sock);
     delete event;
     removed_ = true;
-    webserv::logger.log(webserv::Logger::INFO, "Remove event");
 }
 
 
@@ -126,13 +119,11 @@ void EventPool::addListener(int sock, struct sockaddr *addr, std::auto_ptr<IEven
             throw std::bad_alloc();
         }
         event->acceptor = acceptor; // move pointer
-        changeEvents_.push_back((Kqueue::ev){sock, M_READ|M_ADD|M_CLEAR, event, 0});
-        poll_.setEvent(changeEvents_);
+        poll_.setEvent(sock, M_READ|M_ADD|M_CLEAR, event, 0);
         listenSockets_.push_back(sock);
-        webserv::logger.log(webserv::Logger::INFO, "Add listen socket");
+        LOG_DEBUG("Add listen fd: %d\n", event->sock);
     } catch (std::exception &e) {
-        webserv::logger.log(webserv::Logger::ERROR, "Fail add listen socket");
-        webserv::logger.log(webserv::Logger::ERROR, e.what());
+        LOG_DEBUG("addListener fail. %s\n", e.what());
     }
 }
 
@@ -155,7 +146,6 @@ Event::Event(int sock, struct sockaddr *addr)
 }
 
 Event::~Event() {
-    std::cout << "destr event\n";
     ::close(sock);
 }
 
