@@ -48,7 +48,9 @@ void EventPool::start() {
             std::uint16_t flags = events[i].flags;
             Event *event = reinterpret_cast<Event*>(events[i].ctx); // current event
             removed_ = false;
+
             LOG_DEBUG("Event fd %d, flags %d\n", event->sock, flags);
+
             assert(event);
 
 
@@ -74,6 +76,7 @@ void EventPool::start() {
                 else
                 {
                     LOG_DEBUG("Reading in fd: %d\n", event->sock);
+
                     if ( event->reader.get() )
                     {
                         event->reader->read(this, event);
@@ -90,6 +93,11 @@ void EventPool::start() {
                     event->writer->write(this, event);
                 }
             }
+
+            if (!removed_) {
+                poll_.setEvent(changeEvents_);
+            }
+
         } // end for
     }
 }
@@ -98,6 +106,7 @@ void EventPool::addEvent(Event *event, std::uint16_t flags, std::int64_t time)
 {
     try {
         poll_.setEvent(event->sock, flags, event, time);
+
     } catch (std::exception &e) {
         LOG_DEBUG("Failed addEvent: %s\n", e.what());
     }
@@ -119,6 +128,7 @@ void EventPool::addListener(int sock, struct sockaddr *addr, std::auto_ptr<IEven
             throw std::bad_alloc();
         }
         event->acceptor = acceptor; // move pointer
+
         poll_.setEvent(sock, M_READ|M_ADD|M_CLEAR, event, 0);
         listenSockets_.push_back(sock);
         LOG_DEBUG("Add listen fd: %d\n", event->sock);

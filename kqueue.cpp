@@ -28,7 +28,7 @@ int Kqueue::getEvents(std::vector<struct ev>& events) {
         std::runtime_error("kevent() error");
     }
     for (int i = 0; i < n; ++i) {
-        struct ev event = {};
+        struct ev event = {0, 0, 0};
         if (nEvents_[i].flags & EV_EOF) {
             event.flags |= M_EOF;
         }
@@ -84,8 +84,4 @@ void Kqueue::setEvent(int32_t fd, uint16_t flags, void *ctx, int32_t time)
     if (flags & M_DELETE) {
         event.flags |= EV_DELETE;
     }
-    event.ident = fd;
-    event.udata = ctx;
-    event.data = time;
-    chEvents_.push_back(event);
 }

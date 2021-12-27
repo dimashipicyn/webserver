@@ -69,6 +69,7 @@ struct Writer : public IEventWriter
         reader->request.reset();
         //response.reset();
 
+
         // выключаем write
         evPool->addEvent(event, EventPool::M_WRITE | EventPool::M_DISABLE);
         //evPool->eventSetFlags(EventPool::M_TIMER | EventPool::M_DISABLE);
