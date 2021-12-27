@@ -93,11 +93,6 @@ void EventPool::start() {
                     event->writer->write(this, event);
                 }
             }
-
-            if (!removed_) {
-                poll_.setEvent(changeEvents_);
-            }
-
         } // end for
     }
 }
