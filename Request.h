@@ -11,36 +11,49 @@
 
 class Request {
 public:
+    typedef std::map<std::string, std::string> headersMap;
+
     enum State {
-        READING,
-        ERROR,
-        FINISH
+        PARSE_FIRST_LINE,
+        PARSE_HEADERS,
+        PARSE_BODY,
+        PARSE_ERROR,
+        PARSE_DONE
     };
+
 public:
     Request();
     ~Request();
 
-    int read(int fd);
+    void parse(const char* buf);
 
-    const std::string &getMethod() const;
-    const std::string &getVersion() const;
-    const std::string &getPath() const;
+    void parse_first_line();
+    void parse_headers();
+    void parse_body();
 
-    State getState() const;
+    const std::string&      getMethod() const;
+    const std::string&      getVersion() const;
+    const std::string&      getPath() const;
+    const std::string&      getQueryString() const;
+    const std::string&      getBody() const;
+    const headersMap&       getHeaders() const;
+    State                   getState() const;
+
     void reset();
 
 private:
-    Request(const Request& request) : state(READING), MAX_BUFFER_SIZE(10240) {};
-    Request& operator=(const Request& request) {return *this;};
+    Request(const Request&) {};
+    Request& operator=(const Request&) {return *this;};
 
 private:
-    State                               state;
-    std::stringstream                   buffer;
-    const int                           MAX_BUFFER_SIZE;
-    std::string                         m_Method;
-    std::string                         m_Version;
-    std::string                         m_Path;
-    std::map<std::string, std::string>  m_Headers;
+    State               state_;
+    std::stringstream   buffer_;
+    std::string         method_;
+    std::string         version_;
+    std::string         path_;
+    std::string         query_string_;
+    std::string         body_;
+    headersMap          headers_;
 };
 
 std::ostream& operator<<(std::ostream& os, const Request& request);

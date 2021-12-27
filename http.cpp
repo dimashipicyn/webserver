@@ -24,14 +24,16 @@ struct Reader : public IEventReader
     {
         LOG_DEBUG("Event reader call\n");
 
-        int sock = event->sock;
-        if (request.getState() == Request::READING) {
-            request.read(sock);
+        int nBytes = ::read(event->sock, buffer, 1024);
+        if (nBytes < 0) {
+            LOG_ERROR("Error read socket: %d. %s\n", event->sock, ::strerror(errno));
         }
-        if (request.getState() == Request::ERROR) {
-            evPool->removeEvent(event);
-        }
-        if (request.getState() == Request::FINISH) {
+        buffer[nBytes] = '\0';
+        request.parse(buffer);
+
+        if (request.getState() == Request::PARSE_ERROR
+         || request.getState() == Request::PARSE_DONE)
+        {
             evPool->addEvent(event, EventPool::M_WRITE
                                   | EventPool::M_ADD
                                   | EventPool::M_ENABLE);
@@ -43,9 +45,9 @@ struct Reader : public IEventReader
         }
     }
 
-
     Request request;
-    HTTP&    http;
+    HTTP&   http;
+    char    buffer[1025];
 };
 
 struct Writer : public IEventWriter
@@ -124,12 +126,17 @@ HTTP::~HTTP()
 void HTTP::handler(Request& request, Response& response)
 {
     LOG_DEBUG("Http handler call\n");
-    std::stringstream ss;
-    std::string s("Hello Webserver!\n");
-    ss << "HTTP/1.1 200 OK\n"
-    << "Content-Length: " << s.size() << "\n"
-    << "Content-Type: text/html\n\n";
-    response.setContent(ss.str() + s);
+    LOG_DEBUG("--------------PRINT REQUEST--------------\n");
+    std::cout << request << std::endl;
+
+    if (request.getMethod() == "GET" && request.getPath() == "/") {
+        std::stringstream ss;
+        std::string s("Hello Webserver!\n");
+        ss << "HTTP/1.1 200 OK\n"
+           << "Content-Length: " << s.size() << "\n"
+           << "Content-Type: text/html\n\n";
+        response.setContent(ss.str() + s);
+    }
 }
 
 
