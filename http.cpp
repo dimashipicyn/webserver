@@ -66,7 +66,7 @@ struct Writer : public IEventWriter
 
         // сброс
         reader->request.reset();
-        response.reset();
+        //response.reset();
 
         // выключаем write
         evPool->addEvent(event, EventPool::M_WRITE | EventPool::M_DISABLE);
@@ -113,6 +113,9 @@ HTTP::HTTP(const std::string& host, std::int16_t port)
     socket.listen();
     std::auto_ptr<IEventAcceptor> accepter(new Accepter(*this));
     evPool_.addListener(socket.getSock(), socket.getAddr(), accepter);
+	std::string methodsIn[] = {"GET", "HEAD","POST", "PUT", "DELETE", "CONNECT",
+							   "OPTIONS", "TRACE", "PATCH", };
+	for (int i = 0; i < 9; ++i) _methods.insert(methodsIn[i]);
 }
 
 HTTP::~HTTP()
@@ -120,17 +123,36 @@ HTTP::~HTTP()
 
 }
 
+
+
 // здесь происходит обработка запроса
 void HTTP::handler(Request& request, Response& response)
 {
-    std::stringstream ss;
-    std::string s("Hello Webserver!\n");
-    ss << "HTTP/1.1 200 OK\n"
-    << "Content-Length: " << s.size() << "\n"
-    << "Content-Type: text/html\n\n";
-    response.setContent(ss.str() + s);
+	std::string method = "GET"; // method = request.method;
+
+	if (method == "GET") return methodGET(request, response);
+	else if (method == "POST") return methodPOST(request, response);
+	else if (method == "DELETE") return methodDELETE(request, response);
+	else if (_methods.count(method) != 0) return methodNotAllowed();
 }
 
+
+
+void HTTP::methodGET(Request& request, Response& response){
+	response.errorPage();
+}
+
+void HTTP::methodPOST(Request& request, Response& response) {
+
+}
+
+void HTTP::methodDELETE(Request& request, Response& response) {
+
+}
+
+void HTTP::methodNotAllowed(){
+
+}
 
 void HTTP::start() {
     evPool_.start();

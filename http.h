@@ -2,7 +2,7 @@
 #define HTTP_H
 
 #include <string>
-#include <map>
+#include <set>
 #include "TcpSocket.h"
 #include "EventPool.h"
 
@@ -21,6 +21,13 @@ public:
 
 private:
     EventPool   evPool_;
+
+private:
+	std::set<std::string> _methods;
+	void methodGET(Request& request, Response& response);
+	void methodPOST(Request& request, Response& response);
+	void methodDELETE(Request& request, Response& response);
+	void methodNotAllowed();
 };
 
 #endif // HTTP_H

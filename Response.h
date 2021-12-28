@@ -14,10 +14,8 @@ public:
     Response();
     ~Response();
 	const std::string& getContent() const;
-
-    void setContent(const std::string& s);
-    const std::string& getContent();
-    void reset();
+	void setHeader(std::string name, std::string value) {};
+	void errorPage();
 
 private:
     Response(const Response& response) {(void)response;};
