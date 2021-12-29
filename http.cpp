@@ -129,11 +129,11 @@ HTTP::~HTTP()
 void HTTP::handler(Request& request, Response& response)
 {
 	std::string method = "GET"; // method = request.method;
-
 	if (method == "GET") return methodGET(request, response);
 	else if (method == "POST") return methodPOST(request, response);
 	else if (method == "DELETE") return methodDELETE(request, response);
 	else if (_methods.count(method) != 0) return methodNotAllowed();
+	else return methodBadRequest();
 }
 
 
@@ -141,6 +141,15 @@ void HTTP::handler(Request& request, Response& response)
 void HTTP::methodGET(Request& request, Response& response){
 	response.errorPage();
 }
+
+
+
+
+
+
+
+
+
 
 void HTTP::methodPOST(Request& request, Response& response) {
 
@@ -153,6 +162,10 @@ void HTTP::methodDELETE(Request& request, Response& response) {
 void HTTP::methodNotAllowed(){
 
 }
+
+void HTTP::methodBadRequest(){
+
+};
 
 void HTTP::start() {
     evPool_.start();

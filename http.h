@@ -28,6 +28,7 @@ private:
 	void methodPOST(Request& request, Response& response);
 	void methodDELETE(Request& request, Response& response);
 	void methodNotAllowed();
+	void methodBadRequest();
 };
 
 #endif // HTTP_H
