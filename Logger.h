@@ -7,27 +7,21 @@
 #include <string>
 #include <vector>
 
-namespace webserv {
-    class Logger {
-    public:
-        enum LogLevel {
-            ALL,
-            INFO,
-            WARNING,
-            ERROR,
-            MAX_ELEM_LOG_LEVEL
-        };
+enum LogLevel {
+    ALL_LOG_LVL,
+    INFO_LOG_LVL,
+    DEBUG_LOG_LVL,
+    WARNING_LOG_LVL,
+    ERROR_LOG_LVL,
+    MAX_ELEM_LOG_LEVEL
+};
 
-    public:
-        Logger();
-        void log(enum LogLevel lvl, const std::string& message);
+#define LOG(loglevel, log, args...) webservlogger(loglevel, log, args);
+#define LOG_DEBUG(args...) webservlogger(DEBUG_LOG_LVL, args);
+#define LOG_INFO(args...) webservlogger(INFO_LOG_LVL, args);
+#define LOG_WARNING(args...) webservlogger(WARNING_LOG_LVL, args);
+#define LOG_ERROR(args...) webservlogger(ERROR_LOG_LVL, args);
 
-    private:
-        std::string                 mLogLevelStr[MAX_ELEM_LOG_LEVEL];
-    };
-
-    extern Logger   logger;
-}
-
+void webservlogger(LogLevel logLvl, const char *log, ...);
 
 #endif //WEBSERV_LOGGER_H

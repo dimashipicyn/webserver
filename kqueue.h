@@ -33,7 +33,7 @@ public:
 
     // modified vector, return n modified < nEvents.size()
     int     getEvents(std::vector<struct ev>& nEvents);                                 // throw exception
-    void    setEvent(std::vector<struct ev>& changeEvents);    // throw exception
+    void    setEvent(int32_t fd, uint16_t flags, void *ctx, int32_t time = 0);    // throw exception
 
 private:
     int                         kq;
