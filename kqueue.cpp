@@ -21,14 +21,14 @@ int Kqueue::getEvents(std::vector<struct ev>& events) {
     if (events.size() != nEvents_.size()) {
         nEvents_.resize(events.size());
     }
-    int n = kevent(kq, chEvents_.data(), chEvents_.size(), nEvents_.data(), nEvents_.size(), &tmout);
+    int n = kevent(kq, chEvents_.data(), chEvents_.size(), nullptr, 0, &tmout);
     chEvents_.clear();
-
+    n = kevent(kq, nullptr, 0, nEvents_.data(), nEvents_.size(), &tmout);
     if (n == -1) {
         std::runtime_error("kevent() error");
     }
     for (int i = 0; i < n; ++i) {
-        struct ev event = {0, 0, 0};
+        struct ev event = {};
         if (nEvents_[i].flags & EV_EOF) {
             event.flags |= M_EOF;
         }
@@ -54,40 +54,38 @@ int Kqueue::getEvents(std::vector<struct ev>& events) {
     return n;
 }
 
-void Kqueue::setEvent(std::vector<struct ev>& changeEvents) {
-    for (std::vector<struct ev>::size_type i = 0; i < changeEvents.size(); i++) {
-        struct kevent event = {};
-        std::uint16_t flags = changeEvents[i].flags;
-        if (flags & M_READ) {
-            event.filter |= EVFILT_READ;
-        }
-        if (flags & M_WRITE) {
-            event.filter |= EVFILT_WRITE;
-        }
-        if (flags & M_TIMER) {
-            event.filter |= EVFILT_TIMER;
-        }
-        if (flags & M_ENABLE) {
-            event.flags |= EV_ENABLE;
-        }
-        if (flags & M_DISABLE) {
-            event.flags |= EV_DISABLE;
-        }
-        if (flags & M_ADD) {
-            event.flags |= EV_ADD;
-        }
-        if (flags & M_ONESHOT) {
-            event.flags |= EV_ONESHOT;
-        }
-        if (flags & M_CLEAR) {
-            event.flags |= EV_CLEAR;
-        }
-        if (flags & M_DELETE) {
-            event.flags |= EV_DELETE;
-        }
-        event.ident = changeEvents[i].fd;
-        event.udata = changeEvents[i].ctx;
-        event.data = changeEvents[i].data;
-        chEvents_.push_back(event);
+void Kqueue::setEvent(int32_t fd, uint16_t flags, void *ctx, int32_t time)
+{
+    struct kevent event = {};
+    if (flags & M_READ) {
+        event.filter |= EVFILT_READ;
     }
+    if (flags & M_WRITE) {
+        event.filter |= EVFILT_WRITE;
+    }
+    if (flags & M_TIMER) {
+        event.filter |= EVFILT_TIMER;
+    }
+    if (flags & M_ENABLE) {
+        event.flags |= EV_ENABLE;
+    }
+    if (flags & M_DISABLE) {
+        event.flags |= EV_DISABLE;
+    }
+    if (flags & M_ADD) {
+        event.flags |= EV_ADD;
+    }
+    if (flags & M_ONESHOT) {
+        event.flags |= EV_ONESHOT;
+    }
+    if (flags & M_CLEAR) {
+        event.flags |= EV_CLEAR;
+    }
+    if (flags & M_DELETE) {
+        event.flags |= EV_DELETE;
+    }
+    event.ident = fd;
+    event.udata = ctx;
+    event.data = time;
+    chEvents_.push_back(event);
 }

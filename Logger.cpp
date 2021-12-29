@@ -5,19 +5,19 @@
 #include "Logger.h"
 #include <iostream>
 
-namespace webserv{
-    webserv::Logger logger;
-}
+static std::string enumStrings[] = {
+        "ALL",
+        "INFO",
+        "DEBUG",
+        "WARNING",
+        "ERROR"
+};
 
-webserv::Logger::Logger()
+void webservlogger(LogLevel logLvl, const char *log, ...)
 {
-    std::string msg[] = {"ALL", "INFO", "WARNING","ERROR"};
-    for (int i = 0; i < MAX_ELEM_LOG_LEVEL; ++i) {
-        mLogLevelStr[i] = msg[i];
-    }
-}
-
-void webserv::Logger::log(webserv::Logger::LogLevel lvl, const std::string &message)
-{
-    std::cout << mLogLevelStr[lvl] << ": " << message << std::endl;
+    va_list args;
+    va_start(args, log);
+    ::printf("|%s| ", enumStrings[logLvl].c_str());
+    ::vprintf(log, args);
+    va_end(args);
 }
