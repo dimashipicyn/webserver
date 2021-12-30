@@ -11,7 +11,9 @@ Route::Route()
 
 Route::~Route()
 {
-
+	defaultFiles_.clear();
+	methods_.clear();
+	redirects_.clear();
 }
 
 bool Route::isValid()

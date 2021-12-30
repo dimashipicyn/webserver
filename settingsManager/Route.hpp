@@ -11,11 +11,17 @@
 class Route
 {
 public:
-
+	/**
+	 * Структура редиректа.
+	 *
+	 * @param form uri который нужно перенаправить
+	 * @param to http адрес на которой редиректим
+	 * @param status статус код для редиректа. 301 - постоянный, 302 - временный
+	 */
 	struct redirect {
 		std::string from;
 		std::string to;
-		bool rewrite;
+		uint16_t status;
 	};
 
 	Route();
@@ -23,28 +29,58 @@ public:
 	virtual ~Route();
 
 private:
+	// префикс ресурса
 	std::string location_;
+	// путь до ресурса
 	std::string root_;
+	// дефолтные файлы, которые нужно искать, если путь запроса это папка
 	std::vector<std::string> defaultFiles_;
+	// куда загружать файлы
 	std::string uploadTo_;
+	// методы
 	std::vector<std::string> methods_;
+	// HTTP редиректы
 	std::vector<redirect> redirects_;
+	// листинг вкл/выкл
 	bool autoindex_;
-
-private:
+	// расширение по которому будет работать cgi
 	std::string cgi_;
 public:
 
+	/**
+	 * @brief валидация Ruote
+	 */
 	bool isValid();
 
+	/**
+	 * @brief валидация http методов
+	 *
+	 * @param str строка для проверки
+	 */
 	bool isValidMethod(std::string const &str);
 
+	/**
+	 * @brief добавляет элемент к файлам по умолчанию
+	 *
+	 * @param defaultFile относительный путь к файлу
+	 */
 	void addDefaultFile(std::string const &defaultFile);
 
+	/**
+	 * @brief добавляет элемент к методам
+	 *
+	 * @param method название метода
+	 */
 	void addMethod(std::string const &method);
 
+	/**
+	 * @brief добавляет элемент к редиректам
+	 *
+	 * @param redirect ссылка на структуру redirect
+	 */
 	void addRedirect(Route::redirect &redirect);
 
+	// геттеры сеттеры
 	const std::string &getLocation() const;
 
 	void setLocation(const std::string &location);

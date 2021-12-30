@@ -6,32 +6,56 @@
 #define WEBSERV_SETTINGSMANAGER_HPP
 
 #include <vector>
-#include "Server.hpp"
-
-
+#include "ConfigParser.hpp"
+/**
+ * @brief Объект представления данных из конфигурационного файла. Синглтон
+ */
 class SettingsManager
 {
 protected:
 	SettingsManager();
-
-public:
-	virtual ~SettingsManager();
-
-protected:
 	static SettingsManager *settingsManager_;
 
+
 private:
+	// Запрещаем копирование и присваивание
 	SettingsManager(SettingsManager const &copy);
 	void operator=(SettingsManager const &);
 
 	std::vector<Server *> servers_;
+	ConfigParser configParser_;
 public:
+	virtual ~SettingsManager();
+
 	const std::vector<Server *> &getServers() const;
 
-public:
 	static SettingsManager *getInstance();
+
+	/**
+	 * @brief добавляет сервер в конец
+	 *
+	 * @param server указатель на сервер
+	 */
 	void addServer(Server *server);
+
+	/**
+	 * @brief Вызывает функцию парсинга класса <code>ConfigParser</code>
+	 *
+	 * @param fileName относительный путь до файла конфига
+	 */
+	void parseConfig(std::string const &fileName);
+
+	/**
+	 * @brief достает последний сервер из вектора без удаления
+	 *
+	 * @return указатель на крайний сервер
+	 */
 	Server *getLastServer();
+
+	/**
+	 * @brief обнуляет вектор серверов с очисткой памяти
+	 */
+	void clear();
 };
 
 

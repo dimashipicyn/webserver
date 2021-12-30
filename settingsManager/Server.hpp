@@ -19,13 +19,32 @@ public:
 
 	Server();
 
+	virtual ~Server();
+
+
+	/**
+	 * @brief Добавляет роут в конец
+	 *
+	 * @param указатель на роут
+	 */
+	void addRoute(Route *route);
+
+	/**
+	 * @brief достает последний роут из вектора
+	 *
+	 * @return крайный роут
+	 */
+	Route *getLastRoute();
+
+	/**
+	 * @brief валидация сервера на минимаьные требования
+	 */
+	bool isValid();
+
+	// геттеры сеттеры
 	size_t getMaxBodySize() const;
 
 	void setMaxBodySize(size_t maxBodySize);
-
-	void addRoute(Route *route);
-
-	Route *getLastRoute();
 
 	const std::string &getHost() const;
 
@@ -35,8 +54,6 @@ public:
 
 	void setPort(short port);
 
-	bool isValid();
-
 	const std::string &getServerName() const;
 
 	void setServerName(const std::string &serverName);
@@ -45,17 +62,23 @@ public:
 
 	void setErrorPage(const std::string &errorPage);
 
-private:
-	std::string host_;
-	uint16_t port_;
-	std::string serverName_;
-	std::string errorPage_;
-	size_t maxBodySize_;
-	std::vector<Route *> routes_;
-public:
 	const std::vector<Route *> &getRoutes() const;
 
 	void setRoutes(const std::vector<Route *> &routes);
+
+private:
+	// хост dn или ip
+	std::string host_;
+	// порт
+	uint16_t port_;
+	// название сервера
+	std::string serverName_;
+	// относительный путь до дефолтной ошибки
+	std::string errorPage_;
+	// ограничение размера тела сообщения
+	size_t maxBodySize_;
+	// роуты
+	std::vector<Route *> routes_;
 };
 
 

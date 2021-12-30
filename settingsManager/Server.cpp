@@ -4,10 +4,8 @@
 
 #include "Server.hpp"
 
-Server::Server()
-{
-	maxBodySize_ = 1 * MB;
-}
+Server::Server() : maxBodySize_(1 * MB)
+{}
 
 const std::string &Server::getHost() const
 {
@@ -73,7 +71,7 @@ bool Server::isValid()
 {
 	bool result = true;
 
-	if (host_.c_str() == NULL || port_ == NULL)
+	if (host_.c_str() == NULL || port_ == 0)
 		result = false;
 
 	return result;
@@ -87,4 +85,11 @@ void Server::addRoute(Route *route)
 Route *Server::getLastRoute()
 {
 	return routes_.back();
+}
+
+Server::~Server()
+{
+	for(int i = 0; i < routes_.size(); i++)
+		delete(routes_.at(i));
+	routes_.clear();
 }

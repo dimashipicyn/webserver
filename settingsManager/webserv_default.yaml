@@ -48,38 +48,4 @@
 
 server:
   host: 127.0.0.1
-  port: 8080
-  server_name: localhost
-  error_page: /var/www/404.html
-  max_body_size: 10M
-  route:
-    - location: /
-      root: /var/www/test
-      default_file:
-        - index.html
-        - index.jsp
-      upload_to: /var/www/downloads
-      method:
-        - GET
-        - POST
-      redirect:
-        - rewrite:
-            status: 301
-            from: /foo
-            to: http://bar.com/foo
-        - rewrite:
-            status: 302
-            from: /lol
-            to: http://lmao.kek
-      autoindex: on
-      cgi: .php
-    - location: /test-app
-      default_file:
-        - index.html
-      method:
-        - DELETE
----
-server:
-  host: example.com
-  port: 443
-  max_body_size: 10F
+  port: 80

@@ -3,16 +3,18 @@
 //
 
 #include "ConfigParser.hpp"
+#include "SettingsManager.hpp"
 
-void ConfigParser::parseConfig(const std::string &fileName, SettingsManager *settingsManager)
+void ConfigParser::parseConfig(const std::string &fileName)
 {
+	SettingsManager *settingsManager = SettingsManager::getInstance();
 	std::string line;
 	std::string previousLine;
 	Server *currentServer;
 
 	std::ifstream config(fileName);
 	if (!config.is_open())
-		throw std::runtime_error("Config error: Server block does not meet minimum requirements!");;
+		throw std::runtime_error("Config error: Can not open the file!");;
 
 	while(true) {
 		if (config.eof()) break;
@@ -192,7 +194,7 @@ std::string ConfigParser::parseRoute(std::ifstream &config, Server &server)
 					getLineAndTrim(config, line);
 					if (strcmp("- rewrite:", line.c_str()) == 0)
 					{
-						parseRewrite(config, *currentRoute);
+						parseRedirect(config, *currentRoute);
 					} else {
 						previousLine = line;
 						break;
@@ -218,22 +220,28 @@ void ConfigParser::getLineAndTrim(std::ifstream &config, std::string &line)
 	line = trim(line, " \t");
 }
 
-void ConfigParser::parseRewrite(std::ifstream &config, Route &route)
+void ConfigParser::parseRedirect(std::ifstream &config, Route &route)
 {
+	char *end;
 	std::string line;
 	Route::redirect r;
 
-
-	for (int i = 0; i < 2; i++) {
+	r.status = 302;
+	for (int i = 0; i < 3; i++) {
 		getLineAndTrim(config, line);
 		std::pair<std::string, std::string> map = breakPair(line);
 		if (map.first == "from")
 			r.from = map.second;
 		else if (map.first == "to")
 			r.to = map.second;
+		else if (map.first == "status") {
+			r.status = strtoul(map.second.c_str(), &end, 10);
+			if (end == NULL || *end != 0)
+				throw std::runtime_error("Config error: Invalid redirection status code");
+		}
+
 	}
-	if (r.from.empty() || r.to.empty())
+	if (r.from.empty() || r.to.empty() || (r.status < 301 || r.status > 302))
 		throw std::runtime_error("Config error: Invalid redirect parameter");
-	r.rewrite = r.to.find("http://") != 0;
 	route.addRedirect(r);
 }

@@ -5,9 +5,11 @@
 #ifndef WEBSERV_CONFIGPARSER_HPP
 #define WEBSERV_CONFIGPARSER_HPP
 
-#include "SettingsManager.hpp"
+#include "Server.hpp"
 #include "../utils.h"
 #include <fstream>
+
+class SettingsManager;
 
 class ConfigParser
 {
@@ -32,8 +34,16 @@ private:
 		NOT_IMPLEMENTED
 	};
 
+	/**
+	 * @brief вспомогательная функция маппинга строки к enum. Для удобства обработки switch case'ом
+	 *
+	 * @param str - строка которую нужно смапить
+	 *
+	 * @return enum элемент parameterCode. Если строка не подошла, возвращается NOT_IMPLEMENTED
+	 */
 	parameterCode parameterMapping(std::string const &str);
-	/*
+
+	/**
 	 * @brief Функция разбивает строку на ключ и значение. Разделитель ':'
 	 *
 	 * @param line - строка из файла конфигурации
@@ -42,7 +52,7 @@ private:
 	 */
 	std::pair<std::string, std::string> breakPair(std::string const &line);
 
-	/*
+	/**
 	 * @brief Функция проверяет строку на шаблон соответствию шаблону "ключ: значение"
 	 *
 	 * @param line - строка из файла конфигурации
@@ -51,7 +61,7 @@ private:
 	 */
 	bool isValidLine(std::string const &line);
 
-	/*
+	/**
 	 * @brief парсит строку в размер тела сообщения
 	 *
 	 * @param str строка, представляющая размер
@@ -60,7 +70,7 @@ private:
 	 */
 	size_t parseBodySize(std::string const &str);
 
-	/*
+	/**
 	 * @brief парсит блок route
 	 *
 	 * @param config ссылка на открытый конфиг файл
@@ -70,13 +80,25 @@ private:
 	 */
 	std::string parseRoute(std::ifstream &config, Server &server);
 
-	void parseRewrite(std::ifstream &config, Route &route);
+	/**
+	 * @brief парсит редиректы
+	 *
+	 * @param config ссылка на открытый конфиг файл
+	 * @param route ссылка на роут в который парсятся редиректы
+	 */
+	void parseRedirect(std::ifstream &config, Route &route);
 
+	/**
+	 * @brief считывает строку с ifstream и обрубает пробелы и табы.
+	 *
+	 * @param config ссылка на открытый конфиг файл
+	 * @param в line присвоится новая обработанная строка
+	 */
 	void getLineAndTrim(std::ifstream &config, std::string &line);
 
 
 public:
-	/*
+	/**
 	 * @brief Функция парсинга конфигурационного файла
 	 *
 	 * @param fileName путь + имя файла
@@ -84,7 +106,7 @@ public:
 	 *
 	 * @throws runtimeException с сообщением об ошибке
 	 */
-	void parseConfig(std::string const &fileName, SettingsManager *settingsManager);
+	void parseConfig(std::string const &fileName);
 };
 
 

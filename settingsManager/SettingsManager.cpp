@@ -37,3 +37,15 @@ Server *SettingsManager::getLastServer()
 {
 	return servers_.back();
 }
+
+void SettingsManager::parseConfig(const std::string &fileName)
+{
+	configParser_.parseConfig(fileName);
+}
+
+void SettingsManager::clear()
+{
+	for (int i = 0; i < servers_.size(); i++)
+		delete(servers_.at(i));
+	servers_.clear();
+}
