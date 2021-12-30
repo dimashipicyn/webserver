@@ -6,9 +6,8 @@
 
 SettingsManager *SettingsManager::settingsManager_ = 0;
 
-SettingsManager::SettingsManager()
+SettingsManager::SettingsManager() : defaultConfig_("settingsManager/webserv_default.yaml")
 {
-
 }
 
 SettingsManager *SettingsManager::getInstance()
@@ -45,7 +44,17 @@ void SettingsManager::parseConfig(const std::string &fileName)
 
 void SettingsManager::clear()
 {
-	for (int i = 0; i < servers_.size(); i++)
+	for (size_t i = 0; i < servers_.size(); i++)
 		delete(servers_.at(i));
 	servers_.clear();
+}
+
+const std::string &SettingsManager::getDefaultConfig() const
+{
+	return defaultConfig_;
+}
+
+void SettingsManager::setDefaultConfig(const std::string &defaultConfig)
+{
+	defaultConfig_ = defaultConfig;
 }

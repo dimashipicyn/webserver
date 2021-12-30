@@ -22,8 +22,13 @@ private:
 	SettingsManager(SettingsManager const &copy);
 	void operator=(SettingsManager const &);
 
+	// сервера, первый дефолтный
 	std::vector<Server *> servers_;
+	// парсер
 	ConfigParser configParser_;
+	// относительный путь к дефолтному файлу конфига
+	std::string defaultConfig_;
+
 public:
 	virtual ~SettingsManager();
 
@@ -56,6 +61,10 @@ public:
 	 * @brief обнуляет вектор серверов с очисткой памяти
 	 */
 	void clear();
+
+	const std::string &getDefaultConfig() const;
+
+	void setDefaultConfig(const std::string &defaultConfig);
 };
 
 

@@ -89,7 +89,7 @@ Route *Server::getLastRoute()
 
 Server::~Server()
 {
-	for(int i = 0; i < routes_.size(); i++)
+	for(size_t i = 0; i < routes_.size(); i++)
 		delete(routes_.at(i));
 	routes_.clear();
 }
