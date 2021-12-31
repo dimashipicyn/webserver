@@ -3,6 +3,7 @@
 #include "Request.h"
 #include "Response.h"
 #include "settingsManager/SettingsManager.hpp"
+#include "Logger.h"
 
 # define DEFAULT_CONFIG "settingsManager/webserv_default.yaml"
 
@@ -15,8 +16,9 @@ int main(int argc, char **argv)
 	} catch (std::runtime_error &e) {
 		settingsManager->clear();
 		settingsManager->parseConfig(DEFAULT_CONFIG);
-		std::cout << e.what() << std::endl;
-		std::cout << "Applying default configuration" << std::endl;
+		LOG_WARNING(e.what());
+		std::cout << std::endl;
+		LOG_WARNING("Applying default configuration\n");
 	}
 
     HTTP serve("127.0.0.1", 1234);

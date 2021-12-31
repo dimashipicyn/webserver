@@ -2,8 +2,12 @@
 // Created by Руслан Вахитов on 25.12.2021.
 //
 
+#include <sstream>
 #include "ConfigParser.hpp"
 #include "SettingsManager.hpp"
+
+ConfigParser::ConfigParser() : lineCounter_(0)
+{}
 
 void ConfigParser::parseConfig(const std::string &fileName)
 {
@@ -14,12 +18,15 @@ void ConfigParser::parseConfig(const std::string &fileName)
 
 	std::ifstream config(fileName);
 	if (!config.is_open())
-		throw std::runtime_error("Config error: Can not open the file!");;
+		throw std::runtime_error(formConfigErrorText("Can not open the file!"));
 
 	while(true) {
 		if (config.eof()) break;
 		if (previousLine.empty())
+		{
 			getline(config, line);
+			lineCounter_++;
+		}
 		else
 		{
 			line = previousLine;
@@ -32,12 +39,12 @@ void ConfigParser::parseConfig(const std::string &fileName)
 		if (line == "server:")
 		{
 			if (!settingsManager->getServers().empty() && !settingsManager->getServers().back().isValid())
-				throw std::runtime_error("Config error: Server block does not meet minimum requirements!");
+				throw std::runtime_error(formConfigErrorText("Server block does not meet minimum requirements!"));
 			settingsManager->addServer();
 			continue;
 		}
 		else if (settingsManager->getServers().empty())
-			throw std::runtime_error("Config error: Should start with server block!");
+			throw std::runtime_error(formConfigErrorText("Should start with server block!"));
 
 		std::pair<std::string, std::string> map = breakPair(line);
 		currentServer = settingsManager->getLastServer();
@@ -106,7 +113,7 @@ size_t ConfigParser::parseBodySize(const std::string &str)
 	char *end;
 	size_t value = std::strtoul(str.c_str(), &end, 10);
 	if (end[0] == 0 || end[1] != 0)
-		throw std::runtime_error("Config error: Invalid max_body_size parameter!");
+		throw std::runtime_error(formConfigErrorText("Invalid max_body_size parameter!"));
 	switch (end[0])
 	{
 		case 'K':
@@ -116,7 +123,7 @@ size_t ConfigParser::parseBodySize(const std::string &str)
 		case 'G':
 			return value * Server::GB;
 		default:
-			throw std::runtime_error("Config error: Invalid max_body_size sizing!");
+			throw std::runtime_error(formConfigErrorText("Invalid max_body_size sizing!"));
 	}
 }
 
@@ -130,7 +137,10 @@ std::string ConfigParser::parseRoute(std::ifstream &config, Server &server)
 	{
 		if (config.eof()) break;
 		if (previousLine.empty())
+		{
 			getline(config, line);
+			lineCounter_++;
+		}
 		else
 		{
 			line = previousLine;
@@ -143,11 +153,11 @@ std::string ConfigParser::parseRoute(std::ifstream &config, Server &server)
 		if (line[0] == '-' && line[1] != '-') {
 			line = trim(line.substr(1), " \t");
 			if (!server.getRoutes().empty() && !server.getRoutes().back().isValid())
-				throw std::runtime_error("Config error: Route block does not meet minimum requirements!");
+				throw std::runtime_error(formConfigErrorText("Route block does not meet minimum requirements!"));
 			server.addRoute();
 		}
 		else if (server.getRoutes().empty())
-			throw std::runtime_error("Config error: Routes not specified! Delete tag \"route\" or add element");
+			throw std::runtime_error(formConfigErrorText("Routes not specified! Delete tag \"route\" or add element"));
 		currentRoute = server.getLastRoute();
 		std::pair<std::string, std::string> map = breakPair(line);
 		switch (parameterMapping(map.first)) {
@@ -180,7 +190,8 @@ std::string ConfigParser::parseRoute(std::ifstream &config, Server &server)
 					{
 						line = trim(line.substr(1), " \t");
 						if (!currentRoute->isValidMethod(line))
-							throw std::runtime_error("Config error: Invalid method \"" + line + "\"! Should be GET, POST or DELETE");
+							throw std::runtime_error(formConfigErrorText(
+									"Invalid method \"" + line + "\"! Should be GET, POST or DELETE"));
 						currentRoute->addMethod(line);
 					} else {
 						previousLine = line;
@@ -218,6 +229,7 @@ void ConfigParser::getLineAndTrim(std::ifstream &config, std::string &line)
 {
 	getline(config, line);
 	line = trim(line, " \t");
+	lineCounter_++;
 }
 
 void ConfigParser::parseRedirect(std::ifstream &config, Route &route)
@@ -237,11 +249,18 @@ void ConfigParser::parseRedirect(std::ifstream &config, Route &route)
 		else if (map.first == "status") {
 			r.status = strtoul(map.second.c_str(), &end, 10);
 			if (end == nullptr || *end != 0)
-				throw std::runtime_error("Config error: Invalid redirection status code");
+				throw std::runtime_error(formConfigErrorText("Invalid redirection status code"));
 		}
 
 	}
 	if (r.from.empty() || r.to.empty() || (r.status < 301 || r.status > 302))
-		throw std::runtime_error("Config error: Invalid redirect parameter");
+		throw std::runtime_error(formConfigErrorText("Invalid redirect parameter"));
 	route.addRedirect(r);
+}
+
+std::string ConfigParser::formConfigErrorText(const std::string &message)
+{
+	std::ostringstream result;
+	result << "Config error [line " << lineCounter_ << "]: " << message;
+	return result.str();
 }

@@ -34,6 +34,13 @@ private:
 		NOT_IMPLEMENTED
 	};
 
+	size_t lineCounter_;
+
+public:
+	ConfigParser();
+
+private:
+
 	/**
 	 * @brief вспомогательная функция маппинга строки к enum. Для удобства обработки switch case'ом
 	 *
@@ -95,6 +102,11 @@ private:
 	 * @param в line присвоится новая обработанная строка
 	 */
 	void getLineAndTrim(std::ifstream &config, std::string &line);
+	/**
+	 * @brief формирует текст ошибки с указанием номера строки
+	 * @param message текст ошибки
+	 */
+	std::string formConfigErrorText(std::string const &message);
 
 
 public:
