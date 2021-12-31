@@ -82,4 +82,4 @@ server:
 server:
   host: example.com
   port: 443
-  max_body_size: 10F
+  max_body_size: 100K

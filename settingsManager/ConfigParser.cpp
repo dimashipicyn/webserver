@@ -29,11 +29,11 @@ void ConfigParser::parseConfig(const std::string &fileName)
 		if (line[0] == '#' || line.empty())
 			continue;
 
-		if (strcmp("server:", line.c_str()) == 0)
+		if (line == "server:")
 		{
-			if (!settingsManager->getServers().empty() && !settingsManager->getServers().back()->isValid())
+			if (!settingsManager->getServers().empty() && !settingsManager->getServers().back().isValid())
 				throw std::runtime_error("Config error: Server block does not meet minimum requirements!");
-			settingsManager->addServer(new Server());
+			settingsManager->addServer();
 			continue;
 		}
 		else if (settingsManager->getServers().empty())
@@ -142,9 +142,9 @@ std::string ConfigParser::parseRoute(std::ifstream &config, Server &server)
 
 		if (line[0] == '-' && line[1] != '-') {
 			line = trim(line.substr(1), " \t");
-			if (!server.getRoutes().empty() && !server.getRoutes().back()->isValid())
+			if (!server.getRoutes().empty() && !server.getRoutes().back().isValid())
 				throw std::runtime_error("Config error: Route block does not meet minimum requirements!");
-			server.addRoute(new Route());
+			server.addRoute();
 		}
 		else if (server.getRoutes().empty())
 			throw std::runtime_error("Config error: Routes not specified! Delete tag \"route\" or add element");
@@ -192,7 +192,7 @@ std::string ConfigParser::parseRoute(std::ifstream &config, Server &server)
 				while (true)
 				{
 					getLineAndTrim(config, line);
-					if (strcmp("- rewrite:", line.c_str()) == 0)
+					if (line == "- rewrite:")
 					{
 						parseRedirect(config, *currentRoute);
 					} else {
@@ -236,7 +236,7 @@ void ConfigParser::parseRedirect(std::ifstream &config, Route &route)
 			r.to = map.second;
 		else if (map.first == "status") {
 			r.status = strtoul(map.second.c_str(), &end, 10);
-			if (end == NULL || *end != 0)
+			if (end == nullptr || *end != 0)
 				throw std::runtime_error("Config error: Invalid redirection status code");
 		}
 

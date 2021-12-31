@@ -17,7 +17,7 @@ void Server::setHost(const std::string &host)
 	host_ = host;
 }
 
-short Server::getPort() const
+uint16_t Server::getPort() const
 {
 	return port_;
 }
@@ -57,39 +57,42 @@ void Server::setMaxBodySize(size_t maxBodySize)
 	maxBodySize_ = maxBodySize;
 }
 
-const std::vector<Route *> &Server::getRoutes() const
+const std::vector<Route> &Server::getRoutes() const
 {
 	return routes_;
 }
 
-void Server::setRoutes(const std::vector<Route *> &routes)
+void Server::setRoutes(const std::vector<Route> &routes)
 {
 	routes_ = routes;
 }
 
-bool Server::isValid()
+bool Server::isValid() const
 {
 	bool result = true;
 
-	if (host_.c_str() == NULL || port_ == 0)
+	if (host_.c_str() == nullptr || port_ == 0)
 		result = false;
 
 	return result;
 }
 
-void Server::addRoute(Route *route)
+void Server::addRoute()
+{
+	routes_.push_back(Route());
+}
+
+void Server::addRoute(Route &route)
 {
 	routes_.push_back(route);
 }
 
 Route *Server::getLastRoute()
 {
-	return routes_.back();
+	return &routes_.back();
 }
 
 Server::~Server()
 {
-	for(size_t i = 0; i < routes_.size(); i++)
-		delete(routes_.at(i));
 	routes_.clear();
 }

@@ -23,25 +23,28 @@ private:
 	void operator=(SettingsManager const &);
 
 	// сервера, первый дефолтный
-	std::vector<Server *> servers_;
+	std::vector<Server> servers_;
 	// парсер
 	ConfigParser configParser_;
-	// относительный путь к дефолтному файлу конфига
-	std::string defaultConfig_;
 
 public:
 	virtual ~SettingsManager();
 
-	const std::vector<Server *> &getServers() const;
+	const std::vector<Server> &getServers() const;
 
 	static SettingsManager *getInstance();
 
 	/**
 	 * @brief добавляет сервер в конец
 	 *
-	 * @param server указатель на сервер
+	 * @param server ссылка на сервер
 	 */
-	void addServer(Server *server);
+	void addServer(Server &server);
+
+	/**
+	 * @brief добавляет пустой сервер
+	 */
+	void addServer();
 
 	/**
 	 * @brief Вызывает функцию парсинга класса <code>ConfigParser</code>
@@ -61,10 +64,6 @@ public:
 	 * @brief обнуляет вектор серверов с очисткой памяти
 	 */
 	void clear();
-
-	const std::string &getDefaultConfig() const;
-
-	void setDefaultConfig(const std::string &defaultConfig);
 };
 
 

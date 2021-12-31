@@ -50,14 +50,14 @@ public:
 	/**
 	 * @brief валидация Ruote
 	 */
-	bool isValid();
+	bool isValid() const;
 
 	/**
 	 * @brief валидация http методов
 	 *
 	 * @param str строка для проверки
 	 */
-	bool isValidMethod(std::string const &str);
+	static bool isValidMethod(std::string const &str);
 
 	/**
 	 * @brief добавляет элемент к файлам по умолчанию

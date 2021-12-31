@@ -16,7 +16,7 @@ Route::~Route()
 	redirects_.clear();
 }
 
-bool Route::isValid()
+bool Route::isValid() const
 {
 	bool result = true;
 
@@ -97,7 +97,7 @@ void Route::setCgi(const std::string &cgi)
 
 bool Route::isValidMethod(const std::string &str)
 {
-	return strcmp("GET", str.c_str()) == 0 || strcmp("POST", str.c_str()) == 0 || strcmp("DELETE", str.c_str()) == 0;
+	return str == "GET" || str == "POST" || str =="DELETE";
 }
 
 void Route::addMethod(const std::string &method)

@@ -4,15 +4,15 @@
 
 #include "SettingsManager.hpp"
 
-SettingsManager *SettingsManager::settingsManager_ = 0;
+SettingsManager *SettingsManager::settingsManager_ = nullptr;
 
-SettingsManager::SettingsManager() : defaultConfig_("settingsManager/webserv_default.yaml")
+SettingsManager::SettingsManager()
 {
 }
 
 SettingsManager *SettingsManager::getInstance()
 {
-	if (settingsManager_ == NULL)
+	if (settingsManager_ == nullptr)
 		settingsManager_ = new SettingsManager();
 	return settingsManager_;
 }
@@ -22,19 +22,23 @@ SettingsManager::~SettingsManager()
 
 }
 
-const std::vector<Server *> &SettingsManager::getServers() const
+const std::vector<Server> &SettingsManager::getServers() const
 {
 	return servers_;
 }
 
-void SettingsManager::addServer(Server *server)
+void SettingsManager::addServer(Server &server)
 {
 	servers_.push_back(server);
 }
 
+void SettingsManager::addServer() {
+	servers_.push_back(Server());
+}
+
 Server *SettingsManager::getLastServer()
 {
-	return servers_.back();
+	return &servers_.back();
 }
 
 void SettingsManager::parseConfig(const std::string &fileName)
@@ -44,17 +48,5 @@ void SettingsManager::parseConfig(const std::string &fileName)
 
 void SettingsManager::clear()
 {
-	for (size_t i = 0; i < servers_.size(); i++)
-		delete(servers_.at(i));
 	servers_.clear();
-}
-
-const std::string &SettingsManager::getDefaultConfig() const
-{
-	return defaultConfig_;
-}
-
-void SettingsManager::setDefaultConfig(const std::string &defaultConfig)
-{
-	defaultConfig_ = defaultConfig;
 }

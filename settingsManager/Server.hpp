@@ -23,11 +23,16 @@ public:
 
 
 	/**
+	 * @brief Добавляет пустой роут в конец
+	 */
+	void addRoute();
+
+	/**
 	 * @brief Добавляет роут в конец
 	 *
 	 * @param указатель на роут
 	 */
-	void addRoute(Route *route);
+	void addRoute(Route &route);
 
 	/**
 	 * @brief достает последний роут из вектора
@@ -39,7 +44,7 @@ public:
 	/**
 	 * @brief валидация сервера на минимаьные требования
 	 */
-	bool isValid();
+	bool isValid() const;
 
 	// геттеры сеттеры
 	size_t getMaxBodySize() const;
@@ -50,7 +55,7 @@ public:
 
 	void setHost(const std::string &host);
 
-	short getPort() const;
+	uint16_t getPort() const;
 
 	void setPort(short port);
 
@@ -62,9 +67,9 @@ public:
 
 	void setErrorPage(const std::string &errorPage);
 
-	const std::vector<Route *> &getRoutes() const;
+	const std::vector<Route> &getRoutes() const;
 
-	void setRoutes(const std::vector<Route *> &routes);
+	void setRoutes(const std::vector<Route> &routes);
 
 private:
 	// хост dn или ip
@@ -78,7 +83,7 @@ private:
 	// ограничение размера тела сообщения
 	size_t maxBodySize_;
 	// роуты
-	std::vector<Route *> routes_;
+	std::vector<Route> routes_;
 };
 
 

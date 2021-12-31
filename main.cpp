@@ -4,15 +4,17 @@
 #include "Response.h"
 #include "settingsManager/SettingsManager.hpp"
 
+# define DEFAULT_CONFIG "settingsManager/webserv_default.yaml"
+
 int main(int argc, char **argv)
 {
 	SettingsManager *settingsManager = SettingsManager::getInstance();
 	try
 	{
-		settingsManager->parseConfig(argc == 2 ? argv[1] : settingsManager->getDefaultConfig());
+		settingsManager->parseConfig(argc == 2 ? argv[1] : DEFAULT_CONFIG);
 	} catch (std::runtime_error &e) {
 		settingsManager->clear();
-		settingsManager->parseConfig(settingsManager->getDefaultConfig());
+		settingsManager->parseConfig(DEFAULT_CONFIG);
 		std::cout << e.what() << std::endl;
 		std::cout << "Applying default configuration" << std::endl;
 	}
