@@ -134,8 +134,7 @@ std::ostream& operator<<(std::ostream& os, const Request& request) {
 }
 
 
-const std::string& Request::getQueryString() const
-{
+const std::string& Request::getQueryString() const{
     return query_string_;
 }
 

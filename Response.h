@@ -8,6 +8,7 @@
 
 #include <string>
 #include <map>
+#include "Request.h"
 
 class Response {
 public:
@@ -15,7 +16,7 @@ public:
     ~Response();
 	const std::string& getContent() const;
 	void setHeader(std::string name, std::string value) {};
-	void errorPage();
+	void errorPage(const Request& request);
 
 private:
     Response(const Response& response) {(void)response;};

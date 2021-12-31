@@ -3,6 +3,7 @@
 //
 
 #include "Response.h"
+#include "ResponseHeader.hpp"
 #include <unistd.h>
 
 #include <sstream>
@@ -18,12 +19,13 @@ Response::~Response() {
 
 }
 
-const std::string& Response::getContent() const
-{
+const std::string& Response::getContent() const {
 	return _output;
 }
 
-void Response::errorPage() {
+void Response::errorPage(const Request& request) {
+	ResponseHeader header;
+
 	int errorCode = 404;
 	std::string content = "<h1>404 Not Found</h1>";
 	std::ifstream f(".\\wwwroot\\index.html");
@@ -35,13 +37,11 @@ void Response::errorPage() {
 		errorCode = 200;
 	}
 	f.close();
-	std::ostringstream oss;
-	oss << "HTTP/1.1 " << errorCode << " OK\r\n";
-	oss << "Host: localhost\r\n";
-	oss << "Content-Type: text/html\r\n";
-	oss << "Content-Length: " << content.size() << "\r\n";
-	oss << "\r\n";
-	oss << content;
 
+	std::ostringstream contentLength(content.size());
+	header.setHeader("Content-Length", contentLength.str());
+
+	std::ostringstream oss(header.getHeader(request));
+	oss << content;
 	_output = oss.str();
 }

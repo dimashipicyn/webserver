@@ -68,10 +68,6 @@ struct Writer : public IEventWriter
         // сброс
         reader->request.reset();
         //response.reset();
-<<<<<<< HEAD
-=======
-
->>>>>>> master
 
         // выключаем write
         evPool->addEvent(event, EventPool::M_WRITE | EventPool::M_DISABLE);
@@ -146,7 +142,7 @@ void HTTP::handler(Request& request, Response& response)
 
 
 void HTTP::methodGET(Request& request, Response& response){
-	response.errorPage();
+	response.errorPage(request);
 }
 
 
