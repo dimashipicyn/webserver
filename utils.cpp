@@ -6,6 +6,8 @@
 #include <string>
 #include <vector>
 #include <iostream>
+#include "utils.h"
+
 
 #define BUFFER_SIZE 1024
 
@@ -48,6 +50,18 @@ std::vector<std::string>    split(std::string& s, const char delim)
     }
     words.push_back(std::string(it, last));
     return words;
+}
+
+std::string trim(const std::string &str, const std::string &whitespace)
+{
+	const size_t strBegin = str.find_first_not_of(whitespace);
+	if (strBegin == std::string::npos)
+		return "";
+
+	const size_t strEnd = str.find_last_not_of(whitespace);
+	const size_t strRange = strEnd - strBegin + 1;
+
+	return str.substr(strBegin, strRange);
 }
 /*
 int main() {
