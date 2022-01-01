@@ -1,5 +1,6 @@
 #include "ResponseHeader.hpp"
 #include <sstream>
+#include <sys/time.h>
 
 std::map<std::string, std::string>	ResponseHeader::resetHeaders(void){
 	std::map<std::string, std::string> header;
@@ -37,7 +38,24 @@ std::map<int, std::string>	ResponseHeader::initErrorMap(){
 }
 
 const std::map<int, std::string> ResponseHeader::_errors
-									= ResponseHeader::initErrorMap();
+                        = ResponseHeader::initErrorMap();
+
+std::map<std::string, std::string> ResponseHeader::initContentType() {
+    std::map<std::string, std::string> contentType;
+
+    contentType["html"] = "text/html";
+    contentType["css"] = "text/css";
+    contentType["js"] = "text/javascript";
+    contentType["jpeg"] = "image/jpeg";
+    contentType["jpg"] = "image/jpeg";
+    contentType["png"] = "image/png";
+    contentType["bmp"] = "image/bmp";
+    contentType["text/plain"] = "text/plain";
+    return contentType;
+}
+
+std::map<std::string, std::string> ResponseHeader::_contentType
+                                = ResponseHeader::initContentType();
 
 //std::string		ResponseHeader::getHeader(size_t size, const std::string& path, int code, std::string type, const std::string& contentLocation, const std::string& lang){
 
@@ -72,14 +90,14 @@ std::string		ResponseHeader::notAllowed(std::set<std::string> methods, const std
 
 std::string		ResponseHeader::writeHeader(void)
 {
-	std::ostrinstream	header;
+	std::ostringstream	header;
 
 	for (std::map<std::string, std::string>::const_iterator it = _headers.cbegin();
 												it != _headers.cend(); ++it) {
 		if ( !it->second.empty() )
 			header << it->first << ": " << it->second << "\r\n";
 	}
-	return header.string();
+	return header.str();
 }
 
 std::string		ResponseHeader::getStatusMessage(int code){
@@ -93,6 +111,10 @@ void ResponseHeader::setHeader(const std::string &key, const std::string &value)
 	_headers[key] = value;
 }
 
+void ResponseHeader::setHeader(const std::string &key, const int &value) {
+    std::ostringstream oss(value);
+    _headers[key] = oss.str();
+}
 
 void	ResponseHeader::setValues(const std::string& path, int code, std::string type, const std::string& contentLocation){
 	setAllow();
@@ -148,13 +170,8 @@ void	ResponseHeader::setContentType(std::string type, std::string path){
 		return ;
 	}
 	type = path.substr(path.rfind(".") + 1, path.size() - path.rfind("."));
-	if (type == "html") _ContentType = "text/html";
-	else if (type == "css") _ContentType = "text/css";
-	else if (type == "js") _ContentType = "text/javascript";
-	else if (type == "jpeg" || type == "jpg") _ContentType = "image/jpeg";
-	else if (type == "png") _ContentType = "image/png";
-	else if (type == "bmp") _ContentType = "image/bmp";
-	else _ContentType = "text/plain";
+    _headers["Content-Type"] = _contentType[type];
+    if ( _contentType[type].empty() ) _headers["Content-Type"] = "text/plain";
 }
 
 void			ResponseHeader::setDate(void){
@@ -187,9 +204,8 @@ void	ResponseHeader::setLocation(int code, const std::string& redirect){
 }
 
 void	ResponseHeader::setRetryAfter(int code, int sec){
-	std::ostringstrem oss  sec << sec;
 	if (code == 503 || code == 429 || code == 301){
-		_RetryAfter = oss.string();
+        setHeader("Retry-After", sec);
 	}
 }
 

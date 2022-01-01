@@ -1,7 +1,10 @@
 #ifndef RESPONSEHEADER_HPP
 #define RESPONSEHEADER_HPP
 
+#include <map>
 #include <set>
+#include <string>
+#include "Request.h"
 
 class ResponseHeader {
 public:
@@ -12,7 +15,8 @@ public:
 	ResponseHeader & operator=(const ResponseHeader & src);
 
 	// Setter functions
-	void	setHeader(const std::string&, const std::string&);
+	void	        setHeader(const std::string&, const std::string&);
+    void            setHeader(const std::string&, const int&);
 	void			setAllow(std::set<std::string> methods);
 	void			setAllow(const std::string& allow = "");
 	void			setContentLocation(const std::string& path, int code);
@@ -36,6 +40,9 @@ private:
 
 	static const std::map<int, std::string>	_errors;
 	static std::map<int, std::string>	initErrorMap();
+
+    static std::map<std::string, std::string> _contentType;
+    static std::map<std::string, std::string> initContentType();
 };
 
 
