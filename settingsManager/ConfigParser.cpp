@@ -18,7 +18,7 @@ void ConfigParser::parseConfig(const std::string &fileName)
 
 	std::ifstream config(fileName);
 	if (!config.is_open())
-		throw std::runtime_error(formConfigErrorText("Can not open the file!"));
+		throw std::runtime_error("Config error: Can not open the file!");
 
 	while(true) {
 		if (config.eof()) break;
@@ -168,6 +168,7 @@ std::string ConfigParser::parseRoute(std::ifstream &config, Server &server)
 				currentRoute->setRoot(map.second);
 				break;
 			case DEFAULT_FILE:
+				currentRoute->setDefaultFiles(std::vector<std::string>());
 				while (true) {
 					getLineAndTrim(config, line);
 					if (line[0] == '-' && line[1] != '-')
@@ -184,6 +185,7 @@ std::string ConfigParser::parseRoute(std::ifstream &config, Server &server)
 				currentRoute->setUploadTo(map.second);
 				break;
 			case METHOD:
+				currentRoute->setMethods(std::vector<std::string>());
 				while (true) {
 					getLineAndTrim(config, line);
 					if (line[0] == '-' && line[1] != '-')

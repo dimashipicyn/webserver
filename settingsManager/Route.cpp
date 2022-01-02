@@ -6,7 +6,14 @@
 
 Route::Route()
 {
+	// defaults
+	location_ = "/";
 	root_ = "/var/www";
+	defaultFiles_.push_back("index");
+	defaultFiles_.push_back("index.html");
+	defaultFiles_.push_back("index.htm");
+	methods_.push_back("GET");
+	autoindex_ = false;
 }
 
 Route::~Route()
@@ -20,7 +27,8 @@ bool Route::isValid() const
 {
 	bool result = true;
 
-	// добавить логику
+	if (location_.c_str() == nullptr || root_.c_str() == nullptr)
+		result = false;
 
 	return result;
 }
