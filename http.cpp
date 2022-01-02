@@ -115,9 +115,6 @@ HTTP::HTTP(const std::string& host, std::int16_t port)
     socket.listen();
     std::auto_ptr<IEventAcceptor> accepter(new Accepter(*this));
     evPool_.addListener(socket.getSock(), socket.getAddr(), accepter);
-	std::string methodsIn[] = {"GET", "HEAD","POST", "PUT", "DELETE", "CONNECT",
-							   "OPTIONS", "TRACE", "PATCH", };
-	for (int i = 0; i < 9; ++i) _methods.insert(methodsIn[i]);
 }
 
 HTTP::~HTTP()
@@ -125,50 +122,12 @@ HTTP::~HTTP()
 
 }
 
-
-
 // здесь происходит обработка запроса
-void HTTP::handler(Request& request, Response& response)
+void HTTP::handler(Request& request)
 {
-
-	std::string method = "GET"; // method = request.method;
-	if (method == "GET") return methodGET(request, response);
-	else if (method == "POST") return methodPOST(request, response);
-	else if (method == "DELETE") return methodDELETE(request, response);
-	else if (_methods.count(method) != 0) return methodNotAllowed();
-	else return methodBadRequest();
+	Response response(request);
+    _response = response;
 }
-
-
-
-void HTTP::methodGET(Request& request, Response& response){
-	response.errorPage(request);
-}
-
-
-
-
-
-
-
-
-
-
-void HTTP::methodPOST(Request& request, Response& response) {
-
-}
-
-void HTTP::methodDELETE(Request& request, Response& response) {
-
-}
-
-void HTTP::methodNotAllowed(){
-
-}
-
-void HTTP::methodBadRequest(){
-
-};
 
 void HTTP::start() {
     evPool_.start();
