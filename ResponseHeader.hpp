@@ -35,7 +35,6 @@ public:
 	std::string		notAllowed(std::set<std::string> methods, const std::string& path, int code, const std::string& lang);
 	std::string		writeHeader(void);
 	void			setValues(size_t size, const std::string& path, int code, std::string type, const std::string& contentLocation, const std::string& lang);
-	std::string		getStatusMessage(int code);
 
     static std::map<int, std::string>	_errors;
     static std::map<int, std::string>	initErrorMap();

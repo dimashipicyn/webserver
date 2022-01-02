@@ -66,7 +66,7 @@ std::string		ResponseHeader::getHeader(const Request& request){
 //	resetHeaders();
 	setValues(request);
 
-	header << "HTTP/1.1 " << _code << " " << getStatusMessage(_code) << "\r\n";
+	header << "HTTP/1.1 " << _code << " " << _errors[_code] << "\r\n";
 	header << writeHeader();
 
 	return (header.str());
@@ -102,13 +102,6 @@ std::string		ResponseHeader::writeHeader(void)
 	}
 	return header.str();
 }
-
-std::string		ResponseHeader::getStatusMessage(int code){
-	if ( _errors.count(code) != 0 )
-		return _errors[code];
-	return ("Unknown Code");
-}
-
 
 void ResponseHeader::setHeader(const std::string &key, const std::string &value) {
 	_headers[key] = value;
