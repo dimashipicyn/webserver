@@ -12,22 +12,14 @@
  */
 class SettingsManager
 {
-protected:
-	SettingsManager();
-	static SettingsManager *settingsManager_;
-
-
-private:
-	// Запрещаем копирование и присваивание
-	SettingsManager(SettingsManager const &copy);
-	void operator=(SettingsManager const &);
-
-	// сервера, первый дефолтный
-	std::vector<Server> servers_;
-	// парсер
-	ConfigParser configParser_;
-
 public:
+
+	// Информация о хосте
+	struct Host {
+		std::string host;
+		uint16_t port;
+	};
+
 	virtual ~SettingsManager();
 
 	const std::vector<Server> &getServers() const;
@@ -64,6 +56,38 @@ public:
 	 * @brief обнуляет вектор серверов с очисткой памяти
 	 */
 	void clear();
+
+	/**
+	 * @brief ищет сервер по хосту и порту
+	 *
+	 * @param host адрес хоста
+	 * @param port порт хоста
+	 *
+	 * @return указатель на подходящий сервер в конфиге. nullptr если таков не найден.
+	 */
+	 Server *findServer(std::string const &host, uint16_t const &port);
+
+	const Host &getHost() const;
+	void setHost(const std::string &host, const uint16_t &port);
+
+protected:
+	SettingsManager();
+	static SettingsManager *settingsManager_;
+
+
+private:
+
+	// Запрещаем копирование и присваивание
+	SettingsManager(SettingsManager const &copy);
+	void operator=(SettingsManager const &);
+
+	// сервера, первый дефолтный
+	std::vector<Server> servers_;
+	// парсер
+	ConfigParser configParser_;
+	// адрес клиента
+	Host host_;
+
 };
 
 
