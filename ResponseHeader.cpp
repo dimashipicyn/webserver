@@ -1,5 +1,7 @@
 #include "ResponseHeader.hpp"
 #include <sstream>
+#include <sys/time.h>
+#include "Request.h"
 
 std::map<std::string, std::string>	ResponseHeader::resetHeaders(void){
 	std::map<std::string, std::string> header;
@@ -36,22 +38,41 @@ std::map<int, std::string>	ResponseHeader::initErrorMap(){
 	return errors;
 }
 
-const std::map<int, std::string> ResponseHeader::_errors
-									= ResponseHeader::initErrorMap();
+std::map<int, std::string> ResponseHeader::_errors
+                        = ResponseHeader::initErrorMap();
+
+std::map<std::string, std::string> ResponseHeader::initContentType() {
+    std::map<std::string, std::string> contentType;
+
+    contentType["html"] = "text/html";
+    contentType["css"] = "text/css";
+    contentType["js"] = "text/javascript";
+    contentType["jpeg"] = "image/jpeg";
+    contentType["jpg"] = "image/jpeg";
+    contentType["png"] = "image/png";
+    contentType["bmp"] = "image/bmp";
+    contentType["text/plain"] = "text/plain";
+    return contentType;
+}
+
+std::map<std::string, std::string> ResponseHeader::_contentType
+                                = ResponseHeader::initContentType();
 
 //std::string		ResponseHeader::getHeader(size_t size, const std::string& path, int code, std::string type, const std::string& contentLocation, const std::string& lang){
 
 std::string		ResponseHeader::getHeader(const Request& request){
 	std::ostringstream header;
 
-	resetHeaders();
-	setValues(size, path, code, type, contentLocation, lang);
+//	resetHeaders();
+	setValues(request);
 
-	header << "HTTP/1.1 " << code << " " << getStatusMessage(code) << "\r\n";
+	header << "HTTP/1.1 " << _code << " " << _errors[_code] << "\r\n";
 	header << writeHeader();
 
 	return (header.str());
 }
+
+void ResponseHeader::setCode(int code){ _code = code; }
 
 std::string		ResponseHeader::notAllowed(std::set<std::string> methods, const std::string& path, int code, const std::string& lang)
 {
@@ -72,29 +93,26 @@ std::string		ResponseHeader::notAllowed(std::set<std::string> methods, const std
 
 std::string		ResponseHeader::writeHeader(void)
 {
-	std::ostrinstream	header;
+	std::ostringstream	header;
 
 	for (std::map<std::string, std::string>::const_iterator it = _headers.cbegin();
 												it != _headers.cend(); ++it) {
 		if ( !it->second.empty() )
 			header << it->first << ": " << it->second << "\r\n";
 	}
-	return header.string();
+	return header.str();
 }
-
-std::string		ResponseHeader::getStatusMessage(int code){
-	if (_errors.find(code) != _errors.end())
-		return _errors[code];
-	return ("Unknown Code");
-}
-
 
 void ResponseHeader::setHeader(const std::string &key, const std::string &value) {
 	_headers[key] = value;
 }
 
+void ResponseHeader::setHeader(const std::string &key, const int &value) {
+    std::ostringstream oss(value);
+    _headers[key] = oss.str();
+}
 
-void	ResponseHeader::setValues(const std::string& path, int code, std::string type, const std::string& contentLocation){
+void	ResponseHeader::setValues(const Request& request){
 	setAllow();
 
 	// take from config
@@ -102,8 +120,7 @@ void	ResponseHeader::setValues(const std::string& path, int code, std::string ty
 
 	// take from request && config
 	_headers["Content-Location"] = "/Users/griddler/webserver/index.html";
-
-	setContentLocation(contentLocation, code);
+    setContentLocation(contentLocation, code);
 
 	// take from config
 	setContentType(type, path);
@@ -123,38 +140,14 @@ void	ResponseHeader::setValues(const std::string& path, int code, std::string ty
 
 // Setter functions
 
-void	ResponseHeader::setAllow(std::set<std::string> methods){
-	std::set<std::string>::iterator it = methods.begin();
-
-	while (it != methods.end()){
-		_Allow += *(it++);
-
-		if (it != methods.end())
-			_Allow += ", ";
-	}
-}
-
-void	ResponseHeader::setAllow(const std::string& allow){
-	_Allow = allow;
-}
-
-void	ResponseHeader::setContentLocation(const std::string& path){
-	_ContentLocation = path;
-}
-
 void	ResponseHeader::setContentType(std::string type, std::string path){
 	if (type != ""){
-		_contentType = type;
+		_headers["Content-Type"] = type;
 		return ;
 	}
 	type = path.substr(path.rfind(".") + 1, path.size() - path.rfind("."));
-	if (type == "html") _ContentType = "text/html";
-	else if (type == "css") _ContentType = "text/css";
-	else if (type == "js") _ContentType = "text/javascript";
-	else if (type == "jpeg" || type == "jpg") _ContentType = "image/jpeg";
-	else if (type == "png") _ContentType = "image/png";
-	else if (type == "bmp") _ContentType = "image/bmp";
-	else _ContentType = "text/plain";
+    _headers["Content-Type"] = _contentType[type];
+    if ( _contentType[type].empty() ) _headers["Content-Type"] = "text/plain";
 }
 
 void			ResponseHeader::setDate(void){
@@ -165,7 +158,7 @@ void			ResponseHeader::setDate(void){
 	gettimeofday(&tv, NULL);
 	tm = gmtime(&tv.tv_sec);
 	strftime(buffer, 100, "%a, %d %b %Y %H:%M:%S GMT", tm);
-	_Date = std::string(buffer);
+	_headers["Date"] = std::string(buffer);
 }
 
 void			ResponseHeader::setLastModified(const std::string& path){
@@ -176,20 +169,19 @@ void			ResponseHeader::setLastModified(const std::string& path){
 	if (stat(path.c_str(), &stats) == 0){
 		tm = gmtime(&stats.st_mtime);
 		strftime(buffer, 100, "%a, %d %b %Y %H:%M:%S GMT", tm);
-		_LastModified = std::string(buffer);
+		_headers["Last-Modified"] = std::string(buffer);
 	}
 }
 
 void	ResponseHeader::setLocation(int code, const std::string& redirect){
 	if (code == 201 || code / 100 == 3){
-		_Location = redirect;
+		_headers["Location"] = redirect;
 	}
 }
 
 void	ResponseHeader::setRetryAfter(int code, int sec){
-	std::ostringstrem oss  sec << sec;
 	if (code == 503 || code == 429 || code == 301){
-		_RetryAfter = oss.string();
+        setHeader("Retry-After", sec);
 	}
 }
 
