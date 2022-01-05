@@ -139,7 +139,7 @@ void HTTP::handler(Request& request, Response& response)
 	.port);
 	std::string path = request.getPath();
 	Route *route = server == nullptr ? nullptr : server->findRouteByPath(path);
-	if (route != nullptr && path.substr(path.find_last_of('.', std::string::npos), std::string::npos) == route->getCgi()) {
+	if (route != nullptr && getExtension(path) == route->getCgi()) {
 		response.setContent(Cgi(request).runCGI());
 	}
 

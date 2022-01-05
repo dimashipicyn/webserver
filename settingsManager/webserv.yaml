@@ -72,7 +72,7 @@ server:
             from: /lol
             to: http://lmao.kek
       autoindex: on
-      cgi: .php
+      cgi: .sh
     - location: /test-app
       default_file:
         - index.html
