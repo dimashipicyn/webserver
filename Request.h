@@ -39,6 +39,8 @@ public:
     const headersMap&       getHeaders() const;
     State                   getState() const;
 
+
+
     void reset();
 
 private:

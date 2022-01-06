@@ -55,7 +55,7 @@ void Request::parse(const char *buf)
     }
 }
 
-static void skipnNewLines(std::stringstream& ss)
+static void skipNewLines(std::stringstream& ss)
 {
     char ch = '\0';
     while (!ss.eof()) {
@@ -72,7 +72,7 @@ static void skipnNewLines(std::stringstream& ss)
 void Request::parse_first_line()
 {
     buffer_ >> method_ >> path_ >> version_;
-    skipnNewLines(buffer_);
+    skipNewLines(buffer_);
     if (method_.empty() || path_.empty() || version_.empty()) {
         state_ = PARSE_ERROR;
     }
@@ -80,9 +80,9 @@ void Request::parse_first_line()
         // проверяем на наличие query string
         std::size_t found = path_.find('?');
         if (found != std::string::npos) {
-            std::size_t queryStringLen = path_.size() - found;
-            query_string_ = path_.substr(found, queryStringLen);
-            path_.erase(found, queryStringLen);
+            std::size_t queryStringLen = path_.size() - found - 1;
+            query_string_ = path_.substr(found + 1, queryStringLen);
+            path_.erase(found, queryStringLen + 1);
         }
         state_ = PARSE_HEADERS;
     }
@@ -93,19 +93,19 @@ void Request::parse_headers()
     std::string key;
     std::string value;
 
-    skipnNewLines(buffer_);
+    skipNewLines(buffer_);
     while (!buffer_.eof()) {
         std::getline(buffer_, key, ':');
         std::getline(buffer_, value, '\n');
         headers_.insert(std::pair<std::string, std::string>(key, value));
-        skipnNewLines(buffer_);
+        skipNewLines(buffer_);
     }
     state_ = PARSE_BODY;
 }
 
 void Request::parse_body()
 {
-    skipnNewLines(buffer_);
+    skipNewLines(buffer_);
     std::string bodyStr;
     std::getline(buffer_, bodyStr, '\0');
 
@@ -113,6 +113,7 @@ void Request::parse_body()
 
     buffer_.str("");
     buffer_.clear();
+
     state_ = PARSE_DONE;
 }
 
