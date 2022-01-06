@@ -17,17 +17,16 @@ class RequestConfig{};
 class Response {
 public:
     Response();
-    Response(const Request&, const RequestConfig&);
+    Response(const Request&);
     Response& operator=(const Response& response) {(void)response;return *this;};
     ~Response();
 	const std::string& getContent() const;
 	void setHeader(std::string name, std::string value) {};
-	void methodGET(const Request& request);
 
-    void methodGET(const Request& request, const RequestConfig &);
-    void methodPOST(const Request& request, const RequestConfig &);
-    void methodDELETE(const Request& request, const RequestConfig &);
-    void methodNotAllowed(const Request& request, const RequestConfig &);
+    void methodGET(const Request& request);
+    void methodPOST(const Request& request);
+    void methodDELETE(const Request& request);
+    void methodNotAllowed(const Request& request);
     void BadRequest();
 
 private:
@@ -38,8 +37,8 @@ private:
     ResponseHeader _header;
     std::string _output;
 
-    static std::map<std::string, void (Response::*)(const Request &, const RequestConfig &)>	_method;
-    static std::map<std::string, void (Response::*)(const Request &, const RequestConfig &)>	initMethods();
+    static std::map<std::string, void (Response::*)(const Request &)>	_method;
+    static std::map<std::string, void (Response::*)(const Request &)>	initMethods();
 
     static std::set<std::string> _allMethods;
     static std::set<std::string> initAllMethods();

@@ -4,6 +4,7 @@
 
 #include "Response.h"
 #include "ResponseHeader.hpp"
+#include "settingsManager/SettingsManager.hpp"
 #include <unistd.h>
 #include <map>
 
@@ -12,10 +13,11 @@
 #include <string>
 #include <iterator>
 
+extern SettingsManager *settingsManager;
 
-std::map<std::string, void (Response::*)(const Request &, const RequestConfig &)>	Response::initMethods()
+std::map<std::string, void (Response::*)(const Request &)>	Response::initMethods()
 {
-    std::map<std::string, void (Response::*)(const Request &, const RequestConfig &)> map;
+    std::map<std::string, void (Response::*)(const Request &)> map;
 
     map["GET"] = &Response::methodGET;
     map["POST"] = &Response::methodPOST;
@@ -23,7 +25,7 @@ std::map<std::string, void (Response::*)(const Request &, const RequestConfig &)
     return map;
 }
 
-std::map<std::string, void (Response::*)(const Request &, const RequestConfig &)> Response::_method = Response::initMethods();
+std::map<std::string, void (Response::*)(const Request &)> Response::_method = Response::initMethods();
 
 std::set<std::string> Response::initAllMethods(){
     std::set<std::string> allMethods;
@@ -45,18 +47,21 @@ Response::Response() {}
 
 Response::~Response() {}
 
-Response::Response(const Request& request, const RequestConfig& requestConfig){
-    _header.setDate();
+Response::Response(const Request& request){
+    _header.setHeader("Date", _header.getDate());
+    _header.setHeader("Host", settingsManager->getLastServer()->getHost());
     std::string method = request.getMethod();
-    if ( _method.count(method) ) (this->*_method[method])(request, requestConfig);
-    else if (_allMethods.count(method)) methodNotAllowed(request, requestConfig);
+    if ( _method.count(method) ) (this->*_method[method])(request);
+    else if (_allMethods.count(method)) methodNotAllowed(request);
     else BadRequest();
 }
 
-void Response::methodGET(const Request& request, const RequestConfig &){
+void Response::methodGET(const Request& request){
     int errorCode = 404;
     std::string content = "<h1>404 Not Found</h1>";
-    std::ifstream f(".\\wwwroot\\index.html");
+    std::string path = request.getPath();
+    if (path == "/") path = settingsManager->getLastServer()->getRoutes()// kak zabrat' default files?
+    std::ifstream f(path);//f(".\\wwwroot\\index.html");
 
     if (f.good()){
         std::string str((std::istreambuf_iterator<char>(f)),
@@ -73,13 +78,13 @@ void Response::methodGET(const Request& request, const RequestConfig &){
     _output = oss.str();
 }
 
-void Response::methodPOST(const Request& request, const RequestConfig &){}
-void Response::methodDELETE(const Request& request, const RequestConfig &){}
+void Response::methodPOST(const Request& request){}
+void Response::methodDELETE(const Request& request){}
 
-void Response::methodNotAllowed(const Request& request, const RequestConfig &){
+void Response::methodNotAllowed(const Request& request){
     _header.setCode(405);
     std::string strAllowMethods;
-    for (std::map<std::string, void (Response::*)(const Request &, const RequestConfig &)>::iterator it = _method.begin();
+    for (std::map<std::string, void (Response::*)(const Request &)>::iterator it = _method.begin();
             it != _method.end(); ++it){
         if (it == _method.begin()) strAllowMethods += it->first;
         else{

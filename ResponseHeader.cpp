@@ -3,6 +3,8 @@
 #include <sys/time.h>
 #include "Request.h"
 
+extern SettingsManager *settingsManager;
+
 std::map<std::string, std::string>	ResponseHeader::resetHeaders(void){
 	std::map<std::string, std::string> header;
 	header["Allow"] = "";
@@ -72,7 +74,7 @@ std::string		ResponseHeader::getHeader(const Request& request){
 	return (header.str());
 }
 
-void ResponseHeader::setCode(int code){ _code = code; }
+void	ResponseHeader::setCode(int code){ _code = code; }
 
 std::string		ResponseHeader::notAllowed(std::set<std::string> methods, const std::string& path, int code, const std::string& lang)
 {
@@ -150,7 +152,7 @@ void	ResponseHeader::setContentType(std::string type, std::string path){
     if ( _contentType[type].empty() ) _headers["Content-Type"] = "text/plain";
 }
 
-void			ResponseHeader::setDate(void){
+std::string			ResponseHeader::getDate(void){
 	char			buffer[100];
 	struct timeval	tv;
 	struct tm		*tm;
@@ -158,7 +160,7 @@ void			ResponseHeader::setDate(void){
 	gettimeofday(&tv, NULL);
 	tm = gmtime(&tv.tv_sec);
 	strftime(buffer, 100, "%a, %d %b %Y %H:%M:%S GMT", tm);
-	_headers["Date"] = std::string(buffer);
+	return std::string(buffer);
 }
 
 void			ResponseHeader::setLastModified(const std::string& path){

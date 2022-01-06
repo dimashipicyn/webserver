@@ -126,7 +126,7 @@ HTTP::~HTTP()
 void HTTP::handler(Request& request)
 {
 	Response response(request);
-    _response = response;
+	_response = response;
 }
 
 void HTTP::start() {

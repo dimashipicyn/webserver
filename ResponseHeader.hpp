@@ -23,7 +23,7 @@ public:
 	void			setAllow(const std::string& allow = "");
 	void			setContentLocation(const std::string& path, int code);
 	void			setContentType(std::string type, std::string path);
-	void			setDate(void);
+	std::string		getDate(void);
 	void			setLastModified(const std::string& path);
 	void			setLocation(int code, const std::string& redirect);
 	void			setRetryAfter(int code, int sec);
