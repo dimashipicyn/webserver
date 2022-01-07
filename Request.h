@@ -14,8 +14,7 @@ public:
     typedef std::map<std::string, std::string> headersMap;
 
     enum State {
-        PARSE_FIRST_LINE,
-        PARSE_HEADERS,
+        PARSE_QUERY,
         PARSE_BODY,
         PARSE_ERROR,
         PARSE_DONE
@@ -39,7 +38,8 @@ public:
     const headersMap&       getHeaders() const;
     State                   getState() const;
 
-
+    bool                    hasHeader(const std::string& key);
+    const std::string&      getHeaderValue(const std::string& key);
 
     void reset();
 
