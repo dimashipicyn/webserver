@@ -59,23 +59,22 @@ Response::Response(const Request& request){
 void Response::methodGET(const Request& request){
     int errorCode = 404;
     std::string content = "<h1>404 Not Found</h1>";
-    std::string path = request.getPath();
-    if (path == "/") path = settingsManager->getLastServer()->getRoutes()// kak zabrat' default files?
-    std::ifstream f(path);//f(".\\wwwroot\\index.html");
+    std::string path = getPath(request);
+    std::ifstream f(path);
+    if (f.good()) errorCode = 200;
+	else{
+		path = getErrorPath();
+		std::ifstream f(path);
+	}
+	std::string str((std::istreambuf_iterator<char>(f)),
+					std::istreambuf_iterator<char>());
+	content = str;
+	f.close();
+	_header.setHeader("Content-Length", content.size());
 
-    if (f.good()){
-        std::string str((std::istreambuf_iterator<char>(f)),
-                        std::istreambuf_iterator<char>());
-        content = str;
-        errorCode = 200;
-    }
-    f.close();
-
-    _header.setHeader("Content-Length", content.size());
-
-    std::ostringstream oss(_header.getHeader(request));
-    oss << content;
-    _output = oss.str();
+	std::ostringstream oss(_header.getHeader(request));
+	oss << content;
+	_output = oss.str();
 }
 
 void Response::methodPOST(const Request& request){}
@@ -98,6 +97,18 @@ void Response::methodNotAllowed(const Request& request){
 void Response::BadRequest(){
     _header.setCode(400);
 
+}
+// Change: take from config root && default files && error files
+std::string Response::getPath(const Request &request) {
+	std::string path;
+	if ( (path = request.getPath()) == "/")
+		path = ".\\root\\www\\index.html";
+	return path;
+}
+
+//Change: take from config errorfile paths
+std::string Response::getErrorPath() {
+	return ".\\root\\www\\page404.html";
 }
 
 const std::string& Response::getContent() const {

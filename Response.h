@@ -21,21 +21,25 @@ public:
     Response& operator=(const Response& response) {(void)response;return *this;};
     ~Response();
 	const std::string& getContent() const;
-	void setHeader(std::string name, std::string value) {};
+//	void setHeader(std::string name, std::string value) {};
 
     void methodGET(const Request& request);
     void methodPOST(const Request& request);
     void methodDELETE(const Request& request);
     void methodNotAllowed(const Request& request);
     void BadRequest();
+	std::string getPath(const Request&);
+	std::string getErrorPath();
 
 private:
     Response(const Response& response) {(void)response;};
 
 
 private:
-    ResponseHeader _header;
-    std::string _output;
+    ResponseHeader	_header;
+	Request			_request;
+    std::string		_output;
+
 
     static std::map<std::string, void (Response::*)(const Request &)>	_method;
     static std::map<std::string, void (Response::*)(const Request &)>	initMethods();

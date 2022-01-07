@@ -41,7 +41,7 @@ std::map<int, std::string>	ResponseHeader::initErrorMap(){
 }
 
 std::map<int, std::string> ResponseHeader::_errors
-                        = ResponseHeader::initErrorMap();
+					= ResponseHeader::initErrorMap();
 
 std::map<std::string, std::string> ResponseHeader::initContentType() {
     std::map<std::string, std::string> contentType;
@@ -58,40 +58,18 @@ std::map<std::string, std::string> ResponseHeader::initContentType() {
 }
 
 std::map<std::string, std::string> ResponseHeader::_contentType
-                                = ResponseHeader::initContentType();
-
-//std::string		ResponseHeader::getHeader(size_t size, const std::string& path, int code, std::string type, const std::string& contentLocation, const std::string& lang){
+						= ResponseHeader::initContentType();
 
 std::string		ResponseHeader::getHeader(const Request& request){
 	std::ostringstream header;
 
-//	resetHeaders();
 	setValues(request);
-
 	header << "HTTP/1.1 " << _code << " " << _errors[_code] << "\r\n";
 	header << writeHeader();
-
 	return (header.str());
 }
 
 void	ResponseHeader::setCode(int code){ _code = code; }
-
-std::string		ResponseHeader::notAllowed(std::set<std::string> methods, const std::string& path, int code, const std::string& lang)
-{
-	std::string	header;
-
-	resetHeaders();
-	setValues(0, path, code, "", path, lang);
-	setAllow(methods);
-
-	if (code == 405)
-		header = "HTTP/1.1 405 Method Not Allowed\r\n";
-	else if (code == 413)
-		header = "HTTP/1.1 413 Payload Too Large\r\n";
-	header += writeHeader();
-
-	return (header);
-}
 
 std::string		ResponseHeader::writeHeader(void)
 {
@@ -114,39 +92,7 @@ void ResponseHeader::setHeader(const std::string &key, const int &value) {
     _headers[key] = oss.str();
 }
 
-void	ResponseHeader::setValues(const Request& request){
-	setAllow();
-
-	// take from config
-	_headers["Content-Language"] = "en-US";
-
-	// take from request && config
-	_headers["Content-Location"] = "/Users/griddler/webserver/index.html";
-    setContentLocation(contentLocation, code);
-
-	// take from config
-	setContentType(type, path);
-
-
-	setDate();
-	setLastModified(path);
-	setLocation(code, path);
-	setRetryAfter(code, 3);
-
-	_headers["Server"] = "Webserv/1.0.0 (Unix)";
-	_headers["Transfer-Encoding"] = "identity";
-	setWwwAuthenticate(code);
-}
-
-
-
-// Setter functions
-
 void	ResponseHeader::setContentType(std::string type, std::string path){
-	if (type != ""){
-		_headers["Content-Type"] = type;
-		return ;
-	}
 	type = path.substr(path.rfind(".") + 1, path.size() - path.rfind("."));
     _headers["Content-Type"] = _contentType[type];
     if ( _contentType[type].empty() ) _headers["Content-Type"] = "text/plain";
@@ -162,7 +108,7 @@ std::string			ResponseHeader::getDate(void){
 	strftime(buffer, 100, "%a, %d %b %Y %H:%M:%S GMT", tm);
 	return std::string(buffer);
 }
-
+/*
 void			ResponseHeader::setLastModified(const std::string& path){
 	char			buffer[100];
 	struct stat		stats;
@@ -173,26 +119,26 @@ void			ResponseHeader::setLastModified(const std::string& path){
 		strftime(buffer, 100, "%a, %d %b %Y %H:%M:%S GMT", tm);
 		_headers["Last-Modified"] = std::string(buffer);
 	}
-}
-
+}*/
+/*
 void	ResponseHeader::setLocation(int code, const std::string& redirect){
 	if (code == 201 || code / 100 == 3){
 		_headers["Location"] = redirect;
 	}
-}
-
+}*/
+/*
 void	ResponseHeader::setRetryAfter(int code, int sec){
 	if (code == 503 || code == 429 || code == 301){
         setHeader("Retry-After", sec);
 	}
-}
-
+}*/
+/*
 void	ResponseHeader::setWwwAuthenticate(int code){
 	if (code == 401){
 		_headers["WWW-Authenticate"] = "Basic realm=\"Access requires authentification\" charset=\"UTF-8\"";
 	}
 }
-
+*/
 // Overloaders
 
 ResponseHeader & ResponseHeader::operator=(const ResponseHeader & src){
@@ -203,7 +149,5 @@ ResponseHeader & ResponseHeader::operator=(const ResponseHeader & src){
 		// Constructors and destructors
 
 ResponseHeader::ResponseHeader(void){ resetHeaders(); }
-
 ResponseHeader::ResponseHeader(const ResponseHeader & src){ (void)src; }}
-
 ResponseHeader::~ResponseHeader(void){}

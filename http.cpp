@@ -52,28 +52,27 @@ struct Reader : public IEventReader
 
 struct Writer : public IEventWriter
 {
-    Writer(HTTP& http, Reader *reader) : response(), http(http), reader(reader) {
+    Writer(HTTP& http, Reader *reader) : http(http), reader(reader) {
 
     }
     virtual void write(EventPool *evPool, Event *event)
     {
         LOG_DEBUG("Event writer call\n");
 
-        http.handler(reader->request, response);
+        http.handler(reader->request);
 
         // пишем в сокет
         int sock = event->sock;
-        ::write(sock, response.getContent().c_str(), response.getContent().size());
+        ::write(sock, response_.getContent().c_str(), response_.getContent().size());
 
         // сброс
         reader->request.reset();
-        //response.reset();
 
         // выключаем write
         evPool->addEvent(event, EventPool::M_WRITE | EventPool::M_DISABLE);
         //evPool->eventSetFlags(EventPool::M_TIMER | EventPool::M_DISABLE);
     }
-    Response    response;
+    Response    response_;
     HTTP&       http;
     Reader*     reader;
 };
@@ -126,7 +125,7 @@ HTTP::~HTTP()
 void HTTP::handler(Request& request)
 {
 	Response response(request);
-	_response = response;
+	response_ = response;
 }
 
 void HTTP::start() {

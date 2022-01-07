@@ -22,17 +22,7 @@ public:
 
 private:
     EventPool   evPool_;
-    Response    _response;
-
-/*
-	std::set<std::string> _methods;
-
-/*
-    void methodGET(Request& request, Response& response);
-	void methodPOST(Request& request, Response& response);
-	void methodDELETE(Request& request, Response& response);
-	void methodNotAllowed(Request& request, Response& response);
-	void methodBadRequest(); */
+    Response    response_;
 };
 
 #endif // HTTP_H
