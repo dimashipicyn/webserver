@@ -63,6 +63,12 @@ std::string trim(const std::string &str, const std::string &whitespace)
 
 	return str.substr(strBegin, strRange);
 }
+
+std::string getExtension(const std::string &resource)
+{
+	size_t position = resource.find_last_of('.', std::string::npos);
+	return position == std::string::npos ? "" : resource.substr(position);
+}
 /*
 int main() {
     std::string s = "hello world bro";

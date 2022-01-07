@@ -5,7 +5,11 @@
 #include <set>
 #include "TcpSocket.h"
 #include "EventPool.h"
+
 #include "Response.h"
+#include "settingsManager/SettingsManager.hpp"
+#include "cgi/Cgi.hpp"
+
 
 
 class Request;

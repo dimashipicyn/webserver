@@ -109,6 +109,9 @@ struct Accepter : public IEventAcceptor
 
 HTTP::HTTP(const std::string& host, std::int16_t port)
 {
+	// Прописываем адрес клиента в конфиге
+	SettingsManager::getInstance()->setHost(host, port);
+
     TcpSocket socket(host, port);
     socket.makeNonBlock();
     socket.listen();
@@ -124,8 +127,34 @@ HTTP::~HTTP()
 // здесь происходит обработка запроса
 void HTTP::handler(Request& request)
 {
+
 	Response response(request);
 	response_ = response;
+
+    LOG_DEBUG("Http handler call\n");
+    LOG_DEBUG("--------------PRINT REQUEST--------------\n");
+    std::cout << request << std::endl;
+/*
+	// Сравниваем расширение запрошенного ресурса с cgi расширением для этого локейшена. Если бьется, запуск скрипта
+	SettingsManager *settingsManager = SettingsManager::getInstance();
+	Server *server = settingsManager->findServer(settingsManager->getHost().host, settingsManager->getHost()
+	.port);
+	std::string path = request.getPath();
+	Route *route = server == nullptr ? nullptr : server->findRouteByPath(path);
+	if (route != nullptr && getExtension(path) == route->getCgi()) {
+		response.setContent(Cgi(request).runCGI());
+	}*/
+
+/*
+    if (request.getMethod() == "GET" && request.getPath() == "/") {
+        std::stringstream ss;
+        std::string s("Hello Webserver!\n");
+        ss << "HTTP/1.1 200 OK\n"
+           << "Content-Length: " << s.size() << "\n"
+           << "Content-Type: text/html\n\n";
+        response.setContent(ss.str() + s);
+    }
+*/
 }
 
 void HTTP::start() {
