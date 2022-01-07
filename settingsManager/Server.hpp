@@ -6,6 +6,7 @@
 #define WEBSERV_SERVER_HPP
 
 #include "Route.hpp"
+#include "../utils.h"
 
 class Server
 {
@@ -45,6 +46,13 @@ public:
 	 * @brief валидация сервера на минимаьные требования
 	 */
 	bool isValid() const;
+
+	/**
+	 * @brief поиск наиболее подходящего роута по location
+	 * @param path запрошенный ресурс
+	 * @return указатель на найденнй роут или nullptr, если таковой не найден
+	 */
+	Route *findRouteByPath(std::string const &path);
 
 	// геттеры сеттеры
 	size_t getMaxBodySize() const;

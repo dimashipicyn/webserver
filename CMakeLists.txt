@@ -30,4 +30,7 @@ add_executable(webserv
         settingsManager/ConfigParser.cpp
         settingsManager/Route.hpp
         settingsManager/Route.cpp
+
+        cgi/Cgi.hpp
+        cgi/Cgi.cpp
         )
