@@ -66,7 +66,14 @@ std::string trim(const std::string &str, const std::string &whitespace)
 
 bool isValidPairString(const std::string &line, const char &delimiter)
 {
-	return line.find_first_of(delimiter) != std::string::npos && line.find_first_of(delimiter) == line.find_last_of(delimiter);
+	return line.find_first_of(delimiter) != std::string::npos
+		&& line.find_first_of(delimiter) == line.find_last_of(delimiter);
+}
+
+std::string getExtension(const std::string &resource)
+{
+	size_t position = resource.find_last_of('.', std::string::npos);
+	return position == std::string::npos ? "" : resource.substr(position);
 }
 /*
 int main() {

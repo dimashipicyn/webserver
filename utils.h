@@ -18,7 +18,14 @@ std::string trim(const std::string &str, const std::string &whitespace);
 	 *
 	 * @return true если строка соответствует формату
 	 */
-
 bool isValidPairString(std::string const &line, const char &delimiter);
+
+/**
+ * @brief Функция извлекает расширение файла из запрошенного ресурса.
+ *
+ * @param resource - строка uri
+ * @return строку формата ".xxx". Если в строке расширения не найдено - пустую строку
+ */
+std::string getExtension(std::string const &resource);
 
 #endif //WEBSERV_UTILS_H
