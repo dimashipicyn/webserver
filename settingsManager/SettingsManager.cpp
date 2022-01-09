@@ -71,3 +71,8 @@ Server *SettingsManager::findServer(const std::string &host, const uint16_t &por
 	}
 	return nullptr;
 }
+
+Server *SettingsManager::getDefaultServer()
+{
+	return &servers_.front();
+}

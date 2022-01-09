@@ -7,6 +7,7 @@
 
 #include <vector>
 #include "ConfigParser.hpp"
+
 /**
  * @brief Объект представления данных из конфигурационного файла. Синглтон
  */
@@ -15,7 +16,8 @@ class SettingsManager
 public:
 
 	// Информация о хосте
-	struct Host {
+	struct Host
+	{
 		std::string host;
 		uint16_t port;
 	};
@@ -53,6 +55,13 @@ public:
 	Server *getLastServer();
 
 	/**
+	 * @brief достает дефолтный сервер из вектора без удаления. Сейчас это первый элемент.
+	 *
+	 * @return указатель на крайний сервер
+	 */
+	Server *getDefaultServer();
+
+	/**
 	 * @brief обнуляет вектор серверов с очисткой памяти
 	 */
 	void clear();
@@ -65,13 +74,15 @@ public:
 	 *
 	 * @return указатель на подходящий сервер в конфиге. nullptr если таков не найден.
 	 */
-	 Server *findServer(std::string const &host, uint16_t const &port);
+	Server *findServer(std::string const &host, uint16_t const &port);
 
 	const Host &getHost() const;
+
 	void setHost(const std::string &host, const uint16_t &port);
 
 protected:
 	SettingsManager();
+
 	static SettingsManager *settingsManager_;
 
 
@@ -79,6 +90,7 @@ private:
 
 	// Запрещаем копирование и присваивание
 	SettingsManager(SettingsManager const &copy);
+
 	void operator=(SettingsManager const &);
 
 	// сервера, первый дефолтный

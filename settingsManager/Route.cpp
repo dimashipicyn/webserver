@@ -3,6 +3,8 @@
 //
 
 #include "Route.hpp"
+#include "../utils.h"
+#include <unistd.h>
 
 Route::Route()
 {
@@ -12,8 +14,9 @@ Route::Route()
 	defaultFiles_.push_back("index");
 	defaultFiles_.push_back("index.html");
 	defaultFiles_.push_back("index.htm");
-	methods_.push_back("GET");
 	autoindex_ = false;
+	cgi_ = ".cgi";
+	uploadTo_ = "tmp";
 }
 
 Route::~Route()
@@ -131,4 +134,24 @@ bool Route::isAutoindex() const
 void Route::setAutoindex(bool autoindex)
 {
 	autoindex_ = autoindex;
+}
+
+std::string Route::getFullPath(const std::string &resource)
+{
+	std::string defaultFile;
+
+	if (getExtension(resource).empty()) {
+		for (std::vector<std::string>::iterator i = defaultFiles_.begin(); i != defaultFiles_.end(); i++) {
+			std::string tryPath = root_
+					+ (resource[0] == '/' ? resource : ("/" + resource))
+					+ (resource[resource.size() - 1] == '/' ? (*i) : ("/" + (*i)));
+			if (access(tryPath.substr(1).c_str(), F_OK) != -1)
+				return tryPath;
+		}
+	} else {
+		std::string tryPath = root_ + (resource[0] == '/' ? resource : ("/" + resource));
+		if (access(tryPath.substr(1).c_str(), F_OK) != -1)
+			return tryPath;
+	}
+	return "";
 }
