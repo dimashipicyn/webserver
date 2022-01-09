@@ -4,7 +4,7 @@
 
 #include "Server.hpp"
 
-Server::Server() : maxBodySize_(1 * MB)
+Server::Server()
 {}
 
 const std::string &Server::getHost() const
