@@ -46,6 +46,9 @@ void ConfigParser::parseConfig(const std::string &fileName)
 		else if (settingsManager->getServers().empty())
 			throw std::runtime_error(formConfigErrorText("Should start with server block!"));
 
+		if (!isValidPairString(line, ':'))
+			continue;
+
 		std::pair<std::string, std::string> map = breakPair(line);
 		currentServer = settingsManager->getLastServer();
 		switch (parameterMapping(map.first))
@@ -82,11 +85,6 @@ std::pair<std::string, std::string> ConfigParser::breakPair(const std::string &l
 	result.second = trim(line.substr(delimiter + 1, line.length()), " \t");
 
 	return result;
-}
-
-bool ConfigParser::isValidLine(const std::string &line)
-{
-	return line.find_first_of(':') != std::string::npos && line.find_first_of(':') == line.find_last_of(':');
 }
 
 ConfigParser::parameterCode ConfigParser::parameterMapping(const std::string &str)
