@@ -145,12 +145,12 @@ std::string Route::getFullPath(const std::string &resource)
 			std::string tryPath = root_
 					+ (resource[0] == '/' ? resource : ("/" + resource))
 					+ (resource[resource.size() - 1] == '/' ? (*i) : ("/" + (*i)));
-			if (access(tryPath.substr(1).c_str(), F_OK) != -1)
+			if (access(tryPath.c_str(), F_OK) != -1)
 				return tryPath;
 		}
 	} else {
 		std::string tryPath = root_ + (resource[0] == '/' ? resource : ("/" + resource));
-		if (access(tryPath.substr(1).c_str(), F_OK) != -1)
+		if (access(tryPath.c_str(), F_OK) != -1)
 			return tryPath;
 	}
 	return "";
