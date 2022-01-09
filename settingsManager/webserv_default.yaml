@@ -49,3 +49,6 @@
 server:
   host: 127.0.0.1
   port: 80
+  server_name: localhost
+  error_page: /var/www/404.html
+  max_body_size: 1M
