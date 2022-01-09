@@ -9,14 +9,14 @@
 
 Cgi::Cgi(const Request &request)
 {
-	script_ = request.getPath();
-	env_ = convertMeta(request);
+	script_ = request.getPath(); // !!Поменять на абсолютный путь через функцию Route::getFullPath() когда будет ip:port
 	body_ = request.getBody();
+	convertMeta(request);
 }
 
-char **Cgi::convertMeta(const Request &request)
+void Cgi::convertMeta(const Request &request)
 {
-	std::map<std::string, std::string> meta;
+	Request::headersMap meta;
 	std::map<std::string, std::string> headers = request.getHeaders();
 	SettingsManager *settingsManager = SettingsManager::getInstance();
 
@@ -46,15 +46,12 @@ char **Cgi::convertMeta(const Request &request)
 
 
 	size_t i = 0;
-	size_t length = meta.size();
-	char **env = new char*[length + 1];
 	for (std::map<std::string, std::string>::iterator iter = meta.begin(); iter != meta.end(); iter++) {
 		std::string element = iter->first + "=" + iter->second;
-		env[i] = new char[element.size() + 1];
-		strcpy(env[i++], element.c_str());
+		env_.push_back(new char[element.size() + 1]);
+		strcpy(env_.at(i++), element.c_str());
 	}
-	env[i] = nullptr;
-	return env;
+	env_.push_back(nullptr);
 }
 
 std::string Cgi::runCGI()
@@ -81,7 +78,7 @@ std::string Cgi::runCGI()
 		dup2(cgiIn, STDIN_FILENO);
 		dup2(cgiOut, STDOUT_FILENO);
 
-		if (execve(("." + script_).c_str(), nullptr, env_) < 0)
+		if (execve(("." + script_).c_str(), nullptr, env_.data()) < 0)
 //		if (execve("./cgi_tester", nullptr, env_) < 0)
 		{
 			LOG_ERROR("Execve fail!\n");
@@ -108,7 +105,7 @@ std::string Cgi::runCGI()
 
 Cgi::~Cgi()
 {
-	for (size_t i = 0; env_[i]; i++)
-		delete[] env_[i];
-	delete[] env_;
+	for (std::vector<char *>::iterator i = env_.begin(); i != env_.end(); i++)
+		delete[](*i);
+	env_.clear();
 }
