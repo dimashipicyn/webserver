@@ -65,43 +65,6 @@ namespace utils {
 
         return str.substr(strBegin, strRange);
     }
-
-    std::string to_string(int64_t num) {
-        std::stringstream ss;
-        std::string result;
-
-        ss << num;
-        ss >> result;
-        return result;
-    }
-
-    std::string to_string(double num) {
-        std::stringstream ss;
-        std::string result;
-
-        ss << num;
-        ss >> result;
-        return result;
-    }
-
-    int64_t to_int64(const std::string& stringToNumber) {
-        std::stringstream ss;
-        int64_t result;
-
-        ss << stringToNumber;
-        ss >> result;
-        return result;
-    }
-
-    double to_double(const std::string& stringToNumber) {
-        std::stringstream ss;
-        int64_t result;
-
-        ss << stringToNumber;
-        ss >> result;
-        return result;
-    }
-
 }
 
 /*

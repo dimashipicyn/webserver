@@ -4,14 +4,31 @@
 
 #ifndef WEBSERV_UTILS_H
 #define WEBSERV_UTILS_H
+#include <sstream>
 
 namespace utils {
     int                         get_next_line(int fd, std::string& line);
     std::vector<std::string>    split(std::string& s, const char delim);
     std::string                 trim(const std::string &str, const std::string &whitespace);
-    std::string                 to_string(int64_t num);
-    std::string                 to_string(double num);
-    int64_t                     to_int64(const std::string& stringToNumber);
-    double                      to_double(const std::string& stringToNumber);
+
+    template<typename T>
+    std::string    to_string(const T& t) {
+        std::stringstream ss;
+        std::string result;
+
+        ss << t;
+        ss >> result;
+        return result;
+    }
+
+    template<typename T>
+    T    to_number(const std::string& s) {
+        std::stringstream ss;
+        T result;
+
+        ss << s;
+        ss >> result;
+        return result;
+    }
 }
 #endif //WEBSERV_UTILS_H
