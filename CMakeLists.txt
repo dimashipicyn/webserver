@@ -33,4 +33,7 @@ add_executable(webserv
 
         cgi/Cgi.hpp
         cgi/Cgi.cpp
+
+        autoindex/Autoindex.hpp
+        autoindex/Autoindex.cpp
         )
