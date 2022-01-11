@@ -45,7 +45,6 @@
 #           to: http://example.com/bar
 #     autoindex: on
 #     cgi: .php
-
 server:
   host: 127.0.0.1
   port: 1234

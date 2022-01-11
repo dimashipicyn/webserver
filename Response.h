@@ -28,7 +28,7 @@ public:
     void methodDELETE(const Request& request);
     void methodNotAllowed(const Request& request);
     void BadRequest();
-	std::string getPath(const Request&);
+	std::string getPath(const Request&) const;
 	std::string getErrorPath();
 
 private:

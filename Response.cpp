@@ -99,15 +99,16 @@ void Response::BadRequest(){
 
 }
 // Change: take from config root && default files && error files
-std::string Response::getPath(const Request &request) {
+std::string Response::getPath(const Request &request) const{
 	std::string path;
-	if ( (path = request.getPath()) == "/")
-		path = ".\\root\\www\\index.html";
+	Route *route = settingsManager->getLastServer()->findRouteByPath(request.getPath());
+	path = route->getRoot() + route->getLocation() + route->getDefaultFiles().at(0);
 	return path;
 }
 
 //Change: take from config errorfile paths
 std::string Response::getErrorPath() {
+
 	return ".\\root\\www\\page404.html";
 }
 
