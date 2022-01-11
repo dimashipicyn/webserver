@@ -7,7 +7,7 @@
 #include "settingsManager/SettingsManager.hpp"
 #include "Logger.h"
 
-# define DEFAULT_CONFIG "settingsManager/webserv_default.yaml"
+# define DEFAULT_CONFIG "/Users/griddler/webserver/settingsManager/webserv_default.yaml"
 
 int main(int argc, char **argv)
 {

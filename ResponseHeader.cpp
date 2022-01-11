@@ -1,4 +1,5 @@
 #include "ResponseHeader.hpp"
+#include "settingsManager/SettingsManager.hpp"
 #include <sstream>
 #include <sys/time.h>
 #include "Request.h"
@@ -63,10 +64,10 @@ std::map<std::string, std::string> ResponseHeader::_contentType
 std::string		ResponseHeader::getHeader(const Request& request){
 	std::ostringstream header;
 
-	setValues(request);
 	header << "HTTP/1.1 " << _code << " " << _errors[_code] << "\r\n";
 	header << writeHeader();
-	return (header.str());
+	std::string testout = header.str(); //just for test. would be deleted
+	return header.str();
 }
 
 void	ResponseHeader::setCode(int code){ _code = code; }
@@ -78,8 +79,10 @@ std::string		ResponseHeader::writeHeader(void)
 	for (std::map<std::string, std::string>::const_iterator it = _headers.cbegin();
 												it != _headers.cend(); ++it) {
 		if ( !it->second.empty() )
-			header << it->first << ": " << it->second << "\r\n";
+			header << it->first << ": " << it->second << "\n";
 	}
+	header << "\r\n";
+	std::string testout = header.str(); //just for test. would be deleted
 	return header.str();
 }
 
@@ -88,14 +91,25 @@ void ResponseHeader::setHeader(const std::string &key, const std::string &value)
 }
 
 void ResponseHeader::setHeader(const std::string &key, const int &value) {
-    std::ostringstream oss(value);
+    std::ostringstream oss;
+	oss << value;
     _headers[key] = oss.str();
 }
 
-void	ResponseHeader::setContentType(std::string type, std::string path){
-	type = path.substr(path.rfind(".") + 1, path.size() - path.rfind("."));
-    _headers["Content-Type"] = _contentType[type];
-    if ( _contentType[type].empty() ) _headers["Content-Type"] = "text/plain";
+void	ResponseHeader::setContentType(const Request& request, std::string path){
+/*		try {
+			request.getHeaders()
+		} catch(std::exception& e) {
+
+		} */
+	std::string type = path.substr(path.rfind(".") + 1, path.size() - path.rfind("."));
+	std::string value;
+	try {
+		value = _contentType.at(type);
+	} catch(const std::exception& e) {
+		value = "text/plain";
+	}
+	_headers["Content-Type"] = value;
 }
 
 std::string			ResponseHeader::getDate(void){
@@ -149,5 +163,5 @@ ResponseHeader & ResponseHeader::operator=(const ResponseHeader & src){
 		// Constructors and destructors
 
 ResponseHeader::ResponseHeader(void){ resetHeaders(); }
-ResponseHeader::ResponseHeader(const ResponseHeader & src){ (void)src; }}
+ResponseHeader::ResponseHeader(const ResponseHeader & src){ (void)src; }
 ResponseHeader::~ResponseHeader(void){}

@@ -13,12 +13,19 @@ class RequestConfig{};
 #include <set>
 #include "Request.h"
 #include "ResponseHeader.hpp"
+#include "settingsManager/SettingsManager.hpp"
+
+extern SettingsManager *settingsManager;
 
 class Response {
 public:
     Response();
     Response(const Request&);
-    Response& operator=(const Response& response) {(void)response;return *this;};
+    Response& operator=(const Response& response) {
+		_header = response._header;
+		_output = response._output;
+		return *this;
+	};
     ~Response();
 	const std::string& getContent() const;
 //	void setHeader(std::string name, std::string value) {};
@@ -29,7 +36,7 @@ public:
     void methodNotAllowed(const Request& request);
     void BadRequest();
 	std::string getPath(const Request&) const;
-	std::string getErrorPath();
+	std::string getErrorPath(const Request&) const;
 
 private:
     Response(const Response& response) {(void)response;};

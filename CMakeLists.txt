@@ -18,6 +18,8 @@ add_executable(webserv
         Request.cpp
         Response.h
         Response.cpp
+        ResponseHeader.hpp
+        ResponseHeader.cpp
         kqueue.cpp
         http.cpp
         http.h

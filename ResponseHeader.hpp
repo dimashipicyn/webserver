@@ -15,12 +15,11 @@ public:
 	ResponseHeader & operator=(const ResponseHeader & src);
 
 	// Setter functions
-    //void            setValues(const Request& request );
 	void	        setHeader(const std::string&, const std::string&);
     void            setHeader(const std::string&, const int&);
     void            setCode(int);
 //	void			setContentLocation(const std::string& path, int code);
-//	void			setContentType(std::string type, std::string path);
+	void			setContentType(const Request&, std::string path);
 	std::string		getDate(void);
 //	void			setLastModified(const std::string& path);
 //	void			setLocation(int code, const std::string& redirect);

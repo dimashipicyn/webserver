@@ -63,7 +63,9 @@ struct Writer : public IEventWriter
 
         // пишем в сокет
         int sock = event->sock;
-        ::write(sock, response_.getContent().c_str(), response_.getContent().size());
+
+		std::string output = http.response_.getContent();
+		::write(sock, output.c_str(), output.size());
 
         // сброс
         reader->request.reset();
@@ -72,7 +74,7 @@ struct Writer : public IEventWriter
         evPool->addEvent(event, EventPool::M_WRITE | EventPool::M_DISABLE);
         //evPool->eventSetFlags(EventPool::M_TIMER | EventPool::M_DISABLE);
     }
-    Response    response_;
+//    Response    response_;
     HTTP&       http;
     Reader*     reader;
 };

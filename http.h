@@ -7,6 +7,7 @@
 #include "EventPool.h"
 
 #include "Response.h"
+#include "ResponseHeader.hpp"
 #include "settingsManager/SettingsManager.hpp"
 #include "cgi/Cgi.hpp"
 
@@ -24,9 +25,10 @@ public:
     void handler(Request& request);
     void start();
 
+	Response    response_;
 private:
     EventPool   evPool_;
-    Response    response_;
+
 };
 
 #endif // HTTP_H

@@ -13,8 +13,6 @@
 #include <string>
 #include <iterator>
 
-extern SettingsManager *settingsManager;
-
 std::map<std::string, void (Response::*)(const Request &)>	Response::initMethods()
 {
     std::map<std::string, void (Response::*)(const Request &)> map;
@@ -49,7 +47,7 @@ Response::~Response() {}
 
 Response::Response(const Request& request){
     _header.setHeader("Date", _header.getDate());
-    _header.setHeader("Host", settingsManager->getLastServer()->getHost());
+//    _header.setHeader("Host", settingsManager->getLastServer()->getHost());
     std::string method = request.getMethod();
     if ( _method.count(method) ) (this->*_method[method])(request);
     else if (_allMethods.count(method)) methodNotAllowed(request);
@@ -57,24 +55,35 @@ Response::Response(const Request& request){
 }
 
 void Response::methodGET(const Request& request){
-    int errorCode = 404;
-    std::string content = "<h1>404 Not Found</h1>";
+    std::string finalContent;
     std::string path = getPath(request);
-    std::ifstream f(path);
-    if (f.good()) errorCode = 200;
-	else{
-		path = getErrorPath();
-		std::ifstream f(path);
+    std::ifstream inputFile(path);
+	if (!inputFile.good()){
+		_header.setCode(404);
+		path = getErrorPath(request);
+		std::ifstream errorFile(path);
+		if (!errorFile.good() ){
+			_header.setCode(500);
+			return;
+		} else {
+			std::string errorContent((std::istreambuf_iterator<char>(errorFile)),
+							std::istreambuf_iterator<char>());
+			finalContent = errorContent;
+		}
+		errorFile.close();
+	} else {
+		_header.setCode(200);
+		std::string content((std::istreambuf_iterator<char>(inputFile)),
+							std::istreambuf_iterator<char>());
+		finalContent = content;
+		inputFile.close();
 	}
-	std::string str((std::istreambuf_iterator<char>(f)),
-					std::istreambuf_iterator<char>());
-	content = str;
-	f.close();
-	_header.setHeader("Content-Length", content.size());
-
-	std::ostringstream oss(_header.getHeader(request));
-	oss << content;
-	_output = oss.str();
+	_header.setHeader("Content-Length", finalContent.size() );
+	std::ostringstream oss;
+	oss << _header.getHeader(request);
+	oss << finalContent;
+	std::string output = oss.str(); // test unit would be deleted
+	_output = output;
 }
 
 void Response::methodPOST(const Request& request){}
@@ -101,14 +110,14 @@ void Response::BadRequest(){
 // Change: take from config root && default files && error files
 std::string Response::getPath(const Request &request) const{
 	std::string path;
+	SettingsManager *settingsManager = SettingsManager::getInstance();
 	Route *route = settingsManager->getLastServer()->findRouteByPath(request.getPath());
-	path = route->getRoot() + route->getLocation() + route->getDefaultFiles().at(0);
+	path = "/Users/griddler/webserver/index.html";//route->getRoot() + route->getLocation() + route->getDefaultFiles().at(0);
 	return path;
 }
 
 //Change: take from config errorfile paths
-std::string Response::getErrorPath() {
-
+std::string Response::getErrorPath(const Request &request) const {
 	return ".\\root\\www\\page404.html";
 }
 
