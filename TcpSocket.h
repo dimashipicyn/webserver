@@ -13,8 +13,7 @@
 class TcpSocket
 {
 public:
-    TcpSocket(const std::string& host, int port);
-    TcpSocket(int sock, const struct sockaddr& addr);
+    TcpSocket(const std::string& host); // format "host:port"
     TcpSocket(const TcpSocket& socket);
     TcpSocket& operator=(const TcpSocket& socket);
     virtual ~TcpSocket();
@@ -23,15 +22,24 @@ public:
     void        listen() const;
     void        connect() const;
     void        makeNonBlock() const;
-    int         getSock() const;
+    int64_t     read(void *buf, size_t bytes);
+    int64_t     write(void *buf, size_t bytes);
 
+
+
+    int                     getSock() const;
+    const std::string&      getHost() const;
     const struct sockaddr&  getAddr() const;
     struct sockaddr*        getAddr();
+
+private:
+    TcpSocket(int sock, const struct sockaddr& addr, const std::string& host);
 
 private:
     int                 sock_;
     socklen_t           addrLen_;
     struct sockaddr     address_;
+    std::string         host_;
 };
 
 #endif //WEBSERV_TCPSOCKET_H
