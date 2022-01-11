@@ -18,7 +18,7 @@ void ConfigParser::parseConfig(const std::string &fileName)
 
 	std::ifstream config(fileName);
 	if (!config.is_open())
-		throw std::runtime_error(formConfigErrorText("Can not open the file!"));
+		throw std::runtime_error("Config error: Can not open the file!");
 
 	while(true) {
 		if (config.eof()) break;
@@ -45,6 +45,9 @@ void ConfigParser::parseConfig(const std::string &fileName)
 		}
 		else if (settingsManager->getServers().empty())
 			throw std::runtime_error(formConfigErrorText("Should start with server block!"));
+
+		if (!isValidPairString(line, ':'))
+			continue;
 
 		std::pair<std::string, std::string> map = breakPair(line);
 		currentServer = settingsManager->getLastServer();
@@ -82,11 +85,6 @@ std::pair<std::string, std::string> ConfigParser::breakPair(const std::string &l
 	result.second = trim(line.substr(delimiter + 1, line.length()), " \t");
 
 	return result;
-}
-
-bool ConfigParser::isValidLine(const std::string &line)
-{
-	return line.find_first_of(':') != std::string::npos && line.find_first_of(':') == line.find_last_of(':');
 }
 
 ConfigParser::parameterCode ConfigParser::parameterMapping(const std::string &str)
@@ -168,6 +166,7 @@ std::string ConfigParser::parseRoute(std::ifstream &config, Server &server)
 				currentRoute->setRoot(map.second);
 				break;
 			case DEFAULT_FILE:
+				currentRoute->setDefaultFiles(std::vector<std::string>());
 				while (true) {
 					getLineAndTrim(config, line);
 					if (line[0] == '-' && line[1] != '-')
@@ -184,6 +183,7 @@ std::string ConfigParser::parseRoute(std::ifstream &config, Server &server)
 				currentRoute->setUploadTo(map.second);
 				break;
 			case METHOD:
+				currentRoute->setMethods(std::vector<std::string>());
 				while (true) {
 					getLineAndTrim(config, line);
 					if (line[0] == '-' && line[1] != '-')

@@ -81,6 +81,16 @@ public:
 	 */
 	void addRedirect(Route::redirect &redirect);
 
+	/**
+	 * @brief генерирует полный путь до ресурса на сервере. root + resource
+	 *
+	 * @param resource - запрошенный ресур, например "index.html". Если resource папка, будут производиться попытки
+	 * найти дефолтные ресурсы поочередно.
+	 *
+	 * @return возрващает полный путь на сервере до ресурса. Если ничего не найдено - вернет пустую строку.
+	 */
+	std::string getFullPath(std::string const &resource);
+
 	// геттеры сеттеры
 	const std::string &getLocation() const;
 

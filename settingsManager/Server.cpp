@@ -4,7 +4,7 @@
 
 #include "Server.hpp"
 
-Server::Server() : maxBodySize_(1 * MB)
+Server::Server()
 {}
 
 const std::string &Server::getHost() const
@@ -105,10 +105,10 @@ Route *Server::findRouteByPath(std::string const &path)
 	for (std::vector<Route>::iterator iter = routes_.begin(); iter != routes_.end(); iter++) {
 		std::vector<std::string> splittedLocation = split(const_cast<std::string &> (iter->getLocation()), '/');
 		uint32_t currentLevel = 0;
-		size_t maxLevel = std::max(splittedPath.size(), splittedLocation.size());
-		if (maxLevel > mostEqualLevel)
+		size_t maxDepth = std::min(splittedPath.size(), splittedLocation.size());
+		if (maxDepth > mostEqualLevel)
 		{
-			for (size_t i = 0; i < maxLevel; i++)
+			for (size_t i = 0; i < maxDepth; i++)
 			{
 				if (splittedPath.at(i) == splittedLocation.at(i))
 					currentLevel++;

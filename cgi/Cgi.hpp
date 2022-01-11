@@ -22,15 +22,14 @@ public:
 private:
 	std::string script_;
 	std::string body_;
-	char **env_;
+	std::vector<char *> env_;
 
 	/**
 	 * Конвертирует данные из запроса, конфига в мета переменные CGI
 	 *
 	 * @param request ссылка на запрос
-	 * @return переменные окружения cgi в виде char **env
 	 */
-	char **convertMeta(Request const &request);
+	void convertMeta(Request const &request);
 
 };
 
