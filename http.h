@@ -10,17 +10,31 @@
 class Request;
 class Response;
 
+class Accepter : public IEventAcceptor
+{
+public:
+    Accepter();
+    virtual ~Accepter();
+    virtual void accept(Session& session);
+
+private:
+    std::vector<TcpSocket>  listeners_;
+    EventPool               evPool_;
+};
+
+
 class HTTP
 {
 public:
-    HTTP(const std::string& host, std::int16_t port);
+    HTTP();
     virtual ~HTTP();
 
+    void listen(const std::string& host);
     void handler(Request& request, Response &response);
     void start();
 
 private:
-    EventPool   evPool_;
+    Accepter                accepter;
 };
 
 #endif // HTTP_H
