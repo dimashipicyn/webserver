@@ -13,19 +13,18 @@
 #include "Logger.h"
 #include "EventPool.h"
 #include "kqueue.h"
+#include "TcpSocket.h"
 
+void ISessionCallback::asyncAccept(Session& session) {(void)session;}
+void ISessionCallback::asyncRead(Session& session) {(void)session;}
+void ISessionCallback::asyncWrite(Session &session) {(void)session;}
+void ISessionCallback::asyncEvent(Session& session, std::uint16_t flags) {(void)session;(void)flags;}
 
-IEventAcceptor::~IEventAcceptor() {}
-IEventHandler::~IEventHandler() {}
-IEventReader::~IEventReader() {}
-IEventWriter::~IEventWriter() {}
 
 
 EventPool::EventPool()
     : poll_(),
-      listenSockets_(),
-      running_(false),
-      removed_(false)
+      running_(false)
 {
 }
 
@@ -44,89 +43,72 @@ void EventPool::start() {
         int n = poll_.getEvents(events); // throw
         for (int i = 0; i < n; ++i)
         {
-            changeEvents_.clear();
-            std::uint16_t flags = events[i].flags;
-            Event *event = reinterpret_cast<Event*>(events[i].ctx); // current event
-            removed_ = false;
+            uint16_t flags = events[i].flags;
+            int32_t socket = events[i].fd;
 
-            LOG_DEBUG("Event fd %d, flags %d\n", event->sock, flags);
-
-            assert(event);
-
-
-            if ( event->handler.get() )
-            {
-                event->handler->event(this, event, flags);
+            sessionMap::iterator foundSession = sessionMap_.find(socket);
+            if (foundSession == sessionMap_.end()) {
+                ::close(socket);
+                continue;
             }
 
+            foundSession->second.cb->asyncEvent(foundSession->second, flags);
+
             // читаем с сокета
-            if ( !removed_ && flags & M_READ )
+            if ( flags & M_READ )
             {
                 // если сокет есть среди слушающих, принимаем новое соединение
-                std::vector<int>::iterator found = find(listenSockets_.begin(), listenSockets_.end(), event->sock);
-                if ( found != listenSockets_.end() )
+                std::vector<int>::iterator foundListener = find(listeners_.begin(), listeners_.end(), socket);
+                if ( foundListener != listeners_.end() )
                 {
                     LOG_DEBUG("Create new connection\n");
 
-                    if ( event->acceptor.get() )
-                    {
-                        event->acceptor->accept(this, event); //acceptcb call
+                    if (foundSession->second.isClosed == false) {
+                        foundSession->second.cb->asyncAccept(foundSession->second);
                     }
                 }
                 else
                 {
-                    LOG_DEBUG("Reading in fd: %d\n", event->sock);
+                    LOG_DEBUG("Reading in fd: %d\n", socket);
 
-                    if ( event->reader.get() )
-                    {
-                        event->reader->read(this, event);
+                    if (foundSession->second.isClosed == false) {
+                        foundSession->second.cb->asyncRead(foundSession->second);
                     }
                 }
             }
             // пишем в сокет
-            if ( !removed_ && flags & M_WRITE )
+            if ( flags & M_WRITE )
             {
-                LOG_DEBUG("Write in fd: %d\n", event->sock);
+                LOG_DEBUG("Write in fd: %d\n", socket);
 
-                if ( event->writer.get() )
-                {
-                    event->writer->write(this, event);
+                if (foundSession->second.isClosed == false) {
+                    foundSession->second.cb->asyncWrite(foundSession->second);
                 }
+            }
+
+            if (foundSession->second.isClosed) {
+                sessionMap_.erase(foundSession->first);
             }
         } // end for
     }
 }
 
-void EventPool::addEvent(Event *event, std::uint16_t flags, std::int64_t time)
+void EventPool::newSession(Session& session, std::uint16_t flags, std::int64_t time)
 {
     try {
-        poll_.setEvent(event->sock, flags, event, time);
-
+        poll_.setEvent(session.socket->getSock(), flags, nullptr, time);
+        sessionMap_[session.socket->getSock()] = session;
     } catch (std::exception &e) {
         LOG_DEBUG("Failed addEvent: %s\n", e.what());
     }
 }
 
-void EventPool::removeEvent(Event *event)
-{
-    LOG_DEBUG("Remove event fd: %d\n", event->sock);
-    delete event;
-    removed_ = true;
-}
-
-
-void EventPool::addListener(int sock, struct sockaddr *addr, std::auto_ptr<IEventAcceptor> acceptor)
+void EventPool::newListener(Session& session)
 {
     try {
-        Event *event = new Event(sock, addr);
-        if (event == nullptr) {
-            throw std::bad_alloc();
-        }
-        event->acceptor = acceptor; // move pointer
-
-        poll_.setEvent(sock, M_READ|M_ADD|M_CLEAR, event, 0);
-        listenSockets_.push_back(sock);
-        LOG_DEBUG("Add listen fd: %d\n", event->sock);
+        poll_.setEvent(session.socket->getSock(), M_READ|M_ADD|M_CLEAR, nullptr, 0);
+        listeners_.push_back(session.socket->getSock());
+        LOG_DEBUG("Add listen fd: %d\n", session.socket->getSock());
     } catch (std::exception &e) {
         LOG_DEBUG("addListener fail. %s\n", e.what());
     }
@@ -134,34 +116,4 @@ void EventPool::addListener(int sock, struct sockaddr *addr, std::auto_ptr<IEven
 
 void EventPool::stop() {
     running_ = false;
-}
-
-//////////////////////////////////////
-/////////////// Event ////////////////
-//////////////////////////////////////
-Event::Event(int sock, struct sockaddr *addr)
-    : sock(sock),
-      addr(addr),
-      acceptor(nullptr),
-      reader(nullptr),
-      writer(nullptr),
-      handler(nullptr)
-{
-
-}
-
-Event::~Event() {
-    ::close(sock);
-}
-
-void Event::setCb(
-        std::auto_ptr<IEventAcceptor> acc,
-        std::auto_ptr<IEventReader> re,
-        std::auto_ptr<IEventWriter> wr,
-        std::auto_ptr<IEventHandler> h)
-{
-    acceptor = acc;
-    reader = re;
-    writer = wr;
-    handler = h;
 }

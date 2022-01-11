@@ -10,52 +10,27 @@
 
 class TcpSocket;
 class EventPool;
-struct Event;
+struct Session;
 
 
 /*********** callbacks ****************/
-class IEventAcceptor {
+struct ISessionCallback {
 public:
-    virtual ~IEventAcceptor();
-    virtual void accept(EventPool *evPool, Event *event) = 0;
-};
-
-class IEventReader {
-public:
-    virtual~IEventReader();
-    virtual void read(EventPool *evPool, Event *event) = 0;
-};
-
-class IEventWriter {
-public:
-    virtual ~IEventWriter();
-    virtual void write(EventPool *evPool, Event *event) = 0;
-};
-
-class IEventHandler {
-public:
-    virtual ~IEventHandler();
-    virtual void event(EventPool *evPool, Event *event, std::uint16_t flags) = 0;
+    virtual ~ISessionCallback();
+    virtual void asyncAccept(Session& session);
+    virtual void asyncRead(Session& session);
+    virtual void asyncWrite(Session& session);
+    virtual void asyncEvent(Session& session, std::uint16_t flags);
 };
 /********** callbacks end **********/
 
-struct Event {
-    Event(int sock, struct sockaddr *addr);
-    ~Event();
+struct Session {
+    Session();
+    ~Session();
 
-    void            setCb(
-            std::auto_ptr<IEventAcceptor> acceptor,
-            std::auto_ptr<IEventReader> reader,
-            std::auto_ptr<IEventWriter> writer,
-            std::auto_ptr<IEventHandler> handler
-            );
-
-    int             sock;
-    struct sockaddr *addr;
-    std::auto_ptr<IEventAcceptor> acceptor;
-    std::auto_ptr<IEventReader> reader;
-    std::auto_ptr<IEventWriter> writer;
-    std::auto_ptr<IEventHandler> handler;
+    std::auto_ptr<TcpSocket>        socket;
+    std::auto_ptr<ISessionCallback> cb;
+    bool                            isClosed;
 };
 
 class EventPool {
@@ -76,22 +51,23 @@ public:
         M_ERROR     = 1 << 10   //
     };
 
+    typedef std::map<int, Session> sessionMap;
+
 public:
     EventPool(); // throw exception
     ~EventPool();
 
     void start(); // throw exception
     void stop();
-    void addListener(int sock, struct sockaddr *addr, std::auto_ptr<IEventAcceptor> acceptor);
-    void addEvent(Event *event, std::uint16_t flags, std::int64_t time = 0);
-    void removeEvent(Event *event);
 
+    void newSession(Session& session, std::uint16_t flags, std::int64_t time = 0);
+    void newListener(Session& session)
+    ;
 private:
     Kqueue                      poll_;
-    std::vector<int>            listenSockets_;
-    std::vector<Kqueue::ev>     changeEvents_;
+    std::vector<int>            listeners_;
+    sessionMap                  sessionMap_;
     bool                        running_;
-    bool                        removed_;
 };
 
 #endif //WEBSERV_EVENTPOOL_H
