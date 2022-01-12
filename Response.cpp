@@ -69,6 +69,7 @@ void Response::methodGET(const Request& request){
 			std::string errorContent((std::istreambuf_iterator<char>(errorFile)),
 							std::istreambuf_iterator<char>());
 			finalContent = errorContent;
+			_header.setContentType(request, "text/html");
 		}
 		errorFile.close();
 	} else {
@@ -77,6 +78,7 @@ void Response::methodGET(const Request& request){
 							std::istreambuf_iterator<char>());
 		finalContent = content;
 		inputFile.close();
+		_header.setContentType(request, path);
 	}
 	_header.setHeader("Content-Length", finalContent.size() );
 	std::ostringstream oss;
