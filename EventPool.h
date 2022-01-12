@@ -13,23 +13,20 @@ class EventPool;
 struct Session;
 
 
-/*********** callbacks ****************/
-struct ISessionCallback {
+struct ISession {
 public:
-    virtual ~ISessionCallback();
-    virtual void asyncAccept(Session& session);
-    virtual void asyncRead(Session& session);
-    virtual void asyncWrite(Session& session);
-    virtual void asyncEvent(Session& session, std::uint16_t flags);
-};
-/********** callbacks end **********/
+    ISession();
+    virtual ~ISession();
 
-struct Session {
-    Session();
-    ~Session();
+    void close();
+
+    // callback
+    virtual void asyncAccept(EventPool& evPool);
+    virtual void asyncRead(char *buffer, int64_t bytes);
+    virtual void asyncWrite(char *buffer, int64_t bytes);
+    virtual void asyncEvent(std::uint16_t flags);
 
     std::auto_ptr<TcpSocket>        socket;
-    std::auto_ptr<ISessionCallback> cb;
     bool                            isClosed;
 };
 
@@ -51,7 +48,7 @@ public:
         M_ERROR     = 1 << 10   //
     };
 
-    typedef std::map<int, Session> sessionMap;
+    typedef std::map<int, ISession> sessionMap;
 
 public:
     EventPool(); // throw exception
@@ -60,13 +57,19 @@ public:
     void start(); // throw exception
     void stop();
 
-    void newSession(Session& session, std::uint16_t flags, std::int64_t time = 0);
-    void newListener(Session& session)
+    void newSession(ISession& session, std::uint16_t flags, std::int64_t time = 0);
+    void newListenSession(ISession& session)
     ;
 private:
+    enum {
+        readBufferSize = (1 << 16),
+        writeBufferSize = (1 << 16)
+    };
     Kqueue                      poll_;
     std::vector<int>            listeners_;
     sessionMap                  sessionMap_;
+    char                        readBuffer_[readBufferSize];
+    char                        writeBuffer_[writeBufferSize];
     bool                        running_;
 };
 

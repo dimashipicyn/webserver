@@ -15,10 +15,33 @@
 #include "kqueue.h"
 #include "TcpSocket.h"
 
-void ISessionCallback::asyncAccept(Session& session) {(void)session;}
-void ISessionCallback::asyncRead(Session& session) {(void)session;}
-void ISessionCallback::asyncWrite(Session &session) {(void)session;}
-void ISessionCallback::asyncEvent(Session& session, std::uint16_t flags) {(void)session;(void)flags;}
+// session
+
+ISession::ISession()
+    : socket()
+    , isClosed(false)
+{
+
+}
+ISession::~ISession() {
+
+}
+void ISession::close() {
+    isClosed = true;
+}
+void ISession::asyncAccept(EventPool& evPool) {
+    LOG_DEBUG("Call default accept()\n");
+}
+void ISession::asyncRead(char *buffer, int64_t bytes) {
+    LOG_DEBUG("Call default read()\n");
+}
+void ISession::asyncWrite(char *buffer, int64_t bytes) {
+    LOG_DEBUG("Call default write()\n");
+}
+void ISession::asyncEvent(std::uint16_t flags) {
+    (void)flags;
+    LOG_DEBUG("Call default event()\n");
+}
 
 
 
@@ -52,7 +75,7 @@ void EventPool::start() {
                 continue;
             }
 
-            foundSession->second.cb->asyncEvent(foundSession->second, flags);
+            foundSession->second.asyncEvent(flags);
 
             // читаем с сокета
             if ( flags & M_READ )
@@ -64,7 +87,7 @@ void EventPool::start() {
                     LOG_DEBUG("Create new connection\n");
 
                     if (foundSession->second.isClosed == false) {
-                        foundSession->second.cb->asyncAccept(foundSession->second);
+                        foundSession->second.asyncAccept(*this);
                     }
                 }
                 else
@@ -72,7 +95,7 @@ void EventPool::start() {
                     LOG_DEBUG("Reading in fd: %d\n", socket);
 
                     if (foundSession->second.isClosed == false) {
-                        foundSession->second.cb->asyncRead(foundSession->second);
+                        foundSession->second.asyncRead(readBuffer_, readBufferSize);
                     }
                 }
             }
@@ -82,7 +105,7 @@ void EventPool::start() {
                 LOG_DEBUG("Write in fd: %d\n", socket);
 
                 if (foundSession->second.isClosed == false) {
-                    foundSession->second.cb->asyncWrite(foundSession->second);
+                    foundSession->second.asyncWrite(writeBuffer_, writeBufferSize);
                 }
             }
 
@@ -93,7 +116,7 @@ void EventPool::start() {
     }
 }
 
-void EventPool::newSession(Session& session, std::uint16_t flags, std::int64_t time)
+void EventPool::newSession(ISession& session, std::uint16_t flags, std::int64_t time)
 {
     try {
         poll_.setEvent(session.socket->getSock(), flags, nullptr, time);
@@ -103,7 +126,7 @@ void EventPool::newSession(Session& session, std::uint16_t flags, std::int64_t t
     }
 }
 
-void EventPool::newListener(Session& session)
+void EventPool::newListenSession(ISession &session)
 {
     try {
         poll_.setEvent(session.socket->getSock(), M_READ|M_ADD|M_CLEAR, nullptr, 0);

@@ -5,25 +5,28 @@
 #include "Request.h"
 #include "Response.h"
 
-class Handler : public IEventHandler {
-    virtual void event(EventPool *evPool, Event *event, std::uint16_t flags) {
+struct Session : public ISession
+{
+    Session() {
+
+    };
+    virtual ~Session() {
+
+    };
+    virtual void asyncEvent(std::uint16_t flags)
+    {
         LOG_DEBUG("Event handler call\n");
         if ( flags & EventPool::M_EOF  || flags & EventPool::M_ERROR ) {
-            LOG_DEBUG("Event error or eof, fd: %d\n", event->sock);
-            evPool->removeEvent(event);
+            LOG_DEBUG("Event error or eof, fd: %d\n", socket->getSock());
+            close();
         }
-    }
-};
+    };
 
-struct Reader : public IEventReader
-{
-    Reader(HTTP& http) : request(), http(http) {
-
-    }
-    virtual void read(EventPool *evPool, Event *event)
+    virtual void asyncRead(char *buffer, int64_t bytes)
     {
         LOG_DEBUG("Event reader call\n");
 
+        /*
         int nBytes = ::read(event->sock, buffer, 1024);
         if (nBytes < 0) {
             LOG_ERROR("Error read socket: %d. %s\n", event->sock, ::strerror(errno));
@@ -43,22 +46,14 @@ struct Reader : public IEventReader
             //                      , 1000
             //                      );
         }
-    }
+        */
+    };
 
-    Request request;
-    HTTP&   http;
-    char    buffer[1025];
-};
-
-struct Writer : public IEventWriter
-{
-    Writer(HTTP& http, Reader *reader) : response(), http(http), reader(reader) {
-
-    }
-    virtual void write(EventPool *evPool, Event *event)
+    virtual void write(char *buffer, int64_t bytes)
     {
         LOG_DEBUG("Event writer call\n");
 
+        /*
         http.handler(reader->request, response);
 
         // пишем в сокет
@@ -73,34 +68,27 @@ struct Writer : public IEventWriter
         // выключаем write
         evPool->addEvent(event, EventPool::M_WRITE | EventPool::M_DISABLE);
         //evPool->eventSetFlags(EventPool::M_TIMER | EventPool::M_DISABLE);
-    }
-    Response    response;
-    HTTP&       http;
-    Reader*     reader;
-};
+        */
+    };
 
-struct Accepter : public IEventAcceptor
-{
-    Accepter(HTTP& http) : http(http) {}
-
-    virtual void accept(EventPool *evPool, Event *event)
+    virtual void accept(EventPool& evPool)
     {
         LOG_DEBUG("Event accepter call\n");
-        int conn = ::accept(event->sock, event->addr, (socklen_t[]){sizeof(struct sockaddr)});
 
-        LOG_DEBUG("New connect fd: %d\n", conn);
+        try
+        {
+            TcpSocket conn = socket->accept();
+            LOG_DEBUG("New connect fd: %d\n", conn.getSock());
 
-        Event *newEvent = new Event(conn, event->addr);
-
-        std::auto_ptr<IEventReader>  reader(new Reader(http));
-        std::auto_ptr<IEventWriter>  writer(new Writer(http, static_cast<Reader*>(reader.get())));
-        std::auto_ptr<IEventHandler> handler(new Handler);
-
-        newEvent->setCb(std::auto_ptr<IEventAcceptor>(), reader, writer, handler);
-        evPool->addEvent(newEvent, EventPool::M_READ | EventPool::M_ADD | EventPool::M_ENABLE);
-    }
-
-    HTTP& http;
+            Session clientSession;
+            clientSession.socket.reset(new TcpSocket(conn));
+            evPool.newSession(clientSession, EventPool::M_READ|EventPool::M_ADD|EventPool::M_ENABLE);
+        }
+        catch (std::exception& e)
+        {
+            LOG_ERROR("Session error: %s\n", e.what());
+        }
+    };
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -109,12 +97,9 @@ struct Accepter : public IEventAcceptor
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-HTTP::HTTP(const TcpSocket& socket)
+HTTP::HTTP()
 {
-    socket.makeNonBlock();
-    socket.listen();
-    std::auto_ptr<IEventAcceptor> accepter(new Accepter(*this));
-    evPool_.addListener(socket.getSock(), socket.getAddr(), accepter);
+
 }
 
 HTTP::~HTTP()
@@ -144,3 +129,16 @@ void HTTP::start() {
     evPool_.start();
 }
 
+void HTTP::listen(const std::string& host) {
+    try {
+        TcpSocket sock(host);
+        sock.makeNonBlock();
+        sock.listen();
+
+        Session listenSession;
+        listenSession.socket.reset(new TcpSocket(sock));
+        evPool_.newListenSession(listenSession);
+    }  catch (std::exception& e) {
+        LOG_ERROR("HTTP: %s\n", e.what());
+    }
+}
