@@ -65,9 +65,9 @@ std::string Autoindex::generatePage(const std::string &resource)
 
 std::string Autoindex::timespecToUtcString(timespec const &lastModified)
 {
-	char buf[31];
-	bzero(buf, 31);
-	const int tmpsize = 17;
+	const int tmpsize = 18;
+	char buf[tmpsize];
+	buf[tmpsize - 1] = 0;
 	struct tm tm;
 	gmtime_r(&lastModified.tv_sec, &tm);
 	strftime(buf, tmpsize, "%d-%b-%Y %H:%M", &tm);
@@ -91,7 +91,7 @@ std::string Autoindex::putRemainSpaces(const std::string &filename)
 {
 	size_t remain = FILENAME_LIMIT > filename.size() ? FILENAME_LIMIT - (filename.size() - 1) : 1;
 	char result[remain];
-	bzero(result, remain);
+	result[remain - 1] = 0;
 	if (remain > 1)
 	memset(result, ' ', remain - 1);
 	return result;
