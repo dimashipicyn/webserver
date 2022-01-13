@@ -23,7 +23,7 @@ public:
     void        connect() const;
     void        makeNonBlock() const;
     int64_t     read(void *buf, size_t bytes);
-    int64_t     write(void *buf, size_t bytes);
+    int64_t     write(const void *buf, size_t bytes);
 
 
 

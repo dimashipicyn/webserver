@@ -26,11 +26,14 @@ public:
     Request();
     ~Request();
 
+    void setHost(const std::string& host);
+
     const std::string&      getMethod() const;
     const std::string&      getVersion() const;
     const std::string&      getPath() const;
     const std::string&      getQueryString() const;
     const std::string&      getBody() const;
+    const std::string&      getHost() const;
     const headersMap&       getHeaders() const;
     State                   getState() const;
 

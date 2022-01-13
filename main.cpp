@@ -19,8 +19,17 @@ int main(int argc, char **argv)
 		LOG_WARNING(e.what());
 		std::cout << std::endl;
 		LOG_WARNING("Applying default configuration\n");
-	}
-
+    }
+    /*
+    TcpSocket *sptr;
+    {
+        TcpSocket s("127.0.0.1:1234");
+        s.listen();
+        sptr = new TcpSocket(s);
+    }
+    while (1)
+        ;
+*/
     HTTP serve;
     serve.listen("127.0.0.1:1234");
     serve.start();

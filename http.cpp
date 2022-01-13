@@ -5,90 +5,39 @@
 #include "Request.h"
 #include "Response.h"
 
-struct Session : public ISession
+struct Session
 {
-    Session() {
+    Session()
+        : socket_(nullptr)
+        , writeBuffer_()
+        , readBuffer_()
+    {
 
+    }
+    Session(std::auto_ptr<TcpSocket>& socket)
+        : socket_(socket)
+    {
+
+    };
+    Session(Session& session)
+        : socket_(session.socket_)
+    {
+    };
+    Session& operator=(Session& session) {
+        if (&session == this) {
+            return *this;
+        }
+        socket_ = session.socket_;
+        return *this;
     };
     virtual ~Session() {
 
     };
-    virtual void asyncEvent(std::uint16_t flags)
-    {
-        LOG_DEBUG("Event handler call\n");
-        if ( flags & EventPool::M_EOF  || flags & EventPool::M_ERROR ) {
-            LOG_DEBUG("Event error or eof, fd: %d\n", socket->getSock());
-            close();
-        }
-    };
-
-    virtual void asyncRead(char *buffer, int64_t bytes)
-    {
-        LOG_DEBUG("Event reader call\n");
-
-        /*
-        int nBytes = ::read(event->sock, buffer, 1024);
-        if (nBytes < 0) {
-            LOG_ERROR("Error read socket: %d. %s\n", event->sock, ::strerror(errno));
-        }
-        buffer[nBytes] = '\0';
-        request.parse(buffer);
-
-        if (request.getState() == Request::PARSE_ERROR
-         || request.getState() == Request::PARSE_DONE)
-        {
-            evPool->addEvent(event, EventPool::M_WRITE
-                                  | EventPool::M_ADD
-                                  | EventPool::M_ENABLE);
-            //evPool->eventSetFlags(EventPool::M_TIMER
-            //                      | EventPool::M_ADD
-             //                     | EventPool::M_ENABLE
-            //                      , 1000
-            //                      );
-        }
-        */
-    };
-
-    virtual void write(char *buffer, int64_t bytes)
-    {
-        LOG_DEBUG("Event writer call\n");
-
-        /*
-        http.handler(reader->request, response);
-
-        // пишем в сокет
-        int sock = event->sock;
-        ::write(sock, response.getContent().c_str(), response.getContent().size());
-
-        // сброс
-        reader->request.reset();
-        //response.reset();
 
 
-        // выключаем write
-        evPool->addEvent(event, EventPool::M_WRITE | EventPool::M_DISABLE);
-        //evPool->eventSetFlags(EventPool::M_TIMER | EventPool::M_DISABLE);
-        */
-    };
-
-    virtual void accept(EventPool& evPool)
-    {
-        LOG_DEBUG("Event accepter call\n");
-
-        try
-        {
-            TcpSocket conn = socket->accept();
-            LOG_DEBUG("New connect fd: %d\n", conn.getSock());
-
-            Session clientSession;
-            clientSession.socket.reset(new TcpSocket(conn));
-            evPool.newSession(clientSession, EventPool::M_READ|EventPool::M_ADD|EventPool::M_ENABLE);
-        }
-        catch (std::exception& e)
-        {
-            LOG_ERROR("Session error: %s\n", e.what());
-        }
-    };
+    std::auto_ptr<TcpSocket>    socket_;
+    std::string                 writeBuffer_;
+    std::string                 readBuffer_;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -98,6 +47,7 @@ struct Session : public ISession
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 HTTP::HTTP()
+    : sessionMap_()
 {
 
 }
@@ -105,6 +55,113 @@ HTTP::HTTP()
 HTTP::~HTTP()
 {
 
+}
+
+Session* HTTP::getSessionByID(int id)
+{
+    if (sessionMap_.find(id) != sessionMap_.end()) {
+        return &sessionMap_[id];
+    }
+    return nullptr;
+}
+
+void HTTP::newSession(std::auto_ptr<TcpSocket>& socket)
+{
+    Session clientSession(socket);
+    enableReadEvent(clientSession.socket_->getSock());
+
+    sessionMap_[clientSession.socket_->getSock()] = clientSession;
+    //sessionMap_.insert(std::pair<int, Session>(clientSession.socket_->getSock(), clientSession));
+}
+
+void HTTP::asyncAccept(int socket)
+{
+    LOG_DEBUG("Event accepter call\n");
+
+    try
+    {
+        Session *session = getSessionByID(socket);
+        if (session == nullptr) {
+            LOG_ERROR("Dont find session to socket: %d. Close.\n", socket);
+            close(socket);
+            return;
+        }
+
+        std::auto_ptr<TcpSocket> conn(new TcpSocket(session->socket_->accept()));
+        LOG_DEBUG("New connect fd: %d\n", conn->getSock());
+
+        newSession(conn);
+    }
+    catch (std::exception& e)
+    {
+        LOG_ERROR("HTTP::asyncAccept error: %s\n", e.what());
+    }
+};
+
+void HTTP::asyncWrite(int socket)
+{
+    LOG_DEBUG("Event writer call\n");
+
+    Session *session = getSessionByID(socket);
+    if (session == nullptr) {
+        LOG_ERROR("Dont find session to socket: %d. Close connection.\n", socket);
+        close(socket);
+        return;
+    }
+
+    Response response;
+    Request request;
+
+    request.parse(session->readBuffer_.c_str());
+    request.setHost(session->socket_->getHost());
+
+    session->readBuffer_.clear();
+    handler(request, response);
+
+    session->writeBuffer_.append(response.getContent());
+    std::string& writeBuffer = session->writeBuffer_;
+    int64_t writeBytes = session->socket_->write(writeBuffer.c_str(), writeBuffer.size());
+    session->writeBuffer_.erase(0, writeBytes);
+
+    // выключаем write
+    disableWriteEvent(session->socket_->getSock());
+}
+
+void HTTP::asyncRead(int socket)
+{
+    LOG_DEBUG("Event reader call\n");
+
+    Session *session = getSessionByID(socket);
+    if (session == nullptr) {
+        LOG_ERROR("Dont find session to socket: %d. Close connection.\n", socket);
+        close(socket);
+        return;
+    }
+
+    std::string buffer;
+    int64_t bufferSize = (1 << 16);
+
+    buffer.resize(bufferSize);
+
+    int64_t readBytes = session->socket_->read(&buffer[0], bufferSize - 1);
+    if (readBytes < 0) {
+        close(socket);
+        LOG_ERROR("Dont read to socket: %d. Close connection.\n", socket);
+    }
+
+    session->readBuffer_.append(buffer.c_str());
+
+    // включаем write
+    enableWriteEvent(session->socket_->getSock());
+}
+
+void HTTP::asyncEvent(int socket, uint16_t flags)
+{
+    LOG_DEBUG("Event handler call\n");
+    if (flags & EventPool::M_EOF || flags & EventPool::M_ERROR) {
+        LOG_ERROR("Event error or eof, socket: %d\n", socket);
+        close(socket);
+    }
 }
 
 // здесь происходит обработка запроса
@@ -126,18 +183,19 @@ void HTTP::handler(Request& request, Response& response)
 
 
 void HTTP::start() {
-    evPool_.start();
+    EventPool::start();
 }
 
-void HTTP::listen(const std::string& host) {
+void HTTP::listen(const std::string& host)
+{
     try {
-        TcpSocket sock(host);
-        sock.makeNonBlock();
-        sock.listen();
+        std::auto_ptr<TcpSocket> sock(new TcpSocket(host));
+        sock->listen();
+        sock->makeNonBlock();
 
-        Session listenSession;
-        listenSession.socket.reset(new TcpSocket(sock));
-        evPool_.newListenSession(listenSession);
+        Session listenSession(sock);
+        newListenerEvent(listenSession.socket_->getSock());
+        sessionMap_[listenSession.socket_->getSock()] = listenSession;
     }  catch (std::exception& e) {
         LOG_ERROR("HTTP: %s\n", e.what());
     }

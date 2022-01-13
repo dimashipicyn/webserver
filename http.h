@@ -9,8 +9,9 @@
 
 class Request;
 class Response;
+struct Session;
 
-class HTTP
+class HTTP : public EventPool
 {
 public:
     HTTP();
@@ -20,8 +21,18 @@ public:
     void handler(Request& request, Response &response);
     void start();
 
+protected:
+    virtual void asyncAccept(int socket);
+    virtual void asyncRead(int socket);
+    virtual void asyncWrite(int socket);
+    virtual void asyncEvent(int socket, uint16_t flags);
+
+    Session*    getSessionByID(int id);
+    void        newSession(std::auto_ptr<TcpSocket>& socket);
+
+    typedef std::map<int, Session> tdSessionMap;
 private:
-    EventPool evPool_;
+    tdSessionMap    sessionMap_;
 };
 
 #endif // HTTP_H

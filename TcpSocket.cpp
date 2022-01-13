@@ -4,6 +4,7 @@
 
 #include "TcpSocket.h"
 #include "utils.h"
+#include "Logger.h"
 
 TcpSocket::TcpSocket(const std::string &host)
         : sock_(-1),
@@ -12,14 +13,15 @@ TcpSocket::TcpSocket(const std::string &host)
           host_(host)
 {
 
-    size_t found = host.find(":");
+    size_t found = host_.find(":");
     if (found == std::string::npos) {
         throw std::runtime_error("TcpSocket: host format error. Use 'host:port'.");
     }
 
-    int16_t port = utils::to_number<int16_t>(std::string(host[found + 1], host[host.size() - 1]));
-    std::string hostTmp(host[0], host[found]);
+    int port = utils::to_number<int>(host_.substr(found + 1, host.size() - found));
+    std::string hostTmp = host_.substr(0, found);
 
+    LOG_DEBUG("%s %d\n", hostTmp.c_str(), port);
     // Creating socket file descriptor
     // SOCK_STREAM потоковый сокет
     // IPPROTO_TCP протокол TCP
@@ -44,7 +46,7 @@ TcpSocket::TcpSocket(const std::string &host)
     // связывает сокет с конкретным адресом
     if ( bind(sock_, reinterpret_cast<sockaddr*>(&address_), addrLen_) < 0 ) {
         ::close(sock_);
-        throw std::runtime_error("TcpSocket: bind socket failed");
+        throw std::runtime_error("TcpSocket: bind socket failed. " + host);
     }
 }
 
@@ -69,6 +71,8 @@ TcpSocket::TcpSocket(const TcpSocket &socket) {
 TcpSocket &TcpSocket::operator=(const TcpSocket &socket) {
     if ( &socket == this )
         return *this;
+
+    close(sock_);
     sock_ = ::dup(socket.sock_);
     address_ = socket.address_;
     addrLen_ = socket.addrLen_;
@@ -112,7 +116,7 @@ int64_t     TcpSocket::read(void *buf, size_t bytes) {
     return ::read(sock_, buf, bytes);
 }
 
-int64_t     TcpSocket::write(void *buf, size_t bytes) {
+int64_t     TcpSocket::write(const void *buf, size_t bytes) {
     return ::write(sock_, buf, bytes);
 }
 

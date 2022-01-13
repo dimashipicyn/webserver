@@ -6,29 +6,8 @@
 #define WEBSERV_EVENTPOOL_H
 
 #include <map>
+#include <string>
 #include "kqueue.h"
-
-class TcpSocket;
-class EventPool;
-struct Session;
-
-
-struct ISession {
-public:
-    ISession();
-    virtual ~ISession();
-
-    void close();
-
-    // callback
-    virtual void asyncAccept(EventPool& evPool);
-    virtual void asyncRead(char *buffer, int64_t bytes);
-    virtual void asyncWrite(char *buffer, int64_t bytes);
-    virtual void asyncEvent(std::uint16_t flags);
-
-    std::auto_ptr<TcpSocket>        socket;
-    bool                            isClosed;
-};
 
 class EventPool {
 public:
@@ -48,28 +27,36 @@ public:
         M_ERROR     = 1 << 10   //
     };
 
-    typedef std::map<int, ISession> sessionMap;
-
 public:
     EventPool(); // throw exception
-    ~EventPool();
+    virtual ~EventPool();
 
     void start(); // throw exception
     void stop();
 
-    void newSession(ISession& session, std::uint16_t flags, std::int64_t time = 0);
-    void newListenSession(ISession& session)
-    ;
+    void newEvent(int socket, std::uint16_t flags, std::int64_t time = 0);
+    void newListenerEvent(int socket);
+    void enableWriteEvent(int socket);
+    void disableWriteEvent(int socket);
+    void enableReadEvent(int socket);
+    void disableReadEvent(int socket);
+    void enableTimerEvent(int socket, int64_t time);
+    void disableTimerEvent(int socket, int64_t time);
+
+
+protected:
+    virtual void asyncAccept(int socket) = 0;
+    virtual void asyncRead(int socket) = 0;
+    virtual void asyncWrite(int socket) = 0;
+    virtual void asyncEvent(int socket, uint16_t flags) = 0;
+
 private:
-    enum {
-        readBufferSize = (1 << 16),
-        writeBufferSize = (1 << 16)
-    };
+    void readHandler(int socket);
+    void writeHandler(int socket);
+
+private:
     Kqueue                      poll_;
     std::vector<int>            listeners_;
-    sessionMap                  sessionMap_;
-    char                        readBuffer_[readBufferSize];
-    char                        writeBuffer_[writeBufferSize];
     bool                        running_;
 };
 
