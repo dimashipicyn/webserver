@@ -20,7 +20,7 @@ int main(int argc, char **argv)
 		std::cout << std::endl;
 		LOG_WARNING("Applying default configuration\n");
 	}
-
+	
     HTTP serve("127.0.0.1", 1234);
     serve.start();
     return 0;

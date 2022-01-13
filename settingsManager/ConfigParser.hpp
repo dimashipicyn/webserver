@@ -60,15 +60,6 @@ private:
 	std::pair<std::string, std::string> breakPair(std::string const &line);
 
 	/**
-	 * @brief Функция проверяет строку на шаблон соответствию шаблону "ключ: значение"
-	 *
-	 * @param line - строка из файла конфигурации
-	 *
-	 * @return true если строка соответствует формату
-	 */
-	bool isValidLine(std::string const &line);
-
-	/**
 	 * @brief парсит строку в размер тела сообщения
 	 *
 	 * @param str строка, представляющая размер

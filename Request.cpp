@@ -135,13 +135,13 @@ void Request::parse_chunked_body() {
 }
 
 void Request::parse_body() {
-    if (buffer_.str().empty()) {
-        state_ = PARSE_DONE;
-        return;
-    }
     body_.append(buffer_.str());
     buffer_.str("");
     buffer_.clear();
+    //if (buffer_.str().empty()) { FIXME
+        state_ = PARSE_DONE;
+    //    return;
+    //}
 }
 
 Request::State Request::getState() const {

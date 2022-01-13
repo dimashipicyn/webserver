@@ -4,6 +4,7 @@
 #include "EventPool.h"
 #include "Request.h"
 #include "Response.h"
+#include "autoindex/Autoindex.hpp"
 
 class Handler : public IEventHandler {
     virtual void event(EventPool *evPool, Event *event, std::uint16_t flags) {
@@ -111,6 +112,9 @@ struct Accepter : public IEventAcceptor
 
 HTTP::HTTP(const std::string& host, std::int16_t port)
 {
+	// Прописываем адрес клиента в конфиге
+	SettingsManager::getInstance()->setHost(host, port);
+
     TcpSocket socket(host, port);
     socket.makeNonBlock();
     socket.listen();
@@ -130,14 +134,40 @@ void HTTP::handler(Request& request, Response& response)
     LOG_DEBUG("--------------PRINT REQUEST--------------\n");
     std::cout << request << std::endl;
 
-    if (request.getMethod() == "GET" && request.getPath() == "/") {
-        std::stringstream ss;
-        std::string s("Hello Webserver!\n");
-        ss << "HTTP/1.1 200 OK\n"
-           << "Content-Length: " << s.size() << "\n"
-           << "Content-Type: text/html\n\n";
-        response.setContent(ss.str() + s);
-    }
+	// Сравниваем расширение запрошенного ресурса с cgi расширением для этого локейшена. Если бьется, запуск скрипта
+	SettingsManager *settingsManager = SettingsManager::getInstance();
+	Server *server = settingsManager->findServer(settingsManager->getHost().host, settingsManager->getHost()
+	.port); // !!Здесь нужно передавать ip:port сервера, обрабатывающего запрос. Пока костыль
+	std::string path = request.getPath();
+	Route *route = server == nullptr ? nullptr : server->findRouteByPath(path);
+	if (route != nullptr && getExtension(path) == route->getCgi()) {
+		response.setContent(Cgi(request).runCGI());
+	}
+	if (route != nullptr && route->isAutoindex() && getExtension(path).empty()) {
+		std::stringstream header;
+		std::string html;
+		try {
+			html = Autoindex(*route).generatePage(path);
+		} catch (std::runtime_error &e) {
+			LOG_ERROR("%s\n", e.what());
+			// Здесь респонс дефолтной ошибкой или той что указана в конфиге
+			return;
+		}
+		header << "HTTP/1.1 200 OK\n"
+				<< "Content-Length: " << html.size() << "\n"
+				<< "Content-Type: text/html\n\n";
+		response.setContent(header.str() + html);
+	}
+
+
+//    if (request.getMethod() == "GET" && request.getPath() == "/") {
+//        std::stringstream ss;
+//        std::string s("Hello Webserver!\n");
+//        ss << "HTTP/1.1 200 OK\n"
+//           << "Content-Length: " << s.size() << "\n"
+//           << "Content-Type: text/html\n\n";
+//        response.setContent(ss.str() + s);
+//    }
 }
 
 
