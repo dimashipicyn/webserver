@@ -4,28 +4,6 @@
 #include <sys/time.h>
 #include "Request.h"
 
-extern SettingsManager *settingsManager;
-
-std::map<std::string, std::string>	ResponseHeader::resetHeaders(void){
-	std::map<std::string, std::string> header;
-	header["Allow"] = "";
-	header["Content-Language"]  = "";
-	header["Content-Length"] = "";
-	header["Content-Location"] = "";
-	header["Content-Type"] = "";
-	header["Date"] = "";
-	header["Last-Modified"] = "";
-	header["Location"] = "";
-	header["Retry-After"] = "";
-	header["Server"] = "";
-	header["Transfer-Encoding"] = "";
-	header["WWW-Authenticate"] = "";
-	return header;
-}
-
-std::map<std::string, std::string> ResponseHeader::_headers
-									= ResponseHeader::resetHeaders();
-
 std::map<int, std::string>	ResponseHeader::initErrorMap(){
 	std::map<int, std::string> errors;
 	errors[100] = "Continue";
@@ -44,72 +22,35 @@ std::map<int, std::string>	ResponseHeader::initErrorMap(){
 std::map<int, std::string> ResponseHeader::_errors
 					= ResponseHeader::initErrorMap();
 
-std::map<std::string, std::string> ResponseHeader::initContentType() {
-    std::map<std::string, std::string> contentType;
-
-    contentType["html"] = "text/html";
-    contentType["css"] = "text/css";
-    contentType["js"] = "text/javascript";
-    contentType["jpeg"] = "image/jpeg";
-    contentType["jpg"] = "image/jpeg";
-    contentType["png"] = "image/png";
-    contentType["bmp"] = "image/bmp";
-    contentType["text/plain"] = "text/plain";
-    return contentType;
-}
-
-std::map<std::string, std::string> ResponseHeader::_contentType
-						= ResponseHeader::initContentType();
-
-std::string		ResponseHeader::getHeader(const Request& request){
+	std::string		ResponseHeader::getHeader(){
 	std::ostringstream header;
 
 	header << "HTTP/1.1 " << _code << " " << _errors[_code] << "\r\n";
-	header << writeHeader();
-	std::string testout = header.str(); //just for test. would be deleted
+	header << buildHeader();
 	return header.str();
 }
 
-void	ResponseHeader::setCode(int code){ _code = code; }
+void			ResponseHeader::setStatusCode(int code){ _code = code; }
 
-std::string		ResponseHeader::writeHeader(void)
+std::string		ResponseHeader::buildHeader(void)
 {
 	std::ostringstream	header;
-
-	for (std::map<std::string, std::string>::const_iterator it = _headers.cbegin();
-												it != _headers.cend(); ++it) {
-		if ( !it->second.empty() )
+	for (std::map<std::string, std::string>::const_iterator it = _header.cbegin();
+												it != _header.cend(); ++it) {
 			header << it->first << ": " << it->second << "\n";
 	}
 	header << "\r\n";
-	std::string testout = header.str(); //just for test. would be deleted
 	return header.str();
 }
 
-void ResponseHeader::setHeader(const std::string &key, const std::string &value) {
-	_headers[key] = value;
+void ResponseHeader::setHeaderField(const std::string &key, const std::string &value) {
+	_header[key] = value;
 }
 
-void ResponseHeader::setHeader(const std::string &key, const int &value) {
+void ResponseHeader::setHeaderField(const std::string &key, const int &value) {
     std::ostringstream oss;
 	oss << value;
-    _headers[key] = oss.str();
-}
-
-void	ResponseHeader::setContentType(const Request& request, std::string path){
-/*		try {
-			request.getHeaders()
-		} catch(std::exception& e) {
-
-		} */
-	std::string type = path.substr(path.rfind(".") + 1, path.size() - path.rfind("."));
-	std::string value;
-	try {
-		value = _contentType.at(type);
-	} catch(const std::exception& e) {
-		value = "text/plain";
-	}
-	_headers["Content-Type"] = value;
+    _header[key] = oss.str();
 }
 
 std::string			ResponseHeader::getDate(void){
@@ -153,7 +94,6 @@ void	ResponseHeader::setWwwAuthenticate(int code){
 	}
 }
 */
-// Overloaders
 
 ResponseHeader & ResponseHeader::operator=(const ResponseHeader & src){
 	(void)src;
@@ -162,6 +102,6 @@ ResponseHeader & ResponseHeader::operator=(const ResponseHeader & src){
 
 		// Constructors and destructors
 
-ResponseHeader::ResponseHeader(void){ resetHeaders(); }
+ResponseHeader::ResponseHeader(void){}
 ResponseHeader::ResponseHeader(const ResponseHeader & src){ (void)src; }
 ResponseHeader::~ResponseHeader(void){}

@@ -24,11 +24,28 @@ public:
 
     void handler(Request& request);
     void start();
+	const Response& getResponse() const;
 
-	Response    response_;
+	//======http methods block moved from Response class============//
+	void methodGET(const Request& request);
+	void methodPOST(const Request& request);
+	void methodDELETE(const Request& request);
+	void methodNotAllowed(const Request& request);
+	void BadRequest();
+	//=============================================================//
+
+
 private:
-    EventPool   evPool_;
+	Response    response_;
+	EventPool   evPool_;
 
+//===============Moved from class Response====================================
+	static std::map<std::string, void (HTTP::*)(const Request &)>	_method;
+	static std::map<std::string, void (HTTP::*)(const Request &)>	initMethods();
+
+	static std::set<std::string> _allMethods;
+	static std::set<std::string> initAllMethods();
+//===============================================================================
 };
 
 #endif // HTTP_H

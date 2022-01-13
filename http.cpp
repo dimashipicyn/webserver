@@ -64,7 +64,7 @@ struct Writer : public IEventWriter
         // пишем в сокет
         int sock = event->sock;
 
-		std::string output = http.response_.getContent();
+		std::string output = http.getResponse().getContent();
 		::write(sock, output.c_str(), output.size());
 
         // сброс
@@ -74,7 +74,6 @@ struct Writer : public IEventWriter
         evPool->addEvent(event, EventPool::M_WRITE | EventPool::M_DISABLE);
         //evPool->eventSetFlags(EventPool::M_TIMER | EventPool::M_DISABLE);
     }
-//    Response    response_;
     HTTP&       http;
     Reader*     reader;
 };
@@ -130,8 +129,14 @@ HTTP::~HTTP()
 void HTTP::handler(Request& request)
 {
 
-	Response response(request);
-	response_ = response;
+	std::string method = request.getMethod();
+	if ( _method.count(method) ) (this->*_method.at(method))(request); // updating idea: here we can use try catch (if bad method) catch badrequest
+	//also make pointers for all HTTP methods and in that methods implementation compare method with config allowed
+	else if (_allMethods.count(method)) methodNotAllowed(request);
+	else BadRequest();
+
+/*	Response response(request);
+	response_ = response;*/
 
     LOG_DEBUG("Http handler call\n");
     LOG_DEBUG("--------------PRINT REQUEST--------------\n");
@@ -147,19 +152,97 @@ void HTTP::handler(Request& request)
 		response.setContent(Cgi(request).runCGI());
 	}*/
 
-/*
-    if (request.getMethod() == "GET" && request.getPath() == "/") {
-        std::stringstream ss;
-        std::string s("Hello Webserver!\n");
-        ss << "HTTP/1.1 200 OK\n"
-           << "Content-Length: " << s.size() << "\n"
-           << "Content-Type: text/html\n\n";
-        response.setContent(ss.str() + s);
-    }
-*/
 }
 
 void HTTP::start() {
     evPool_.start();
 }
 
+const Response& HTTP::getResponse() const{
+	return response_;
+}
+
+//======http methods block moved from Response class============//
+void HTTP::methodGET(const Request& request){
+	std::string finalContent;
+	std::string path = response_.getPath(request);
+	std::ifstream inputFile(path);
+	if (!inputFile.good()){
+		response_.setStatusCode(404);
+		path = response_.getErrorPath(request);
+		std::ifstream errorFile(path);
+		if (!errorFile.good() ){
+			response_.setStatusCode(500);
+			return;
+		} else {
+			std::string errorContent((std::istreambuf_iterator<char>(errorFile)),
+									 std::istreambuf_iterator<char>());
+			finalContent = errorContent;
+			response_.setHeaderField("Content-Type: ", "text/html");
+		}
+		errorFile.close();
+	} else {
+		response_.setStatusCode(200);
+		std::string content((std::istreambuf_iterator<char>(inputFile)),
+							std::istreambuf_iterator<char>());
+		finalContent = content;
+		inputFile.close();
+		response_.setContentType(path);
+	}
+	response_.setHeaderField("Content-Length", finalContent.size() );
+	std::ostringstream oss;
+	oss << response_.getHeader();
+	oss << finalContent;
+	std::string output = oss.str(); // test unit would be deleted
+	_output = output;  // here is a output for GET method, this must to be
+	// transfere to socket. Need I set response _output && pull it from response
+	// again?
+}
+
+void HTTP::methodPOST(const Request& request){}
+void HTTP::methodDELETE(const Request& request){}
+void HTTP::methodNotAllowed(const Request& request){
+	response_.setStatusCode(405);
+	std::string strAllowMethods;
+	for (std::map<std::string, void (HTTP::*)(const Request &)>::iterator it = _method.begin();
+		it != _method.end(); ++it){
+		if (it == _method.begin()) strAllowMethods += it->first;
+		else strAllowMethods = strAllowMethods + ", " + it->first;
+	}
+	response_.setHeaderField("Allow", strAllowMethods);
+}
+
+void HTTP::BadRequest(){
+	response_.setStatusCode(400);
+}
+//=============================================================//
+
+//==============================Moved from Response class=====================
+std::map<std::string, void (HTTP::*)(const Request &)>	HTTP::initMethods()
+{
+	std::map<std::string, void (HTTP::*)(const Request &)> map;
+	map["GET"] = &HTTP::methodGET;
+	map["POST"] = &HTTP::methodPOST;
+	map["DELETE"] = &HTTP::methodDELETE;
+	return map;
+}
+
+std::map<std::string, void (HTTP::*)(const Request &)> HTTP::_method
+	= HTTP::initMethods();
+
+std::set<std::string> HTTP::initAllMethods(){
+	std::set<std::string> allMethods;
+	allMethods.insert("GET");
+	allMethods.insert("HEAD");
+	allMethods.insert("POST");
+	allMethods.insert("PUT");
+	allMethods.insert("DELETE");
+	allMethods.insert("CONNECT");
+	allMethods.insert("OPTIONS");
+	allMethods.insert("TRACE");
+	allMethods.insert("PATCH");
+	return allMethods;
+}
+
+std::set<std::string> HTTP::_allMethods = initAllMethods();
+//=========================================================================
