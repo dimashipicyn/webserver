@@ -135,7 +135,9 @@ void Request::parse_chunked_body() {
 }
 
 void Request::parse_body() {
-    body_.append(buffer_.str());
+    std::string s;
+    std::getline(buffer_, s, '\0');
+    body_.append(s);
     buffer_.str("");
     buffer_.clear();
     //if (buffer_.str().empty()) { FIXME

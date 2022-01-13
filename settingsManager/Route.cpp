@@ -140,7 +140,7 @@ std::string Route::getFullPath(const std::string &resource)
 {
 	std::string defaultFile;
 
-	if (getExtension(resource).empty()) {
+	if (utils::getExtension(resource).empty()) {
 		for (std::vector<std::string>::iterator i = defaultFiles_.begin(); i != defaultFiles_.end(); i++) {
 			std::string tryPath = root_
 					+ (resource[0] == '/' ? resource : ("/" + resource))

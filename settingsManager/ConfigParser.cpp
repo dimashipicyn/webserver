@@ -46,7 +46,7 @@ void ConfigParser::parseConfig(const std::string &fileName)
 		else if (settingsManager->getServers().empty())
 			throw std::runtime_error(formConfigErrorText("Should start with server block!"));
 
-		if (!isValidPairString(line, ':'))
+		if (!utils::isValidPairString(line, ':'))
 			continue;
 
 		std::pair<std::string, std::string> map = breakPair(line);
