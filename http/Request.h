@@ -11,61 +11,61 @@
 
 class Request {
 public:
-    typedef std::map<std::string, std::string> headersMap;
+	typedef std::map<std::string, std::string> headersMap;
 
-    enum State {
-        PARSE_QUERY,
-        PARSE_BODY,
-        PARSE_BODY_WITH_LENGTH,
-        PARSE_CHUNKED_BODY,
-        PARSE_ERROR,
-        PARSE_DONE
-    };
+	enum State {
+		PARSE_QUERY,
+		PARSE_BODY,
+		PARSE_BODY_WITH_LENGTH,
+		PARSE_CHUNKED_BODY,
+		PARSE_ERROR,
+		PARSE_DONE
+	};
 
 public:
-    Request();
-    ~Request();
+	Request();
+	~Request();
 
-    void setHost(const std::string& host);
+	void setHost(const std::string& host);
 
-    const std::string&      getMethod() const;
-    const std::string&      getVersion() const;
-    const std::string&      getPath() const;
-    const std::string&      getQueryString() const;
-    const std::string&      getBody() const;
-    const std::string&      getHost() const;
-    const headersMap&       getHeaders() const;
-    State                   getState() const;
+	const std::string&      getMethod() const;
+	const std::string&      getVersion() const;
+	const std::string&      getPath() const;
+	const std::string&      getQueryString() const;
+	const std::string&      getBody() const;
+	const std::string&      getHost() const;
+	const headersMap&       getHeaders() const;
+	State                   getState() const;
 
-    bool                    hasHeader(const std::string& key);
-    const std::string&      getHeaderValue(const std::string& key);
+	bool                    hasHeader(const std::string& key);
+	const std::string&      getHeaderValue(const std::string& key);
 
-    void parse(const char* buf);
-    void reset();
-
-private:
-    void parse_first_line();
-    void parse_headers();
-    void parse_body();
-    void parse_body_with_length();
-    void parse_chunked_body();
-
+	void parse(const char* buf);
+	void reset();
 
 private:
-    Request(const Request&) {};
-    Request& operator=(const Request&) {return *this;};
+	void parse_first_line();
+	void parse_headers();
+	void parse_body();
+	void parse_body_with_length();
+	void parse_chunked_body();
+
 
 private:
-    State               state_;
-    std::stringstream   buffer_;
-    std::string         host_;
-    std::string         port_;
-    std::string         method_;
-    std::string         version_;
-    std::string         path_;
-    std::string         query_string_;
-    std::string         body_;
-    headersMap          headers_;
+	Request(const Request&) {};
+	Request& operator=(const Request&) {return *this;};
+
+private:
+	State               state_;
+	std::stringstream   buffer_;
+	std::string         host_;
+	std::string         port_;
+	std::string         method_;
+	std::string         version_;
+	std::string         path_;
+	std::string         query_string_;
+	std::string         body_;
+	headersMap          headers_;
 };
 
 std::ostream& operator<<(std::ostream& os, const Request& request);

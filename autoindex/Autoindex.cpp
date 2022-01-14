@@ -11,23 +11,17 @@
 
 Autoindex::Autoindex(Route const &route) : route_(route){}
 
-std::string Autoindex::formHeader(std::string const &resource)
-{
-	std::string header = std::string("<html>\n")
-							+ "<head><title>Index of "
-							+ resource
-							+ "</title></head>\n"
-							+ "<body bgcolor=\"white\">\n"
-							+ "<h1>Index of "
-							+ resource
-							+ "</h1><hr><pre><a href=\"../\">../</a>";
-	return header;
-}
-
-std::string Autoindex::formBody(const std::string &resource)
+std::string Autoindex::generatePage(const std::string &resource)
 {
 	std::string fullPath = route_.getRoot() + resource;
-	std::string result = "\n";
+	std::string result = std::string("<html>\n")
+						 + "<head><title>Index of "
+						 + resource
+						 + "</title></head>\n"
+						 + "<body bgcolor=\"white\">\n"
+						 + "<h1>Index of "
+						 + resource
+						 + "</h1><hr><pre><a href=\"../\">../</a>\n";
 	struct stat info;
 	struct dirent *ent;
 	DIR *dir;
@@ -41,29 +35,20 @@ std::string Autoindex::formBody(const std::string &resource)
 			if (ent->d_type == DT_DIR)
 				tmp += "/";
 			result += std::string("<a href=\"") + tmp + "\">" + formatFilename(tmp)
-					+ "</a>"
-					+ putRemainSpaces(tmp)
-					+ " "
-					+ timespecToUtcString(info.st_mtimespec)
-					+ "\t\t\t"
-					+ (ent->d_type == DT_DIR ? "-" : sizeToString(info.st_size))
-					+ "\n";
+					  + "</a>"
+					  + putRemainSpaces(tmp)
+					  + " "
+					  + timespecToUtcString(info.st_mtimespec)
+					  + "\t\t\t"
+					  + (ent->d_type == DT_DIR ? "-" : sizeToString(info.st_size))
+					  + "\n";
 		}
 		closedir (dir);
 	} else {
 		throw std::runtime_error(std::string ("No such directory!") + " \"" + fullPath + "\"");
 	}
+	result += "</pre><hr></body>\n</html>\n";
 	return result;
-}
-
-std::string Autoindex::formTail()
-{
-	return "</pre><hr></body>\n</html>\n";
-}
-
-std::string Autoindex::generatePage(const std::string &resource)
-{
-	return formHeader(resource) + formBody(resource) + formTail();
 }
 
 std::string Autoindex::timespecToUtcString(timespec const &lastModified)
