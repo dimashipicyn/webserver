@@ -3,6 +3,7 @@
 //
 
 #include "SettingsManager.hpp"
+#include "../utils.h"
 
 SettingsManager *SettingsManager::settingsManager_ = nullptr;
 
@@ -49,4 +50,29 @@ void SettingsManager::parseConfig(const std::string &fileName)
 void SettingsManager::clear()
 {
 	servers_.clear();
+}
+
+const SettingsManager::Host &SettingsManager::getHost() const
+{
+	return host_;
+}
+
+void SettingsManager::setHost(const std::string &host, const uint16_t &port)
+{
+	host_.host = host;
+	host_.port = port;
+}
+
+Server *SettingsManager::findServer(const std::string &host, const uint16_t &port)
+{
+	for (std::vector<Server>::iterator iter = servers_.begin(); iter != servers_.end(); iter++) {
+		if (iter->getHost() == host && iter->getPort() == port)
+			return &(*iter);
+	}
+	return nullptr;
+}
+
+Server *SettingsManager::getDefaultServer()
+{
+	return &servers_.front();
 }
