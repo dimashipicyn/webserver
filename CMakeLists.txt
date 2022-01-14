@@ -20,9 +20,12 @@ add_executable(webserv
         Response.cpp
         ResponseHeader.hpp
         ResponseHeader.cpp
+        ServerError.hpp
+        ServerError.cpp
         kqueue.cpp
         http.cpp
         http.h
+
 
         settingsManager/SettingsManager.hpp
         settingsManager/SettingsManager.cpp

@@ -5,6 +5,7 @@
 #include "Request.h"
 #include "Response.h"
 #include "autoindex/Autoindex.hpp"
+#include "ServerError.hpp"
 
 class Handler : public IEventHandler {
     virtual void event(EventPool *evPool, Event *event, std::uint16_t flags) {
@@ -129,15 +130,18 @@ HTTP::~HTTP()
 // здесь происходит обработка запроса
 void HTTP::handler(Request& request)
 {
-
-	std::string method = request.getMethod();
-	if ( _method.count(method) ) (this->*_method.at(method))(request); // updating idea: here we can use try catch (if bad method) catch badrequest
-	//also make pointers for all HTTP methods and in that methods implementation compare method with config allowed
-	else if (_allMethods.count(method)) methodNotAllowed(request);
-	else BadRequest();
-
-/*	Response response(request);
-	response_ = response;*/
+	try {
+		std::string method = request.getMethod();
+		if (_method.count(method))
+			(this->*_method.at(method))(
+					request); // updating idea: here we can use try catch (if bad method) catch badrequest
+			//also make pointers for all HTTP methods and in that methods implementation compare method with config allowed
+		else if (_allMethods.count(method)) methodNotAllowed(request);
+		else BadRequest();
+	} catch(const ServerError& e){
+		response_.setStatusCode(500);
+		response_.setContent(response_.getHeader());
+	}
 
     LOG_DEBUG("Http handler call\n");
     LOG_DEBUG("--------------PRINT REQUEST--------------\n");
