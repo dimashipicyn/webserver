@@ -7,10 +7,8 @@
 
 #include <iostream>
 #include <sstream>
-#include <dirent.h>
-#include <sys/stat.h>
-#include "../settingsManager/Route.hpp"
-#include "../utils.h"
+
+#include "Route.hpp"
 
 class Autoindex
 {

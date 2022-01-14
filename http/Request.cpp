@@ -28,7 +28,7 @@ void Request::parse(const char *buf)
         )
     {
         LOG_DEBUG("Query dont full\n");
-        return;
+    //    return;
     }
 
 
@@ -191,15 +191,12 @@ const std::string &Request::getPath() const {
     return path_;
 }
 
-
-const std::string &Request::getHost() const
-{
-	return host_;
+const std::string &Request::getHost() const {
+    return host_;
 }
 
-const std::string &Request::getPort() const
-{
-	return port_;
+void Request::setHost(const std::string& host) {
+    host_ = host;
 }
 
 bool Request::hasHeader(const std::string &key) {

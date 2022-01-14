@@ -2,8 +2,14 @@
 // Created by Руслан Вахитов on 03.01.2022.
 //
 
+#include <unistd.h>
+
 #include "Cgi.hpp"
-#include "../Logger.h"
+#include "Request.h"
+#include "utils.h"
+#include "SettingsManager.hpp"
+#include "Logger.h"
+#include "Route.hpp"
 
 #define BUFFER 1024
 

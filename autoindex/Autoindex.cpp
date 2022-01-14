@@ -2,6 +2,9 @@
 // Created by Руслан Вахитов on 10.01.2022.
 //
 
+#include <dirent.h>
+#include <sys/stat.h>
+
 #include "Autoindex.hpp"
 # define FILENAME_LIMIT 50
 

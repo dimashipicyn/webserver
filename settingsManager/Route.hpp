@@ -111,6 +111,7 @@ public:
 	 * @return строку с содержимым из дефолтного файла.
 	 *
 	 * @throws DefaultFileNotFoundException если ни одного дефолтного файла не было найдено.
+	 * @throws runtime_error если подается не существующий ресурс
 	 */
 	std::string getDefaultPage(std::string const &resource);
 
