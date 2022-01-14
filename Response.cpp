@@ -66,7 +66,7 @@ void Response::setHeaderField(const std::string &key, int value) {
 }
 
 void Response::setContentType(const std::string& path) {
-	std::string type = getExtension(path);
+	std::string type = utils::getExtension(path);
 	std::string value;
 	try {
 		value = _contentType.at(type);
@@ -78,4 +78,8 @@ void Response::setContentType(const std::string& path) {
 
 std::string		Response::getHeader(){
 	return	_header.getHeader();
+}
+
+void Response::setContent(const std::string &content) {
+	_output = content;
 }

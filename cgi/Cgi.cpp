@@ -17,7 +17,7 @@ Cgi::Cgi(const Request &request)
 void Cgi::convertMeta(const Request &request)
 {
 	Request::headersMap meta;
-	std::map<std::string, std::string> headers = request.getHeaders();
+	Request::headersMap headers = request.getHeaders();
 	SettingsManager *settingsManager = SettingsManager::getInstance();
 
 	// Конвертируем заголовки запроса и др параметры в cgi мета переменные

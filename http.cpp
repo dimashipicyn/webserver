@@ -4,6 +4,7 @@
 #include "EventPool.h"
 #include "Request.h"
 #include "Response.h"
+#include "autoindex/Autoindex.hpp"
 
 class Handler : public IEventHandler {
     virtual void event(EventPool *evPool, Event *event, std::uint16_t flags) {
@@ -145,10 +146,10 @@ void HTTP::handler(Request& request)
 	// Сравниваем расширение запрошенного ресурса с cgi расширением для этого локейшена. Если бьется, запуск скрипта
 	SettingsManager *settingsManager = SettingsManager::getInstance();
 	Server *server = settingsManager->findServer(settingsManager->getHost().host, settingsManager->getHost()
-	.port);
+	.port); // !!Здесь нужно передавать ip:port сервера, обрабатывающего запрос. Пока костыль
 	std::string path = request.getPath();
 	Route *route = server == nullptr ? nullptr : server->findRouteByPath(path);
-	if (route != nullptr && getExtension(path) == route->getCgi()) {
+	if (route != nullptr && utils::getExtension(path) == route->getCgi()) {
 		response.setContent(Cgi(request).runCGI());
 	}*/
 
@@ -164,8 +165,40 @@ const Response& HTTP::getResponse() const{
 
 //======http methods block moved from Response class============//
 void HTTP::methodGET(const Request& request){
+
+	LOG_DEBUG("Http handler call\n");
+	LOG_DEBUG("--------------PRINT REQUEST--------------\n");
+	std::cout << request << std::endl;
+	SettingsManager *settingsManager = SettingsManager::getInstance();
+	Server *server = settingsManager->findServer(settingsManager->getHost().host, settingsManager->getHost()
+			.port); // !!Здесь нужно передавать ip:port сервера, обрабатывающего запрос. Пока костыль
+	std::string path = request.getPath();
+	Route *route = server == nullptr ? nullptr : server->findRouteByPath(path);
+	if (route != nullptr && utils::getExtension(path) == route->getCgi()) {
+		response_.setContent(Cgi(request).runCGI());
+		return;
+	}
+	if (route != nullptr && route->isAutoindex() && utils::getExtension(path).empty()) {
+		std::stringstream header;
+		std::string html;
+		try {
+			html = Autoindex(*route).generatePage(path);
+		} catch (std::runtime_error &e) {
+			LOG_ERROR("%s\n", e.what());
+			// Здесь респонс дефолтной ошибкой или той что указана в конфиге
+			return;
+		}
+		response_.setStatusCode(200);
+		response_.setHeaderField("Content-Length", html.size());
+		response_.setContent(header.str() + html);
+		std::ostringstream oss;
+		oss << response_.getHeader();
+		oss << html;
+		response_.setContent(oss.str());
+		return;
+	}
+
 	std::string finalContent;
-	std::string path = response_.getPath(request);
 	std::ifstream inputFile(path);
 	if (!inputFile.good()){
 		response_.setStatusCode(404);
@@ -194,10 +227,11 @@ void HTTP::methodGET(const Request& request){
 	oss << response_.getHeader();
 	oss << finalContent;
 	std::string output = oss.str(); // test unit would be deleted
-	_output = output;  // here is a output for GET method, this must to be
+	response_.setContent(oss.str());  // here is a output for GET method, this must to be
 	// transfere to socket. Need I set response _output && pull it from response
 	// again?
 }
+
 
 void HTTP::methodPOST(const Request& request){}
 void HTTP::methodDELETE(const Request& request){}
@@ -212,8 +246,19 @@ void HTTP::methodNotAllowed(const Request& request){
 	response_.setHeaderField("Allow", strAllowMethods);
 }
 
+<<<<<<< HEAD
 void HTTP::BadRequest(){
 	response_.setStatusCode(400);
+=======
+//    if (request.getMethod() == "GET" && request.getPath() == "/") {
+//        std::stringstream ss;
+//        std::string s("Hello Webserver!\n");
+//        ss << "HTTP/1.1 200 OK\n"
+//           << "Content-Length: " << s.size() << "\n"
+//           << "Content-Type: text/html\n\n";
+//        response.setContent(ss.str() + s);
+//    }
+>>>>>>> ca60e7898aa3228ed466167aed579f392938739b
 }
 //=============================================================//
 

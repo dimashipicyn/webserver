@@ -45,6 +45,7 @@ public:
 	void 				setHeaderField(const std::string&, const std::string&);
 	void 				setHeaderField(const std::string&, int);
 	void				setContentType(const std::string& path);
+	void				setContent(const std::string& content);
 
 private:
     Response(const Response& response) {(void)response;};
