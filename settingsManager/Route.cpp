@@ -4,7 +4,6 @@
 
 #include "Route.hpp"
 #include "../utils.h"
-#include <unistd.h>
 
 Route::Route()
 {
@@ -138,8 +137,6 @@ void Route::setAutoindex(bool autoindex)
 
 std::string Route::getFullPath(const std::string &resource)
 {
-	std::string defaultFile;
-
 	if (getExtension(resource).empty()) {
 		for (std::vector<std::string>::iterator i = defaultFiles_.begin(); i != defaultFiles_.end(); i++) {
 			std::string tryPath = root_
@@ -148,10 +145,30 @@ std::string Route::getFullPath(const std::string &resource)
 			if (access(tryPath.c_str(), F_OK) != -1)
 				return tryPath;
 		}
-	} else {
-		std::string tryPath = root_ + (resource[0] == '/' ? resource : ("/" + resource));
-		if (access(tryPath.c_str(), F_OK) != -1)
-			return tryPath;
 	}
-	return "";
+
+	std::string tryPath = root_ + (resource[0] == '/' ? resource : ("/" + resource));
+	if (access(tryPath.c_str(), F_OK) != -1)
+		return tryPath;
+	else
+		throw std::runtime_error(std::string("Requested resource is not exist!") + " \"" + resource + "\"");
+}
+
+std::string Route::getDefaultPage(const std::string &resource)
+{
+	std::string fullPath = getFullPath(resource);
+	std::string line;
+	std::string result = "";
+
+	if (getExtension(fullPath).empty())
+		throw DefaultFileNotFoundException();
+
+	std::ifstream file(fullPath);
+	while(true)
+	{
+		if (file.eof()) break;
+		getline(file, line);
+		result += line;
+	}
+	return result;
 }

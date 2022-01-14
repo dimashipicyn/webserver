@@ -7,6 +7,8 @@
 
 #include <iostream>
 #include <vector>
+#include <unistd.h>
+#include <fstream>
 
 class Route
 {
@@ -27,6 +29,13 @@ public:
 	Route();
 
 	virtual ~Route();
+
+	class DefaultFileNotFoundException : public std::exception {
+		const char *what() const throw()
+		{
+			return exception::what();
+		}
+	};
 
 private:
 	// префикс ресурса
@@ -86,9 +95,24 @@ public:
 	 * @param resource - запрошенный ресур, например "index.html". Если resource папка, будут производиться попытки
 	 * найти дефолтные ресурсы поочередно.
 	 *
-	 * @return возрващает полный путь на сервере до ресурса. Если ничего не найдено - вернет пустую строку.
+	 * @return возрващает полный путь на сервере до ресурса. Если ничего не найдено.
+	 *
+	 * @throws runtime_error если нет указанного ресурса
 	 */
 	std::string getFullPath(std::string const &resource);
+
+	/**
+	 * @info ищет по указанному ресурсу дефолтные файлы из текущего роута. Считывает в строку первый попавшийся файл.
+	 * Бросает эксепшн, если не нашлось. Предполагается что при вызове этого метода мы уверены что resource это
+	 * директория. Если подать ресурс как файл, то метод попытается его прочитать, undefined behavior.
+	 *
+	 * @param resource - запрошенный ресур (директория)
+	 *
+	 * @return строку с содержимым из дефолтного файла.
+	 *
+	 * @throws DefaultFileNotFoundException если ни одного дефолтного файла не было найдено.
+	 */
+	std::string getDefaultPage(std::string const &resource);
 
 	// геттеры сеттеры
 	const std::string &getLocation() const;

@@ -146,12 +146,18 @@ void HTTP::handler(Request& request, Response& response)
 	if (route != nullptr && route->isAutoindex() && getExtension(path).empty()) {
 		std::stringstream header;
 		std::string html;
-		try {
-			html = Autoindex(*route).generatePage(path);
-		} catch (std::runtime_error &e) {
-			LOG_ERROR("%s\n", e.what());
-			// Здесь респонс дефолтной ошибкой или той что указана в конфиге
-			return;
+		try
+		{
+			html = route->getDefaultPage(path);
+		} catch (Route::DefaultFileNotFoundException &e) {
+			LOG_DEBUG("Default file at %s not found. Proceed autoindexing.\n", path.c_str());
+			try {
+				html = Autoindex(*route).generatePage(path);
+			} catch (std::runtime_error &e) {
+				LOG_ERROR("%s\n", e.what());
+				// Здесь респонс дефолтной ошибкой или той что указана в конфиге
+				return;
+			}
 		}
 		header << "HTTP/1.1 200 OK\n"
 				<< "Content-Length: " << html.size() << "\n"

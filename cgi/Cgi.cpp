@@ -79,7 +79,6 @@ std::string Cgi::runCGI()
 		dup2(cgiOut, STDOUT_FILENO);
 
 		if (execve(("." + script_).c_str(), nullptr, env_.data()) < 0)
-//		if (execve("./cgi_tester", nullptr, env_) < 0)
 		{
 			LOG_ERROR("Execve fail!\n");
 			write(STDOUT_FILENO, errorInternal.c_str(), errorInternal.size());
