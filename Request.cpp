@@ -10,52 +10,60 @@
 #include "utils.h"
 #include "Logger.h"
 
-Request::Request() : state_(PARSE_FIRST_LINE) {
+Request::Request() : state_(PARSE_QUERY) {
 }
 
 Request::~Request() {
-
 }
 
 void Request::parse(const char *buf)
 {
-    LOG_INFO("BUF: %s\n", buf);
-    buffer_ << buf;
+    buffer_.write(buf, strlen(buf));
+
     std::size_t foundTwoNewLines = buffer_.str().find("\n\n");
     std::size_t foundTwoNewLinesWithCarriageReturn = buffer_.str().find("\r\n\r\n");
-    if (foundTwoNewLines                      == std::string::npos
-        && foundTwoNewLinesWithCarriageReturn == std::string::npos)
+    if (   (state_ == PARSE_QUERY)
+        && (foundTwoNewLines                   == std::string::npos)
+        && (foundTwoNewLinesWithCarriageReturn == std::string::npos)
+        )
     {
         LOG_DEBUG("Query dont full\n");
         return;
     }
+
+
     // parse
-    switch (state_) {
-        case PARSE_FIRST_LINE:
-            LOG_DEBUG("Parse first line\n");
-            parse_first_line();
-            //break;
-        case PARSE_HEADERS:
-            LOG_DEBUG("Parse headers\n");
-            parse_headers();
-            //break;
-        case PARSE_BODY:
-            LOG_DEBUG("Parse body\n");
-            parse_body();
-            //break;
-        case PARSE_DONE:
-            LOG_DEBUG("Parse done\n");
-            break;
-        case PARSE_ERROR:
-            LOG_DEBUG("Parse error\n");
-            break;
-        default:
-            LOG_DEBUG("Undefined enum value: %d\n", state_);
-            break;
+    if (state_ == PARSE_QUERY) {
+        LOG_DEBUG("Parse query\n");
+        parse_first_line();
+        parse_headers();
+
+        if (hasHeader("Content-Length")) {
+            state_ = PARSE_BODY_WITH_LENGTH;
+        }
+        else if (   hasHeader("Transfer-Encoding")
+            && getHeaderValue("Transfer-Encoding") == "chunked"){
+            state_ = PARSE_CHUNKED_BODY;
+        }
+        else {
+            state_ = PARSE_BODY;
+        }
+    }
+    if (state_ == PARSE_BODY) {
+        LOG_DEBUG("Parse body\n");
+        parse_body();
+    }
+    if (state_ == PARSE_BODY_WITH_LENGTH) {
+        LOG_DEBUG("Parse body with length\n");
+        parse_body_with_length();
+    }
+    if (state_ == PARSE_CHUNKED_BODY) {
+        LOG_DEBUG("Parse chunked body\n");
+        parse_chunked_body();
     }
 }
 
-static void skipnNewLines(std::stringstream& ss)
+static void skipNewLines(std::stringstream& ss)
 {
     char ch = '\0';
     while (!ss.eof()) {
@@ -72,7 +80,7 @@ static void skipnNewLines(std::stringstream& ss)
 void Request::parse_first_line()
 {
     buffer_ >> method_ >> path_ >> version_;
-    skipnNewLines(buffer_);
+    skipNewLines(buffer_);
     if (method_.empty() || path_.empty() || version_.empty()) {
         state_ = PARSE_ERROR;
     }
@@ -80,11 +88,10 @@ void Request::parse_first_line()
         // проверяем на наличие query string
         std::size_t found = path_.find('?');
         if (found != std::string::npos) {
-            std::size_t queryStringLen = path_.size() - found;
-            query_string_ = path_.substr(found, queryStringLen);
-            path_.erase(found, queryStringLen);
+            std::size_t queryStringLen = path_.size() - found - 1;
+            query_string_ = path_.substr(found + 1, queryStringLen);
+            path_.erase(found, queryStringLen + 1);
         }
-        state_ = PARSE_HEADERS;
     }
 }
 
@@ -93,27 +100,50 @@ void Request::parse_headers()
     std::string key;
     std::string value;
 
-    skipnNewLines(buffer_);
+    skipNewLines(buffer_);
     while (!buffer_.eof()) {
         std::getline(buffer_, key, ':');
         std::getline(buffer_, value, '\n');
-        headers_.insert(std::pair<std::string, std::string>(key, value));
-        skipnNewLines(buffer_);
+        headers_.insert(std::pair<std::string, std::string>(utils::trim(key, " "), value));
+        skipNewLines(buffer_);
     }
-    state_ = PARSE_BODY;
 }
 
-void Request::parse_body()
+void Request::parse_body_with_length()
 {
-    skipnNewLines(buffer_);
+    uint64_t contentLen = utils::to_number<uint64_t>(getHeaderValue("Content-Length"));
+    const uint64_t bufSize = 1 << 16;
+
+    skipNewLines(buffer_);
+
+    std::streamsize readLen = static_cast<std::streamsize>(std::min(contentLen - body_.size(), bufSize));
     std::string bodyStr;
-    std::getline(buffer_, bodyStr, '\0');
+    bodyStr.resize(readLen + 1); // для нуль терминатора
+    buffer_.read(&bodyStr[0], readLen);
 
-    body_.append(bodyStr);
-
+    body_.append(bodyStr.c_str());
     buffer_.str("");
     buffer_.clear();
-    state_ = PARSE_DONE;
+
+    if (contentLen == body_.size()) {
+        state_ = PARSE_DONE;
+    }
+}
+
+void Request::parse_chunked_body() {
+
+}
+
+void Request::parse_body() {
+    std::string s;
+    std::getline(buffer_, s, '\0');
+    body_.append(s);
+    buffer_.str("");
+    buffer_.clear();
+    //if (buffer_.str().empty()) { FIXME
+        state_ = PARSE_DONE;
+    //    return;
+    //}
 }
 
 Request::State Request::getState() const {
@@ -161,6 +191,17 @@ const std::string &Request::getPath() const {
     return path_;
 }
 
+bool Request::hasHeader(const std::string &key) {
+    if (headers_.find(key) != headers_.end()) {
+        return true;
+    }
+    return false;
+}
+
+const std::string& Request::getHeaderValue(const std::string &key) {
+    return headers_[key];
+}
+
 void Request::reset() {
     method_ = "";
     path_ = "";
@@ -170,5 +211,5 @@ void Request::reset() {
     buffer_.str("");
     buffer_.clear();
     headers_.clear();
-    state_ = PARSE_FIRST_LINE;
+    state_ = PARSE_QUERY;
 }

@@ -140,10 +140,10 @@ void HTTP::handler(Request& request, Response& response)
 	.port); // !!Здесь нужно передавать ip:port сервера, обрабатывающего запрос. Пока костыль
 	std::string path = request.getPath();
 	Route *route = server == nullptr ? nullptr : server->findRouteByPath(path);
-	if (route != nullptr && getExtension(path) == route->getCgi()) {
+	if (route != nullptr && utils::getExtension(path) == route->getCgi()) {
 		response.setContent(Cgi(request).runCGI());
 	}
-	if (route != nullptr && route->isAutoindex() && getExtension(path).empty()) {
+	if (route != nullptr && route->isAutoindex() && utils::getExtension(path).empty()) {
 		std::stringstream header;
 		std::string html;
 		try

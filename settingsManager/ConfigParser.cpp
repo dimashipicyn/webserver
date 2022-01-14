@@ -32,7 +32,7 @@ void ConfigParser::parseConfig(const std::string &fileName)
 			line = previousLine;
 			previousLine = "";
 		}
-		line = trim(line, " \t");
+		line = utils::trim(line, " \t");
 		if (line[0] == '#' || line.empty())
 			continue;
 
@@ -46,7 +46,7 @@ void ConfigParser::parseConfig(const std::string &fileName)
 		else if (settingsManager->getServers().empty())
 			throw std::runtime_error(formConfigErrorText("Should start with server block!"));
 
-		if (!isValidPairString(line, ':'))
+		if (!utils::isValidPairString(line, ':'))
 			continue;
 
 		std::pair<std::string, std::string> map = breakPair(line);
@@ -81,8 +81,8 @@ std::pair<std::string, std::string> ConfigParser::breakPair(const std::string &l
 {
 	std::pair<std::string, std::string> result;
 	size_t delimiter = line.find_first_of(':');
-	result.first = trim(line.substr(0, delimiter), " \t");
-	result.second = trim(line.substr(delimiter + 1, line.length()), " \t");
+	result.first = utils::trim(line.substr(0, delimiter), " \t");
+	result.second = utils::trim(line.substr(delimiter + 1, line.length()), " \t");
 
 	return result;
 }
@@ -144,12 +144,12 @@ std::string ConfigParser::parseRoute(std::ifstream &config, Server &server)
 			line = previousLine;
 			previousLine = "";
 		}
-		line = trim(line, " \t");
+		line = utils::trim(line, " \t");
 		if (line[0] == '#' || line.empty())
 			continue;
 
 		if (line[0] == '-' && line[1] != '-') {
-			line = trim(line.substr(1), " \t");
+			line = utils::trim(line.substr(1), " \t");
 			if (!server.getRoutes().empty() && !server.getRoutes().back().isValid())
 				throw std::runtime_error(formConfigErrorText("Route block does not meet minimum requirements!"));
 			server.addRoute();
@@ -171,7 +171,7 @@ std::string ConfigParser::parseRoute(std::ifstream &config, Server &server)
 					getLineAndTrim(config, line);
 					if (line[0] == '-' && line[1] != '-')
 					{
-						line = trim(line.substr(1), " \t");
+						line = utils::trim(line.substr(1), " \t");
 						currentRoute->addDefaultFile(line);
 					} else {
 						previousLine = line;
@@ -188,7 +188,7 @@ std::string ConfigParser::parseRoute(std::ifstream &config, Server &server)
 					getLineAndTrim(config, line);
 					if (line[0] == '-' && line[1] != '-')
 					{
-						line = trim(line.substr(1), " \t");
+						line = utils::trim(line.substr(1), " \t");
 						if (!currentRoute->isValidMethod(line))
 							throw std::runtime_error(formConfigErrorText(
 									"Invalid method \"" + line + "\"! Should be GET, POST or DELETE"));
@@ -228,7 +228,7 @@ std::string ConfigParser::parseRoute(std::ifstream &config, Server &server)
 void ConfigParser::getLineAndTrim(std::ifstream &config, std::string &line)
 {
 	getline(config, line);
-	line = trim(line, " \t");
+	line = utils::trim(line, " \t");
 	lineCounter_++;
 }
 

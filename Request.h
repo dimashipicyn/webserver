@@ -14,9 +14,10 @@ public:
     typedef std::map<std::string, std::string> headersMap;
 
     enum State {
-        PARSE_FIRST_LINE,
-        PARSE_HEADERS,
+        PARSE_QUERY,
         PARSE_BODY,
+        PARSE_BODY_WITH_LENGTH,
+        PARSE_CHUNKED_BODY,
         PARSE_ERROR,
         PARSE_DONE
     };
@@ -24,12 +25,6 @@ public:
 public:
     Request();
     ~Request();
-
-    void parse(const char* buf);
-
-    void parse_first_line();
-    void parse_headers();
-    void parse_body();
 
     const std::string&      getMethod() const;
     const std::string&      getVersion() const;
@@ -39,7 +34,19 @@ public:
     const headersMap&       getHeaders() const;
     State                   getState() const;
 
+    bool                    hasHeader(const std::string& key);
+    const std::string&      getHeaderValue(const std::string& key);
+
+    void parse(const char* buf);
     void reset();
+
+private:
+    void parse_first_line();
+    void parse_headers();
+    void parse_body();
+    void parse_body_with_length();
+    void parse_chunked_body();
+
 
 private:
     Request(const Request&) {};
@@ -48,6 +55,8 @@ private:
 private:
     State               state_;
     std::stringstream   buffer_;
+    std::string         host_;
+    std::string         port_;
     std::string         method_;
     std::string         version_;
     std::string         path_;

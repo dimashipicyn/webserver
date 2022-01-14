@@ -137,7 +137,9 @@ void Route::setAutoindex(bool autoindex)
 
 std::string Route::getFullPath(const std::string &resource)
 {
-	if (getExtension(resource).empty()) {
+	std::string defaultFile;
+
+	if (utils::getExtension(resource).empty()) {
 		for (std::vector<std::string>::iterator i = defaultFiles_.begin(); i != defaultFiles_.end(); i++) {
 			std::string tryPath = root_
 					+ (resource[0] == '/' ? resource : ("/" + resource))
@@ -160,7 +162,7 @@ std::string Route::getDefaultPage(const std::string &resource)
 	std::string line;
 	std::string result = "";
 
-	if (getExtension(fullPath).empty())
+	if (utils::getExtension(fullPath).empty())
 		throw DefaultFileNotFoundException();
 
 	std::ifstream file(fullPath);
