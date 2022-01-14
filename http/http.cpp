@@ -13,42 +13,38 @@
 struct Session
 {
     Session()
-        : conn()
-        , host()
+        : host()
         , writeBuffer()
         , readBuffer()
     {
 
     }
-    Session(const tcp::tdSocketAddressPair& conn)
-        : conn(conn)
-        , host()
+    Session(const std::string& host)
+        : host(host)
         , writeBuffer()
         , readBuffer()
     {
 
     };
     Session(Session& session)
-        : conn(session.conn)
-        , host()
-        , writeBuffer()
-        , readBuffer()
+        : host(session.host)
+        , writeBuffer(session.writeBuffer)
+        , readBuffer(session.readBuffer)
     {
     };
     Session& operator=(Session& session) {
         if (&session == this) {
             return *this;
         }
-        conn = session.conn;
+        host = session.host;
         writeBuffer = session.writeBuffer;
         readBuffer = session.readBuffer;
         return *this;
     };
-    virtual ~Session() {
+    ~Session() {
 
     };
 
-    tcp::tdSocketAddressPair    conn;
     std::string         host;
     std::string         writeBuffer;
     std::string         readBuffer;
@@ -85,30 +81,29 @@ void HTTP::closeSessionByID(int id) {
 
 void HTTP::newSessionByID(int id, Session& session)
 {
-    enableReadEvent(session.conn.first);
-
     sessionMap_[id] = session;
 }
 
-void HTTP::asyncAccept(int socket)
+void HTTP::asyncAccept(TcpSocket& socket)
 {
     LOG_DEBUG("Event accepter call\n");
 
     try
     {
-        Session *session = getSessionByID(socket);
+        Session *session = getSessionByID(socket.getSock());
         if (session == nullptr) {
-            LOG_ERROR("Dont find session to socket: %d. Close.\n", socket);
-            close(socket);
+            LOG_ERROR("Dont find session to socket: %d. Close.\n", socket.getSock());
+            close(socket.getSock());
             return;
         }
 
-        tcp::tdSocketAddressPair conn = tcp::accept(session->conn);
+        TcpSocket conn = socket.accept();
 
-        LOG_DEBUG("New connect fd: %d\n", conn.first);
+        LOG_DEBUG("New connect fd: %d\n", conn.getSock());
 
-        Session s(conn);
-        newSessionByID(conn.first, s);
+        Session s(conn.getHost());
+        newSessionByID(conn.getSock(), s);
+        enableReadEvent(conn.getSock());
     }
     catch (std::exception& e)
     {
@@ -232,13 +227,13 @@ void HTTP::start() {
 void HTTP::listen(const std::string& host)
 {
     try {
-        tcp::tdSocketAddressPair conn = tcp::tcpSocket(host);
-        tcp::listen(conn);
-        tcp::makeNonBlock(conn);
+        TcpSocket conn(host);
+        conn.listen();
+        conn.makeNonBlock();
 
-        Session listenSession(conn);
-        newListenerEvent(conn.first);
-        sessionMap_[conn.first] = listenSession;
+        Session listenSession(conn.getHost());
+        newListenerEvent(conn);
+        newSessionByID(conn.getSock(), listenSession);
     }  catch (std::exception& e) {
         LOG_ERROR("HTTP: %s\n", e.what());
     }

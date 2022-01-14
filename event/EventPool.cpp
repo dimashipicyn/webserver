@@ -30,11 +30,11 @@ EventPool::~EventPool() {
 void EventPool::readHandler(int socket)
 {
     // если сокет есть среди слушающих, принимаем новое соединение
-    std::vector<int>::iterator foundListener = find(listeners_.begin(), listeners_.end(), socket);
+    std::vector<TcpSocket>::iterator foundListener = find(listeners_.begin(), listeners_.end(), socket);
     if (foundListener != listeners_.end())
     {
         LOG_DEBUG("Create new connection\n");
-        asyncAccept(socket);
+        asyncAccept(*foundListener);
     }
     else
     {
@@ -88,12 +88,12 @@ void EventPool::newEvent(int socket, std::uint16_t flags, std::int64_t time)
     }
 }
 
-void EventPool::newListenerEvent(int socket)
+void EventPool::newListenerEvent(const TcpSocket& socket)
 {
     try {
-        poll_.setEvent(socket, M_READ|M_ADD|M_CLEAR, nullptr, 0);
+        poll_.setEvent(socket.getSock(), M_READ|M_ADD|M_CLEAR, nullptr, 0);
         listeners_.push_back(socket);
-        LOG_DEBUG("Add listen fd: %d\n", socket);
+        LOG_DEBUG("Add listen fd: %d\n", socket.getSock());
     } catch (std::exception &e) {
         LOG_DEBUG("addListener fail. %s\n", e.what());
     }

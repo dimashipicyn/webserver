@@ -24,7 +24,7 @@ public:
     void start();
 
 protected:
-    virtual void asyncAccept(int socket);
+    virtual void asyncAccept(TcpSocket& socket);
     virtual void asyncRead(int socket);
     virtual void asyncWrite(int socket);
     virtual void asyncEvent(int socket, uint16_t flags);
