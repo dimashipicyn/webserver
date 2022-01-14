@@ -18,10 +18,11 @@ int main(int argc, char **argv)
 		settingsManager->parseConfig(DEFAULT_CONFIG);
 		LOG_WARNING(e.what());
 		std::cout << std::endl;
-		LOG_WARNING("Applying default configuration\n");
-	}
-	
-    HTTP serve("127.0.0.1", 1234);
+        LOG_WARNING("Applying default configuration\n");
+    }
+
+    HTTP serve;
+    serve.listen("127.0.0.1:1234");
     serve.start();
     return 0;
 }

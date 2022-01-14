@@ -5,11 +5,11 @@
 #ifndef WEBSERV_CONFIGPARSER_HPP
 #define WEBSERV_CONFIGPARSER_HPP
 
-#include "Server.hpp"
-#include "../utils.h"
-#include <fstream>
+#include <string>
 
 class SettingsManager;
+class Server;
+class Route;
 
 class ConfigParser
 {

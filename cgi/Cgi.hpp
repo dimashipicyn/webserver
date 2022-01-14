@@ -7,9 +7,9 @@
 
 #include <iostream>
 #include <map>
-#include <unistd.h>
-#include "../Request.h"
-#include "../settingsManager/SettingsManager.hpp"
+#include <vector>
+
+class Request;
 
 class Cgi
 {
