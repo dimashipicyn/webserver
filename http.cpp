@@ -112,9 +112,6 @@ struct Accepter : public IEventAcceptor
 
 HTTP::HTTP(const std::string& host, std::int16_t port)
 {
-	// Прописываем адрес клиента в конфиге
-	SettingsManager::getInstance()->setHost(host, port);
-
     TcpSocket socket(host, port);
     socket.makeNonBlock();
     socket.listen();
@@ -136,12 +133,13 @@ void HTTP::handler(Request& request, Response& response)
 
 	// Сравниваем расширение запрошенного ресурса с cgi расширением для этого локейшена. Если бьется, запуск скрипта
 	SettingsManager *settingsManager = SettingsManager::getInstance();
-	Server *server = settingsManager->findServer(settingsManager->getHost().host, settingsManager->getHost()
-	.port); // !!Здесь нужно передавать ip:port сервера, обрабатывающего запрос. Пока костыль
+	// !!!!!!!!!!!!!!!!!!!!!!!!!! хардкод
+	Server *server = settingsManager->findServer("127.0.0.1:1234"); // !!Здесь нужно передавать request.getHost(),
+																	// обрабатывающего запрос. Пока костыль
 	std::string path = request.getPath();
 	Route *route = server == nullptr ? nullptr : server->findRouteByPath(path);
 	if (route != nullptr && utils::getExtension(path) == route->getCgi()) {
-		response.setContent(Cgi(request).runCGI());
+		response.setContent(Cgi(request, *route).runCGI());
 	}
 	if (route != nullptr && route->isAutoindex() && utils::getExtension(path).empty()) {
 		std::stringstream header;

@@ -191,6 +191,17 @@ const std::string &Request::getPath() const {
     return path_;
 }
 
+
+const std::string &Request::getHost() const
+{
+	return host_;
+}
+
+const std::string &Request::getPort() const
+{
+	return port_;
+}
+
 bool Request::hasHeader(const std::string &key) {
     if (headers_.find(key) != headers_.end()) {
         return true;

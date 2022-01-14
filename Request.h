@@ -47,6 +47,10 @@ private:
     void parse_body_with_length();
     void parse_chunked_body();
 
+public:
+	const std::string &getHost() const;
+
+	const std::string &getPort() const;
 
 private:
     Request(const Request&) {};

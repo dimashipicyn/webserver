@@ -99,7 +99,7 @@ public:
 	 *
 	 * @throws runtime_error если нет указанного ресурса
 	 */
-	std::string getFullPath(std::string const &resource);
+	std::string getFullPath(std::string const &resource) const;
 
 	/**
 	 * @info ищет по указанному ресурсу дефолтные файлы из текущего роута. Считывает в строку первый попавшийся файл.

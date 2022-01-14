@@ -52,17 +52,6 @@ void SettingsManager::clear()
 	servers_.clear();
 }
 
-const SettingsManager::Host &SettingsManager::getHost() const
-{
-	return host_;
-}
-
-void SettingsManager::setHost(const std::string &host, const uint16_t &port)
-{
-	host_.host = host;
-	host_.port = port;
-}
-
 Server *SettingsManager::findServer(const std::string &host, const uint16_t &port)
 {
 	for (std::vector<Server>::iterator iter = servers_.begin(); iter != servers_.end(); iter++) {
@@ -75,4 +64,14 @@ Server *SettingsManager::findServer(const std::string &host, const uint16_t &por
 Server *SettingsManager::getDefaultServer()
 {
 	return &servers_.front();
+}
+
+Server *SettingsManager::findServer(const std::string &hostFull)
+{
+	if (!utils::isValidPairString(hostFull, ':'))
+		return nullptr;
+
+	std::pair<std::string, std::string> map = utils::breakPair(hostFull, ':');
+	return findServer(map.first, utils::to_number<uint16_t>(map.second));
+
 }

@@ -135,12 +135,12 @@ void Route::setAutoindex(bool autoindex)
 	autoindex_ = autoindex;
 }
 
-std::string Route::getFullPath(const std::string &resource)
+std::string Route::getFullPath(const std::string &resource) const
 {
 	std::string defaultFile;
 
 	if (utils::getExtension(resource).empty()) {
-		for (std::vector<std::string>::iterator i = defaultFiles_.begin(); i != defaultFiles_.end(); i++) {
+		for (std::vector<std::string>::const_iterator i = defaultFiles_.begin(); i != defaultFiles_.end(); i++) {
 			std::string tryPath = root_
 					+ (resource[0] == '/' ? resource : ("/" + resource))
 					+ (resource[resource.size() - 1] == '/' ? (*i) : ("/" + (*i)));

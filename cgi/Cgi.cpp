@@ -7,9 +7,9 @@
 
 #define BUFFER 1024
 
-Cgi::Cgi(const Request &request)
+Cgi::Cgi(const Request &request, const Route &route)
 {
-	script_ = request.getPath(); // !!Поменять на абсолютный путь через функцию Route::getFullPath() когда будет ip:port
+	script_ = route.getFullPath(request.getPath());
 	body_ = request.getBody();
 	convertMeta(request);
 }
@@ -18,7 +18,7 @@ void Cgi::convertMeta(const Request &request)
 {
 	Request::headersMap meta;
 	Request::headersMap headers = request.getHeaders();
-	SettingsManager *settingsManager = SettingsManager::getInstance();
+	std::pair<std::string, std::string> host = utils::breakPair(request.getHost(), ':');
 
 	// Конвертируем заголовки запроса и др параметры в cgi мета переменные
 	meta["AUTH_TYPE"] = headers.find("auth-scheme") == headers.end() ? "" : headers["auth-scheme"];
@@ -28,7 +28,7 @@ void Cgi::convertMeta(const Request &request)
 	meta["PATH_INFO"] = request.getPath();
 	meta["PATH_TRANSLATED"] = request.getPath();
 	meta["QUERY_STRING"] = request.getQueryString();
-	meta["REMOTE_ADDR"] = settingsManager->getHost().host;
+	meta["REMOTE_ADDR"] =  request.getHost();
 
 	// Возможно понадобится
 //	meta["REMOTE_HOST"] = "";
@@ -39,8 +39,8 @@ void Cgi::convertMeta(const Request &request)
 
 	meta["REQUEST_METHOD"] = request.getMethod();
 	meta["SCRIPT_NAME"] = request.getPath();
-	meta["SERVER_NAME"] = headers.find("Hostname") == headers.end() ? settingsManager->getHost().host : headers["Hostname"];
-	meta["SERVER_PORT"] = std::to_string(settingsManager->getHost().port);
+	meta["SERVER_NAME"] = headers.find("Hostname") == headers.end() ? host.first : headers["Hostname"];
+	meta["SERVER_PORT"] = host.second;
 	meta["SERVER_PROTOCOL"] = "HTTP/1.1";
 	meta["SERVER_SOFTWARE"] = "webserv/1.0";
 
@@ -78,7 +78,7 @@ std::string Cgi::runCGI()
 		dup2(cgiIn, STDIN_FILENO);
 		dup2(cgiOut, STDOUT_FILENO);
 
-		if (execve(("." + script_).c_str(), nullptr, env_.data()) < 0)
+		if (execve(script_.c_str(), nullptr, env_.data()) < 0)
 		{
 			LOG_ERROR("Execve fail!\n");
 			write(STDOUT_FILENO, errorInternal.c_str(), errorInternal.size());

@@ -51,15 +51,6 @@ private:
 	parameterCode parameterMapping(std::string const &str);
 
 	/**
-	 * @brief Функция разбивает строку на ключ и значение. Разделитель ':'
-	 *
-	 * @param line - строка из файла конфигурации
-	 *
-	 * @return пара стрингов pair<ключ, значение>
-	 */
-	std::pair<std::string, std::string> breakPair(std::string const &line);
-
-	/**
 	 * @brief парсит строку в размер тела сообщения
 	 *
 	 * @param str строка, представляющая размер

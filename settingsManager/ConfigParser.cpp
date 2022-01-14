@@ -49,7 +49,7 @@ void ConfigParser::parseConfig(const std::string &fileName)
 		if (!utils::isValidPairString(line, ':'))
 			continue;
 
-		std::pair<std::string, std::string> map = breakPair(line);
+		std::pair<std::string, std::string> map = utils::breakPair(line, ':');
 		currentServer = settingsManager->getLastServer();
 		switch (parameterMapping(map.first))
 		{
@@ -75,16 +75,6 @@ void ConfigParser::parseConfig(const std::string &fileName)
 				break;
 		}
 	}
-}
-
-std::pair<std::string, std::string> ConfigParser::breakPair(const std::string &line)
-{
-	std::pair<std::string, std::string> result;
-	size_t delimiter = line.find_first_of(':');
-	result.first = utils::trim(line.substr(0, delimiter), " \t");
-	result.second = utils::trim(line.substr(delimiter + 1, line.length()), " \t");
-
-	return result;
 }
 
 ConfigParser::parameterCode ConfigParser::parameterMapping(const std::string &str)
@@ -157,7 +147,7 @@ std::string ConfigParser::parseRoute(std::ifstream &config, Server &server)
 		else if (server.getRoutes().empty())
 			throw std::runtime_error(formConfigErrorText("Routes not specified! Delete tag \"route\" or add element"));
 		currentRoute = server.getLastRoute();
-		std::pair<std::string, std::string> map = breakPair(line);
+		std::pair<std::string, std::string> map = utils::breakPair(line, ':');
 		switch (parameterMapping(map.first)) {
 			case LOCATION:
 				currentRoute->setLocation(map.second);
@@ -241,7 +231,7 @@ void ConfigParser::parseRedirect(std::ifstream &config, Route &route)
 	r.status = 302;
 	for (int i = 0; i < 3; i++) {
 		getLineAndTrim(config, line);
-		std::pair<std::string, std::string> map = breakPair(line);
+		std::pair<std::string, std::string> map = utils::breakPair(line, ':');
 		if (map.first == "from")
 			r.from = map.second;
 		else if (map.first == "to")
