@@ -223,11 +223,7 @@ void HTTP::methodGET(const Request& request){
 		response_.setContentType(path);
 	}
 	response_.setHeaderField("Content-Length", finalContent.size() );
-	std::ostringstream oss;
-	oss << response_.getHeader();
-	oss << finalContent;
-	std::string output = oss.str(); // test unit would be deleted
-	response_.setContent(oss.str());  // here is a output for GET method, this must to be
+	response_.setContent(response_.getHeader() + finalContent);  // here is a output for GET method, this must to be
 	// transfere to socket. Need I set response _output && pull it from response
 	// again?
 }
@@ -246,19 +242,14 @@ void HTTP::methodNotAllowed(const Request& request){
 	response_.setHeaderField("Allow", strAllowMethods);
 }
 
-<<<<<<< HEAD
+
 void HTTP::BadRequest(){
 	response_.setStatusCode(400);
-=======
-//    if (request.getMethod() == "GET" && request.getPath() == "/") {
-//        std::stringstream ss;
-//        std::string s("Hello Webserver!\n");
-//        ss << "HTTP/1.1 200 OK\n"
-//           << "Content-Length: " << s.size() << "\n"
-//           << "Content-Type: text/html\n\n";
-//        response.setContent(ss.str() + s);
-//    }
->>>>>>> ca60e7898aa3228ed466167aed579f392938739b
+	std::stringstream ss;
+	std::string s("Bad Request\n");
+	response_.setHeaderField("Content-Length", s.size());
+	response_.setContentType("text/html");
+	response_.setContent(response_.getHeader() + s);
 }
 //=============================================================//
 
