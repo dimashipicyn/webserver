@@ -4,7 +4,11 @@
 #include "EventPool.h"
 #include "Request.h"
 #include "Response.h"
-#include "autoindex/Autoindex.hpp"
+#include "Autoindex.hpp"
+#include "Route.hpp"
+#include "Route.hpp"
+#include "Server.hpp"
+#include "utils.h"
 
 struct Session
 {

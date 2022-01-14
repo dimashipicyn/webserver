@@ -2,8 +2,12 @@
 // Created by Руслан Вахитов on 03.01.2022.
 //
 
+#include <unistd.h>
+
 #include "Cgi.hpp"
-#include "../Logger.h"
+#include "Request.h"
+#include "SettingsManager.hpp"
+#include "Logger.h"
 
 #define BUFFER 1024
 

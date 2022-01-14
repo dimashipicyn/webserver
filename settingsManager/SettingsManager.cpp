@@ -3,7 +3,8 @@
 //
 
 #include "SettingsManager.hpp"
-#include "../utils.h"
+#include "Server.hpp"
+#include "utils.h"
 
 SettingsManager *SettingsManager::settingsManager_ = nullptr;
 

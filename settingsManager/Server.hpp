@@ -5,8 +5,9 @@
 #ifndef WEBSERV_SERVER_HPP
 #define WEBSERV_SERVER_HPP
 
+#include <string>
+
 #include "Route.hpp"
-#include "../utils.h"
 
 class Server
 {

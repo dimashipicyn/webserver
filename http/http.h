@@ -5,8 +5,8 @@
 #include <map>
 #include "TcpSocket.h"
 #include "EventPool.h"
-#include "settingsManager/SettingsManager.hpp"
-#include "cgi/Cgi.hpp"
+#include "SettingsManager.hpp"
+#include "Cgi.hpp"
 
 
 class Request;
