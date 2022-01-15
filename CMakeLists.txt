@@ -27,6 +27,7 @@ add_executable(webserv
         http/Response.cpp
         http/http.cpp
         http/http.h
+        http/httpExceptions.h
 
         settingsManager/SettingsManager.hpp
         settingsManager/SettingsManager.cpp
