@@ -4,6 +4,7 @@
 
 #include "Route.hpp"
 #include "utils.h"
+#include "httpExceptions.h"
 #include <unistd.h>
 
 Route::Route()
@@ -154,7 +155,7 @@ std::string Route::getFullPath(const std::string &resource) const
 	if (access(tryPath.c_str(), F_OK) != -1)
 		return tryPath;
 	else
-		throw std::runtime_error(std::string("Requested resource is not exist!") + " \"" + resource + "\"");
+		throw httpEx<NotFound>(std::string("Requested resource is not exist! ") + " \"" + resource + "\"");
 }
 
 std::string Route::getDefaultPage(const std::string &resource)
@@ -164,7 +165,7 @@ std::string Route::getDefaultPage(const std::string &resource)
 	std::string result = "";
 
 	if (utils::getExtension(fullPath).empty())
-		throw DefaultFileNotFoundException();
+		throw DefaultFileNotFoundException("There is no default files at directory");
 
 	std::ifstream file(fullPath);
 	while(true)
