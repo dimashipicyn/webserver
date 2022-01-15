@@ -7,7 +7,6 @@
 #include "Cgi.hpp"
 #include "Request.h"
 #include "utils.h"
-#include "SettingsManager.hpp"
 #include "Logger.h"
 #include "Route.hpp"
 

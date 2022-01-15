@@ -87,7 +87,7 @@ private:
 	uint16_t port_;
 	// название сервера
 	std::string serverName_;
-	// относительный путь до дефолтной ошибки
+	// абсолютный путь до дефолтной ошибки
 	std::string errorPage_;
 	// ограничение размера тела сообщения
 	size_t maxBodySize_;

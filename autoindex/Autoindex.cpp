@@ -4,6 +4,7 @@
 
 #include <dirent.h>
 #include <sys/stat.h>
+#include "httpExceptions.h"
 
 #include "Autoindex.hpp"
 # define FILENAME_LIMIT 50
@@ -45,7 +46,7 @@ std::string Autoindex::generatePage(const std::string &resource)
 		}
 		closedir (dir);
 	} else {
-		throw std::runtime_error(std::string ("No such directory!") + " \"" + fullPath + "\"");
+		throw httpEx<NotFound>(std::string ("No such directory!") + " \"" + fullPath + "\"");
 	}
 	result += "</pre><hr></body>\n</html>\n";
 	return result;
