@@ -10,11 +10,12 @@
 #include <vector>
 
 class Request;
+class Route;
 
 class Cgi
 {
 public:
-	Cgi(Request const &request);
+	Cgi(Request const &request, Route const &route);
 
 	virtual ~Cgi();
 

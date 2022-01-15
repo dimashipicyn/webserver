@@ -5,8 +5,6 @@
 #include <unistd.h>
 #include <string>
 #include <vector>
-#include <iostream>
-#include <sstream>
 #include "utils.h"
 
 namespace utils {
@@ -77,6 +75,16 @@ namespace utils {
         size_t position = resource.find_last_of('.', std::string::npos);
         return position == std::string::npos ? "" : resource.substr(position);
     }
+
+	std::pair<std::string, std::string> breakPair(const std::string &line, const char &delimiter)
+	{
+		std::pair<std::string, std::string> result;
+		size_t delimiterPosition = line.find_first_of(delimiter);
+		result.first = utils::trim(line.substr(0, delimiterPosition), " \t");
+		result.second = utils::trim(line.substr(delimiterPosition + 1, line.length()), " \t");
+
+		return result;
+	}
 }
 
 /*

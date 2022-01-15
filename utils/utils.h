@@ -48,6 +48,7 @@ namespace utils {
         ss >> result;
         return result;
     }
+    std::pair<std::string, std::string> breakPair(const std::string &line, const char &delimiter);
 }
 
 #endif //WEBSERV_UTILS_H

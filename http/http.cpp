@@ -204,7 +204,7 @@ void HTTP::cgi(Request &request, Response& response, Route* route) {
     const std::string& path = request.getPath();
 
     if (route != nullptr && utils::getExtension(path) == route->getCgi()) {
-        response.setContent(Cgi(request).runCGI());
+        response.setContent(Cgi(request, *route).runCGI());
     }
 }
 

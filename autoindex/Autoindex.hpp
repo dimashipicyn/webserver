@@ -32,33 +32,6 @@ private:
 	Route route_;
 
 	/**
-	 * @brief формирует шапку html странички
-	 *
-	 * @param resource uri
-	 *
-	 * @return шапку в виде строки
-	 */
-	std::string formHeader(std::string const &resource);
-
-	/**
-	 * @brief формирует тело html странички с листингом
-	 *
-	 * @param resource uri
-	 *
-	 * @return тело html в виде строки
-	 */
-	std::string formBody(std::string const &resource);
-
-	/**
-	 * @brief формирует конец html странички
-	 *
-	 * @param resource uri
-	 *
-	 * @return строку с закрывающими тегами html
-	 */
-	std::string formTail();
-
-	/**
 	 * @brief конвертирует timespec в строку формата date time UTC
 	 *
 	 * @param lastModified структура секунды + наносекунды

@@ -76,9 +76,10 @@ public:
 	 */
 	Server *findServer(std::string const &host, uint16_t const &port);
 
-	const Host &getHost() const;
-
-	void setHost(const std::string &host, const uint16_t &port);
+	/**
+	 * @brief перегрузка для строки формата "хост:порт"
+	 */
+	Server *findServer(std::string const &hostFull);
 
 protected:
 	SettingsManager();
@@ -97,8 +98,6 @@ private:
 	std::vector<Server> servers_;
 	// парсер
 	ConfigParser configParser_;
-	// адрес клиента
-	Host host_;
 
 };
 

@@ -35,7 +35,6 @@ protected:
     void cgi(Request &request, Response& response, Route* route);
     void autoindex(Request &request, Response& response, Route* route);
 
-
     typedef std::map<int, Session> tdSessionMap;
 private:
     tdSessionMap    sessionMap_;
