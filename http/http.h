@@ -3,14 +3,13 @@
 
 #include <string>
 #include <map>
-#include "TcpSocket.h"
-#include "EventPool.h"
-#include "SettingsManager.hpp"
-#include "Cgi.hpp"
 
+#include "EventPool.h"
 
 class Request;
 class Response;
+class TcpSocket;
+class Route;
 struct Session;
 
 class HTTP : public EventPool
@@ -20,11 +19,10 @@ public:
     virtual ~HTTP();
 
     void listen(const std::string& host);
-    void handler(Request& request, Response &response);
     void start();
 
 protected:
-    virtual void asyncAccept(int socket);
+    virtual void asyncAccept(TcpSocket& socket);
     virtual void asyncRead(int socket);
     virtual void asyncWrite(int socket);
     virtual void asyncEvent(int socket, uint16_t flags);
@@ -32,6 +30,10 @@ protected:
     Session*    getSessionByID(int id);
     void        closeSessionByID(int id);
     void        newSessionByID(int id, Session& session);
+
+    void handler(Request& request, Response &response);
+    void cgi(Request &request, Response& response, Route* route);
+    void autoindex(Request &request, Response& response, Route* route);
 
     typedef std::map<int, Session> tdSessionMap;
 private:

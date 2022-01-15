@@ -13,33 +13,26 @@
 class TcpSocket
 {
 public:
-    TcpSocket(const std::string& host); // format "host:port"
+    TcpSocket();
+    explicit TcpSocket(const std::string& host); // format "host:port"
     TcpSocket(const TcpSocket& socket);
     TcpSocket& operator=(const TcpSocket& socket);
     virtual ~TcpSocket();
+    bool operator==(int sock);
 
     TcpSocket   accept() const;
     void        listen() const;
     void        connect() const;
     void        makeNonBlock() const;
-    int64_t     read(void *buf, size_t bytes);
-    int64_t     write(const void *buf, size_t bytes);
-
-
 
     int                     getSock() const;
     const std::string&      getHost() const;
-    const struct sockaddr&  getAddr() const;
     struct sockaddr*        getAddr();
 
 private:
-    TcpSocket(int sock, const struct sockaddr& addr, const std::string& host);
-
-private:
-    int                 sock_;
-    socklen_t           addrLen_;
-    struct sockaddr     address_;
-    std::string         host_;
+    int                 sock;
+    struct sockaddr     address;
+    std::string         host;
 };
 
 namespace tcp

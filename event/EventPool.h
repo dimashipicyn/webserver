@@ -7,6 +7,7 @@
 
 #include <map>
 #include <string>
+#include <TcpSocket.h>
 #include "kqueue.h"
 
 class EventPool {
@@ -35,7 +36,7 @@ public:
     void stop();
 
     void newEvent(int socket, std::uint16_t flags, std::int64_t time = 0);
-    void newListenerEvent(int socket);
+    void newListenerEvent(const TcpSocket& socket);
     void enableWriteEvent(int socket);
     void disableWriteEvent(int socket);
     void enableReadEvent(int socket);
@@ -45,7 +46,7 @@ public:
 
 
 protected:
-    virtual void asyncAccept(int socket) = 0;
+    virtual void asyncAccept(TcpSocket& socket) = 0;
     virtual void asyncRead(int socket) = 0;
     virtual void asyncWrite(int socket) = 0;
     virtual void asyncEvent(int socket, uint16_t flags) = 0;
@@ -56,7 +57,7 @@ private:
 
 private:
     Kqueue                      poll_;
-    std::vector<int>            listeners_;
+    std::vector<TcpSocket>      listeners_;
     bool                        running_;
 };
 
