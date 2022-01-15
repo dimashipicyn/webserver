@@ -6,20 +6,34 @@
 #define WEBSERV_UTILS_H
 #include <sstream>
 
-namespace utils {
-    int                         get_next_line(int fd, std::string& line);
-    std::vector<std::string>    split(std::string& s, const char delim);
-    std::string                 trim(const std::string &str, const std::string &whitespace);
+namespace utils
+{
+    int get_next_line(int fd, std::string &line);
+
+    std::vector<std::string> split(std::string &s, const char delim);
+
+    std::string trim(const std::string &str, const std::string &whitespace);
+
     /**
-	 * @brief Функция проверяет строку на соответствие шаблону "key <delimiter> value". Пример строка "foo: bar"
-	 * с разделителем ':' вернет true
-	 *
-	 * @param line - строка из файла конфигурации
-	 * @param delimiter - разделитель
-	 *
-	 * @return true если строка соответствует формату
-	 */
+     * @brief Функция проверяет строку на соответствие шаблону "key <delimiter> value". Пример строка "foo: bar"
+     * с разделителем ':' вернет true
+     *
+     * @param line - строка из файла конфигурации
+     * @param delimiter - разделитель
+     *
+     * @return true если строка соответствует формату
+     */
     bool isValidPairString(std::string const &line, const char &delimiter);
+
+    /**
+    * @brief Функция разбивает строку на ключ и значение.
+    *
+    * @param line - строка из файла конфигурации
+    * @param delimiter - разделитель
+    *
+    * @return пара стрингов pair<ключ, значение>
+    */
+    std::pair<std::string, std::string> breakPair(std::string const &line, const char &delimiter);
 
     /**
      * @brief Функция извлекает расширение файла из запрошенного ресурса.
@@ -30,7 +44,8 @@ namespace utils {
     std::string getExtension(std::string const &resource);
 
     template<typename T>
-    std::string    to_string(const T& t) {
+    std::string to_string(const T &t)
+    {
         std::stringstream ss;
         std::string result;
 
@@ -40,7 +55,8 @@ namespace utils {
     }
 
     template<typename T>
-    T    to_number(const std::string& s) {
+    T to_number(const std::string &s)
+    {
         std::stringstream ss;
         T result;
 
@@ -48,7 +64,6 @@ namespace utils {
         ss >> result;
         return result;
     }
-    std::pair<std::string, std::string> breakPair(const std::string &line, const char &delimiter);
 }
 
 #endif //WEBSERV_UTILS_H

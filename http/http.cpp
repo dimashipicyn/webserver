@@ -214,16 +214,26 @@ void HTTP::autoindex(Request &request, Response &response, Route *route) {
     if (route != nullptr && route->isAutoindex() && utils::getExtension(path).empty()) {
         std::stringstream header;
         std::string html;
-        try {
-            html = Autoindex(*route).generatePage(path);
+        try
+        {
+            html = route->getDefaultPage(path);
+        } catch (Route::DefaultFileNotFoundException &e) {
+            LOG_DEBUG("Default file at %s not found. Proceed autoindexing.\n", path.c_str());
+            try {
+                html = Autoindex(*route).generatePage(path);
+            } catch (std::runtime_error &e) {
+                LOG_ERROR("%s\n", e.what());
+                // Здесь респонс дефолтной ошибкой или той что указана в конфиге
+                return;
+            }
         } catch (std::runtime_error &e) {
             LOG_ERROR("%s\n", e.what());
             // Здесь респонс дефолтной ошибкой или той что указана в конфиге
             return;
         }
         header << "HTTP/1.1 200 OK\n"
-        << "Content-Length: " << html.size() << "\n"
-        << "Content-Type: text/html\n\n";
+               << "Content-Length: " << html.size() << "\n"
+               << "Content-Type: text/html\n\n";
         response.setContent(header.str() + html);
     }
 }
@@ -238,7 +248,7 @@ void HTTP::handler(Request& request, Response& response)
 
         // Сравниваем расширение запрошенного ресурса с cgi расширением для этого локейшена. Если бьется, запуск скрипта
         SettingsManager *settingsManager = SettingsManager::getInstance();
-        Server *server = settingsManager->findServer("127.0.0.1", 1234); // !!Здесь нужно передавать ip:port сервера, обрабатывающего запрос. Пока костыль
+        Server *server = settingsManager->findServer(request.getHost());
         Route *route = server == nullptr ? nullptr : server->findRouteByPath(request.getPath());
 
         cgi(request, response, route);

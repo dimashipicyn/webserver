@@ -19,13 +19,14 @@ TcpSocket::TcpSocket(const std::string &host)
         , host(host)
 {
 
-    size_t found = host.find(":");
-    if (found == std::string::npos) {
+    if (!utils::isValidPairString(host, ':')) {
         throw std::runtime_error("TcpSocket: host format error. Use 'host:port'.");
     }
 
-    int port = utils::to_number<int>(host.substr(found + 1, host.size() - found));
-    std::string hostTmp = host.substr(0, found);
+    std::pair<std::string, std::string> hostPortPair = utils::breakPair(host, ':');
+
+    std::string hostTmp = hostPortPair.first;
+    int port = utils::to_number<int>(hostPortPair.second);
 
     LOG_DEBUG("%s %d\n", hostTmp.c_str(), port);
     // Creating socket file descriptor
