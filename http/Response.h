@@ -17,10 +17,10 @@ public:
     ~Response();
 
     void setContent(const std::string& s);
-    const std::string& getContent();
+    const std::string&	getContent();
+	std::string	getErrorPage(int);
     void reset();
 
-	std::string 		getPath(const Request&) const;
 	std::string 		getErrorPath(const Request&) const;
 	std::string			getHeader();
 	void 				setStatusCode(int);

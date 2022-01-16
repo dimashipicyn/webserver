@@ -28,22 +28,6 @@ void Response::reset() {
     content_ = "";
 }
 
-// Change: take from config root && default files && error files
-std::string Response::getPath(const Request &request) const{
-	std::string path;
-	SettingsManager *settingsManager = SettingsManager::getInstance();
-	Route *route = settingsManager->getLastServer()->findRouteByPath(request.getPath());
-	path = route->getFullPath();
-	return path;
-
-	/*
-	 * SettingsManager *settingsManager = SettingsManager::getInstance();
-		Server *server = settingsManager->findServer(request.getHost());
-		Route *route = server == nullptr ? nullptr : server->findRouteByPath(
-				request.getPath());
-	 */
-}
-
 //Change: take from config errorfile paths
 std::string Response::getErrorPath(const Request &request) const {
 	return ".\\root\\www\\page404.html";
@@ -74,6 +58,29 @@ void Response::setContentType(const std::string& path) {
 
 std::string		Response::getHeader(){
 	return	header_.getHeader();
+}
+
+std::string		Response::getErrorPage(int code) {
+	std::ostringstream os;
+	os << "<!DOCTYPE html>";
+	os << "<html>";
+	os << "<head>";
+	os << "<title>An Error Occurred: Not Found</title>";
+	os << "<style>";
+	os << "body { background-color: #fff; color: #222; font:16px"
+		  "Arial, sans-serif; margin: 0; }";
+	os << "</style>";
+	os << "</head>";
+	os << "<body>";
+	os << "<h1>Oops! An Error Occurred</h1>";
+	os << "<h2>The server returned a " << code << " Not Found</h2>";
+	os << "<p>";
+	os << "Something is broken. Sorry for any inconvenience caused.";
+	os << "</p>";
+	os << "</div>";
+	os << "</body>";
+	os << "</html>";
+	return os.str();
 }
 
 std::map<std::string, std::string> Response::initContentType() {

@@ -1,5 +1,5 @@
 #include "ResponseHeader.hpp"
-#include "settingsManager/SettingsManager.hpp"
+#include "SettingsManager.hpp"
 #include <sstream>
 #include <sys/time.h>
 #include "Request.h"

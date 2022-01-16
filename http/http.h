@@ -42,14 +42,14 @@ private:
 
 
 	//===========================Moved from web.1.0 ==========================//
-	void methodGET(const Request&, Response&, Route&);
-	void methodPOST(const Request&, Response&, Route&);
-	void methodDELETE(const Request&, Response&, Route&);
+	void methodGET(const Request&, Response&, Route*);
+	void methodPOST(const Request&, Response&, Route*);
+	void methodDELETE(const Request&, Response&, Route*);
 	void methodNotAllowed(const Request&, Response&);
-	void BadRequest(Response&);
+//	void BadRequest(Response&);
 
-	static std::map<std::string, void (HTTP::*)(const Request &, Response&, Route&)>	_method;
-	static std::map<std::string, void (HTTP::*)(const Request &, Response&, Route&)>	initMethods();
+	static std::map<std::string, void (HTTP::*)(const Request &, Response&, Route*)>	_method;
+	static std::map<std::string, void (HTTP::*)(const Request &, Response&, Route*)>	initMethods();
 
 	static std::set<std::string> _allMethods;
 	static std::set<std::string> initAllMethods();
