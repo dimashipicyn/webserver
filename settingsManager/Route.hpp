@@ -9,6 +9,7 @@
 #include <vector>
 #include <unistd.h>
 #include <fstream>
+#include "httpExceptions.h"
 
 class Route
 {
@@ -30,10 +31,15 @@ public:
 
 	virtual ~Route();
 
-	class DefaultFileNotFoundException : public std::exception {
+	class DefaultFileNotFoundException : public httpEx<NotFound> {
+	public:
+		explicit DefaultFileNotFoundException(const std::string &err) : httpEx(err)
+		{}
+
+	private:
 		const char *what() const throw()
 		{
-			return exception::what();
+			return httpEx::what();
 		}
 	};
 
@@ -103,15 +109,16 @@ public:
 
 	/**
 	 * @info ищет по указанному ресурсу дефолтные файлы из текущего роута. Считывает в строку первый попавшийся файл.
-	 * Бросает эксепшн, если не нашлось. Предполагается что при вызове этого метода мы уверены что resource это
-	 * директория. Если подать ресурс как файл, то метод попытается его прочитать, undefined behavior.
+	 * Бросает эксепшн, если не нашлось или такого ресурса не существует.
 	 *
 	 * @param resource - запрошенный ресур (директория)
 	 *
 	 * @return строку с содержимым из дефолтного файла.
 	 *
 	 * @throws DefaultFileNotFoundException если ни одного дефолтного файла не было найдено.
-	 * @throws runtime_error если подается не существующий ресурс
+	 * Эсепшн наследуется от httpEx<NotFound>, в общем случае можно ловить родителя. Частный случай нужен для автоиндекса
+	 *
+	 * @throws httpEx<NotFound> если подается не существующий ресурс
 	 */
 	std::string getDefaultPage(std::string const &resource);
 
