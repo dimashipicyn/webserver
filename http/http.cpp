@@ -11,27 +11,34 @@
 #include "SettingsManager.hpp"
 #include "Cgi.hpp"
 #include "httpExceptions.h"
+#include "Time.h"
 
 struct Session
 {
     Session()
         : host()
+        , lastModifiedTime(Time::now())
         , writeBuffer()
         , readBuffer()
+        , keepAlive(false)
     {
 
     }
     Session(const std::string& host)
         : host(host)
+        , lastModifiedTime(Time::now())
         , writeBuffer()
         , readBuffer()
+        , keepAlive(false)
     {
 
     };
     Session(Session& session)
         : host(session.host)
+        , lastModifiedTime(Time::now())
         , writeBuffer(session.writeBuffer)
         , readBuffer(session.readBuffer)
+        , keepAlive(false)
     {
     };
     Session& operator=(Session& session) {
@@ -39,8 +46,10 @@ struct Session
             return *this;
         }
         host = session.host;
+        lastModifiedTime = session.lastModifiedTime;
         writeBuffer = session.writeBuffer;
         readBuffer = session.readBuffer;
+        keepAlive = session.keepAlive;
         return *this;
     };
     ~Session() {
@@ -48,8 +57,10 @@ struct Session
     };
 
     std::string         host;
+    Time::time          lastModifiedTime;
     std::string         writeBuffer;
     std::string         readBuffer;
+    bool                keepAlive;
 };
 
 HTTP::HTTP()
