@@ -51,17 +51,16 @@ server:
   port: 1234
   server_name: localhost
   error_page: /var/www/404.html
-  max_body_size: 10M
+  max_body_size: 100B
   route:
     - location: /
-      root: /var/www/test
       default_file:
         - index.html
         - index.jsp
       upload_to: /var/www/downloads
       method:
         - GET
-        - POST
+      autoindex: on
       redirect:
         - rewrite:
             status: 301
@@ -71,15 +70,32 @@ server:
             status: 302
             from: /lol
             to: http://lmao.kek
-      autoindex: on
-      cgi: .sh
-    - location: /test-app
+      cgi: .bla
+    - location: /put_test/
+      root: /var/www/test
+      upload_to: /var/www/downloads
       default_file:
         - index.html
       method:
-        - DELETE
+        - POST
+      cgi: .bla
+    - location: /post_body
+        upload_to: /var/www/downloads
+        default_file:
+          - index.html
+        method:
+          - POST
+        cgi: .bla
+    - location: /directory/
+        root: /var/www/test
+        upload_to: /var/www/downloads
+        cgi: .bla
+        default_file:
+          - youpi.bad_extension
+        method:
+          - GET
 ---
 server:
-  host: example.com
-  port: 443
+  host: 127.0.0.1
+  port: 8080
   max_body_size: 100K

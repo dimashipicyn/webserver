@@ -18,14 +18,16 @@ public:
     HTTP();
     virtual ~HTTP();
 
-    void listen(const std::string& host);
-    void start();
+	static void startServer();
 
 protected:
     virtual void asyncAccept(TcpSocket& socket);
     virtual void asyncRead(int socket);
     virtual void asyncWrite(int socket);
     virtual void asyncEvent(int socket, uint16_t flags);
+
+	void listen(const std::string& host);
+	void start();
 
     Session*    getSessionByID(int id);
     void        closeSessionByID(int id);

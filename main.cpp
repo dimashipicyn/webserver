@@ -4,6 +4,8 @@
 #include "Response.h"
 #include "settingsManager/SettingsManager.hpp"
 #include "Logger.h"
+#include "Route.hpp"
+#include "Server.hpp"
 
 # define DEFAULT_CONFIG "settingsManager/webserv_default.yaml"
 
@@ -21,8 +23,6 @@ int main(int argc, char **argv)
         LOG_WARNING("Applying default configuration\n");
     }
 
-    HTTP serve;
-    serve.listen("127.0.0.1:1234");
-    serve.start();
+    HTTP::startServer();
     return 0;
 }

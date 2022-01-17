@@ -104,7 +104,14 @@ Route *Server::findRouteByPath(std::string const &path)
 	Route *mostEqualRoute = nullptr;
 	uint32_t mostEqualLevel = 0;
 	for (std::vector<Route>::iterator iter = routes_.begin(); iter != routes_.end(); iter++) {
-		std::vector<std::string> splittedLocation = utils::split(const_cast<std::string &> (iter->getLocation()), '/');
+		std::string location = (*iter).getLocation();
+		if (location[location.size() - 1] != '/'){
+			if (location == path) {
+				return &(*iter);
+			}
+			continue;
+		}
+		std::vector<std::string> splittedLocation = utils::split(const_cast<std::string &> (location), '/');
 		uint32_t currentLevel = 0;
 		size_t maxDepth = std::min(splittedPath.size(), splittedLocation.size());
 		if (maxDepth > mostEqualLevel)

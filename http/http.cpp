@@ -1,4 +1,5 @@
 #include <iostream>
+#include <netdb.h>
 #include "Logger.h"
 #include "http.h"
 #include "Request.h"
@@ -355,4 +356,41 @@ void HTTP::handler(Request& request, Response& response)
     catch (httpEx<NetworkAuthenticationRequired>& e) {
         LOG_INFO("NetworkAuthenticationRequired: %s\n", e.what());
     }
+}
+
+void HTTP::startServer()
+{
+	std::vector<Server> servers = SettingsManager::getInstance()->getServers();
+	HTTP serve;
+	for (std::vector<Server>::const_iterator i = servers.begin(); i != servers.end(); i++) {
+		char port[6];
+		char ipstr[INET_ADDRSTRLEN];
+		struct sockaddr_in sa;
+		bzero(port, 6);
+		sprintf(port, "%u", (*i).getPort());
+		if (inet_pton(AF_INET, (*i).getHost().c_str(), &(sa.sin_addr)) < 1) {
+			int status;
+			struct addrinfo hints, *res, *p;
+			memset(&hints, 0, sizeof hints);
+			hints.ai_family = AF_INET;
+			hints.ai_socktype = SOCK_STREAM;
+			if ((status = getaddrinfo((*i).getHost().c_str(), port, &hints, &res)) != 0) {
+				LOG_ERROR("Cannot get address from %s. Skipping...\n", (*i).getHost().c_str());
+				continue;
+			}
+			for(p = res;p != NULL; p = p->ai_next) {
+				void *addr;
+				struct sockaddr_in *ipv4 = (struct sockaddr_in *)p->ai_addr;
+				addr = &(ipv4->sin_addr);
+				inet_ntop(p->ai_family, addr, ipstr, sizeof ipstr);
+
+			}
+			freeaddrinfo(p);
+			freeaddrinfo(res);
+		} else {
+			strcpy(ipstr, (*i).getHost().c_str());
+		}
+		serve.listen(ipstr + std::string(":") + port);
+	}
+	serve.start();
 }
