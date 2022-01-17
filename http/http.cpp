@@ -430,7 +430,8 @@ void HTTP::handler(Request& request, Response& response) {
 //=============================================================//
 
 //==============================Moved from Response class=====================
-	std::map<std::string, void (HTTP::*)(const Request &, Response&, Route*)>	HTTP::initMethods()
+
+    HTTP::MethodHttp 	HTTP::initMethods()
 	{
 		std::map<std::string, void (HTTP::*)(const Request &, Response&, Route*)> map;
 		map["GET"] = &HTTP::methodGET;
@@ -439,7 +440,7 @@ void HTTP::handler(Request& request, Response& response) {
 		return map;
 	}
 
-	std::map<std::string, void (HTTP::*)(const Request &, Response&, Route*)> HTTP::_method
+	HTTP::MethodHttp HTTP::_method
 			= HTTP::initMethods();
 
 	std::set<std::string> HTTP::initAllMethods(){
