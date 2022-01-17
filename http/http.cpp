@@ -433,7 +433,6 @@ void HTTP::handler(Request& request, Response& response) {
 
 
     HTTP::MethodHttp 	HTTP::initMethods()
-
 	{
 		std::map<std::string, void (HTTP::*)(const Request &, Response&, Route*)> map;
 		map["GET"] = &HTTP::methodGET;
@@ -443,7 +442,9 @@ void HTTP::handler(Request& request, Response& response) {
 	}
 
 
-	HTTP::MethodHttp HTTP::_method = HTTP::initMethods();
+
+	HTTP::MethodHttp HTTP::_method
+			= HTTP::initMethods();
 
 	std::set<std::string> HTTP::initAllMethods(){
 		std::set<std::string> allMethods;
