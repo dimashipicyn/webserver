@@ -238,9 +238,9 @@ void HTTP::handler(Request& request, Response& response) {
 
 		// Сравниваем расширение запрошенного ресурса с cgi расширением для этого локейшена. Если бьется, запуск скрипта
 		SettingsManager *settingsManager = SettingsManager::getInstance();
+
 		Server *server = settingsManager->findServer(request.getHost());
-		Route *route = server == nullptr ? nullptr : server->findRouteByPath(
-				request.getPath());
+		Route *route = (server == nullptr ? nullptr : server->findRouteByPath(request.getPath()));
 		if (route == nullptr) {
 			throw httpEx<NotFound>("Not Found");
 		}
@@ -270,6 +270,7 @@ void HTTP::handler(Request& request, Response& response) {
 	}
 	catch (httpEx<NotFound> &e) {
 		LOG_INFO("NotFound: %s\n", e.what());
+		response.buildErrorPage(e.error_code, request);
 	}
 	catch (httpEx<MethodNotAllowed> &e) {
 		LOG_INFO("MethodNotAllowed: %s\n", e.what());
@@ -381,29 +382,42 @@ void HTTP::handler(Request& request, Response& response) {
 		autoindex(request, response, route);
 		if (!response.getContent().empty()) return; // Костыльно, но времени не хватит для более глубокой интеграции
 
+		//read source file
 		std::string path = route->getFullPath(request.getPath());
-		std::ifstream sourceFile;
-		std::string content;
-		if ( !sourceFile.good() ){
-			//path = response.getErrorPath(request); set errorfile from config here
-			std::string errorPage = response.getErrorPage(404);
-			response.setStatusCode(404);
-			response.setHeaderField("Content-Type: ", "text/html");
-			response.setHeaderField("Content-Length", errorPage.size() );
-			response.setContent(response.getHeader() + errorPage);
-			} else {
-			std::string content((std::istreambuf_iterator<char>(sourceFile)),
-								std::istreambuf_iterator<char>());
-			sourceFile.close();
-			response.setStatusCode(200);
-			response.setContentType(path);
-			response.setHeaderField("Content-Length", content.size() );
-			response.setContent(response.getHeader() + content);
-		}
+		std::string body = response.readFile(path);
+
+	//	std::string errorPage = SettingsManager::getInstance()->findServer(request.getHost())->getErrorPage();// if not empty use config errorfile
+
+		response.setStatusCode(200);
+		response.setHeaderField("Host", request.getHost());
+		response.setContentType(path);
+		response.setHeaderField("Content-Length", body.size() );
+		response.setContent(response.getHeader() + body);
 	}
 
-	void HTTP::methodPOST(const Request& request, Response& response, Route* route){}
+	void HTTP::methodPOST(const Request& request, Response& response, Route* route){/*
+	//watch for methods allowed
+		std::cout << request << std::endl;
+
+		/*
+		 * put autoindex && cgi her
+		 */
+
+		//read source file
+/*		std::string path = route->getFullPath(request.getPath());
+		std::string body = response.writeFile(path);
+		response.setStatusCode(200);
+		response.setHeaderField("Host", request.getHost());
+		response.setContentType(path);
+		response.setHeaderField("Content-Length", body.size() );
+		response.setContent(response.getHeader() + body);*/
+}
+
 	void HTTP::methodDELETE(const Request& request, Response& response, Route* route){}
+
+	void HTTP::methodPUT(const Request & request, Response & response, Route *) {}
+
+	void HTTP::methodHEAD(const Request &, Response &, Route *) {}
 	void HTTP::methodNotAllowed(const Request& request, Response& response){
 		response.setStatusCode(405);
 		std::string strAllowMethods;
@@ -435,6 +449,8 @@ void HTTP::handler(Request& request, Response& response) {
 		map["GET"] = &HTTP::methodGET;
 		map["POST"] = &HTTP::methodPOST;
 		map["DELETE"] = &HTTP::methodDELETE;
+		map["PUT"] = &HTTP::methodPUT;
+		map["HEAD"] = &HTTP::methodHEAD;
 		return map;
 	}
 

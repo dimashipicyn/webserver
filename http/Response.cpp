@@ -60,29 +60,58 @@ std::string		Response::getHeader(){
 	return	header_.getHeader();
 }
 
-std::string		Response::getErrorPage(int code) {
+void		Response::buildErrorPage(int code, Request& request) {
 	std::ostringstream os;
 	os << "<!DOCTYPE html>";
 	os << "<html>";
 	os << "<head>";
-	os << "<title>An Error Occurred: Not Found</title>";
-	os << "<style>";
-	os << "body { background-color: #fff; color: #222; font:16px"
-		  "Arial, sans-serif; margin: 0; }";
-	os << "</style>";
+	os << "<title>Error" << code << "</title>";
 	os << "</head>";
 	os << "<body>";
 	os << "<h1>Oops! An Error Occurred</h1>";
-	os << "<h2>The server returned a " << code << " Not Found</h2>";
-	os << "<p>";
-	os << "Something is broken. Sorry for any inconvenience caused.";
-	os << "</p>";
-	os << "</div>";
+	os << "<h2>The server returned a " << code << _errors[code] << "</h2>";
 	os << "</body>";
 	os << "</html>";
-	return os.str();
+
+	setStatusCode(code);
+	setHeaderField("Host", request.getHost());
+	setHeaderField("Content-Length", os.str().size());
+	setHeaderField("Content-Type", "text/html");
+	content_ = getHeader() + os.str();
 }
 
+std::string Response::readFile(const std::string &path) {
+	std::ifstream sourceFile;
+	sourceFile.open(path.c_str(), std::ifstream::in);
+	std::ostringstream os;
+	if (!sourceFile.is_open()) throw httpEx<NotFound>("Cannot open requested resource");
+	os << sourceFile.rdbuf();
+	sourceFile.close();
+	return os.str();
+}
+/*
+std::string 	Response::writeContent(const std::string& path, const Request& request) {
+	std::ofstream	file;
+	std::string content = request.getBody();
+	if (pathIsFile(path))
+	{
+		file.open(path.c_str());
+		file << content;
+		file.close();
+		//return (204);
+	}
+	else
+	{
+		file.open(_path.c_str(), std::ofstream::out | std::ofstream::trunc);
+		if (file.is_open() == false)
+			return (403);
+
+		file << content;
+		file.close();
+		return (201);
+	}
+}
+*/
 std::map<std::string, std::string> Response::initContentType() {
 	std::map<std::string, std::string> contentType;
 
@@ -99,4 +128,22 @@ std::map<std::string, std::string> Response::initContentType() {
 
 std::map<std::string, std::string> Response::_contentType
 		= Response::initContentType();
+
+std::map<int, std::string>	Response::initErrorMap(){
+	std::map<int, std::string> errors;
+	errors[100] = "Continue";
+	errors[200] = "OK";
+	errors[201] = "Created";
+	errors[204] = "No Content";
+	errors[400] = "Bad Request";
+	errors[403] = "Forbidden";
+	errors[404] = "Not Found";
+	errors[405] = "Method Not Allowed";
+	errors[413] = "Payload Too Large";
+	errors[500] = "Internal Server Error";
+	return errors;
+}
+
+std::map<int, std::string> Response::_errors
+		= ResponseHeader::initErrorMap();
 

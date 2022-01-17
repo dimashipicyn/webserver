@@ -47,6 +47,8 @@ private:
 	void methodGET(const Request&, Response&, Route*);
 	void methodPOST(const Request&, Response&, Route*);
 	void methodDELETE(const Request&, Response&, Route*);
+	void methodPUT(const Request&, Response&, Route*);
+	void methodHEAD(const Request&, Response&, Route*);
 	void methodNotAllowed(const Request&, Response&);
 //	void BadRequest(Response&);
 
