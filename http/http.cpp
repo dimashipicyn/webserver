@@ -1,4 +1,5 @@
 #include <iostream>
+#include <netdb.h>
 #include "Logger.h"
 #include "http.h"
 #include "Request.h"
@@ -200,7 +201,7 @@ void HTTP::asyncEvent(int socket, uint16_t flags)
 ///////////////////////// HTTP LOGIC //////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////
 
-void HTTP::cgi(Request &request, Response& response, Route* route) {
+void HTTP::cgi(const Request &request, Response& response, Route* route) {
     const std::string& path = request.getPath();
 
     if (route != nullptr && utils::getExtension(path) == route->getCgi()) {
@@ -208,7 +209,7 @@ void HTTP::cgi(Request &request, Response& response, Route* route) {
     }
 }
 
-void HTTP::autoindex(Request &request, Response &response, Route *route) {
+void HTTP::autoindex(const Request &request, Response &response, Route *route) {
     const std::string& path = request.getPath();
 
     if (route != nullptr && route->isAutoindex() && utils::getExtension(path).empty()) {
@@ -239,14 +240,10 @@ void HTTP::handler(Request& request, Response& response) {
 		SettingsManager *settingsManager = SettingsManager::getInstance();
 
 		Server *server = settingsManager->findServer(request.getHost());
-		Route *route = server == nullptr ? nullptr : server->findRouteByPath(request.getPath());
+		Route *route = (server == nullptr ? nullptr : server->findRouteByPath(request.getPath()));
 		if (route == nullptr) {
 			throw httpEx<NotFound>("Not Found");
 		}
-//  cgi and autoindex is kind of get request. In my opinion we need
-//  place this functions in GETMethod() function
-//		cgi(request, response, route);
-//		autoindex(request, response, route);
 		std::string method = request.getMethod();
 		if (_method.count(method))
 			(this->*_method.at(method))(
@@ -381,9 +378,9 @@ void HTTP::handler(Request& request, Response& response) {
 		LOG_DEBUG("--------------PRINT REQUEST--------------\n");
 		std::cout << request << std::endl;
 
-		/*
-		 * put autoindex && cgi her
-		 */
+		cgi(request, response, route);
+		autoindex(request, response, route);
+		if (!response.getContent().empty()) return; // Костыльно, но времени не хватит для более глубокой интеграции
 
 		//read source file
 		std::string path = route->getFullPath(request.getPath());
@@ -479,3 +476,40 @@ void HTTP::handler(Request& request, Response& response) {
 	std::set<std::string> HTTP::_allMethods = initAllMethods();
 //=========================================================================
 
+
+void HTTP::startServer()
+{
+	std::vector<Server> servers = SettingsManager::getInstance()->getServers();
+	HTTP serve;
+	for (std::vector<Server>::const_iterator i = servers.begin(); i != servers.end(); i++) {
+		char port[6];
+		char ipstr[INET_ADDRSTRLEN];
+		struct sockaddr_in sa;
+		bzero(port, 6);
+		sprintf(port, "%u", (*i).getPort());
+		if (inet_pton(AF_INET, (*i).getHost().c_str(), &(sa.sin_addr)) < 1) {
+			int status;
+			struct addrinfo hints, *res, *p;
+			memset(&hints, 0, sizeof hints);
+			hints.ai_family = AF_INET;
+			hints.ai_socktype = SOCK_STREAM;
+			if ((status = getaddrinfo((*i).getHost().c_str(), port, &hints, &res)) != 0) {
+				LOG_ERROR("Cannot get address from %s. Skipping...\n", (*i).getHost().c_str());
+				continue;
+			}
+			for(p = res;p != NULL; p = p->ai_next) {
+				void *addr;
+				struct sockaddr_in *ipv4 = (struct sockaddr_in *)p->ai_addr;
+				addr = &(ipv4->sin_addr);
+				inet_ntop(p->ai_family, addr, ipstr, sizeof ipstr);
+
+			}
+			freeaddrinfo(p);
+			freeaddrinfo(res);
+		} else {
+			strcpy(ipstr, (*i).getHost().c_str());
+		}
+		serve.listen(ipstr + std::string(":") + port);
+	}
+	serve.start();
+}
