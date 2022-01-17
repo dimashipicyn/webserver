@@ -3,6 +3,7 @@
 
 #include <string>
 #include <map>
+#include <set>
 
 #include "EventPool.h"
 
@@ -34,12 +35,30 @@ protected:
     void        newSessionByID(int id, Session& session);
 
     void handler(Request& request, Response &response);
-    void cgi(Request &request, Response& response, Route* route);
-    void autoindex(Request &request, Response& response, Route* route);
+    void cgi(const Request &request, Response& response, Route* route);
+    void autoindex(const Request &request, Response& response, Route* route);
 
     typedef std::map<int, Session> tdSessionMap;
 private:
     tdSessionMap    sessionMap_;
+
+
+	//===========================Moved from web.1.0 ==========================//
+	void methodGET(const Request&, Response&, Route*);
+	void methodPOST(const Request&, Response&, Route*);
+	void methodDELETE(const Request&, Response&, Route*);
+	void methodNotAllowed(const Request&, Response&);
+//	void BadRequest(Response&);
+
+    typedef std::map<std::string, void (HTTP::*)(const Request &, Response&, Route*)> MethodHttp;
+    static MethodHttp _method;
+	static MethodHttp 	initMethods();
+
+	static std::set<std::string> _allMethods;
+	static std::set<std::string> initAllMethods();
+	//==========================================================================
+
+
 };
 
 #endif // HTTP_H
