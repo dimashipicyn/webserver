@@ -11,34 +11,38 @@
 #include "SettingsManager.hpp"
 #include "Cgi.hpp"
 #include "httpExceptions.h"
-#include "Time.h"
+//#include "Time.h"
+
+typedef void (HTTP::*handlerFunc)(int, Session*);
 
 struct Session
 {
     Session()
         : host()
-        , lastModifiedTime(Time::now())
+//        , lastModifiedTime(Time::now())
         , writeBuffer()
         , readBuffer()
-        , keepAlive(false)
+        , readPtrFunc(&HTTP::defaultReadFunc)
+        , writePtrFunc(&HTTP::defaultWriteFunc)
+        , keepAlive(true)
     {
 
     }
     Session(const std::string& host)
         : host(host)
-        , lastModifiedTime(Time::now())
+//        , lastModifiedTime(Time::now())
         , writeBuffer()
         , readBuffer()
-        , keepAlive(false)
+        , keepAlive(true)
     {
 
     };
     Session(Session& session)
         : host(session.host)
-        , lastModifiedTime(Time::now())
+//        , lastModifiedTime(Time::now())
         , writeBuffer(session.writeBuffer)
         , readBuffer(session.readBuffer)
-        , keepAlive(false)
+        , keepAlive(true)
     {
     };
     Session& operator=(Session& session) {
@@ -46,7 +50,7 @@ struct Session
             return *this;
         }
         host = session.host;
-        lastModifiedTime = session.lastModifiedTime;
+//        lastModifiedTime = session.lastModifiedTime;
         writeBuffer = session.writeBuffer;
         readBuffer = session.readBuffer;
         keepAlive = session.keepAlive;
@@ -57,9 +61,11 @@ struct Session
     };
 
     std::string         host;
-    Time::time          lastModifiedTime;
+//    Time::customTime       lastModifiedTime;
     std::string         writeBuffer;
     std::string         readBuffer;
+    handlerFunc         readPtrFunc;
+    handlerFunc         writePtrFunc;
     bool                keepAlive;
 };
 
@@ -102,6 +108,7 @@ Session* HTTP::getSessionByID(int id)
 }
 
 void HTTP::closeSessionByID(int id) {
+    ::close(id);
     sessionMap_.erase(id);
 }
 
@@ -148,10 +155,58 @@ void HTTP::asyncWrite(int socket)
     Session *session = getSessionByID(socket);
     if (session == nullptr) {
         LOG_ERROR("Dont find session to socket: %d. Close connection.\n", socket);
-        close(socket);
+        closeSessionByID(socket);
         return;
     }
 
+    (this->*session->writePtrFunc)(socket, session);
+}
+
+void HTTP::asyncRead(int socket)
+{
+    LOG_DEBUG("Event reader call\n");
+
+    Session *session = getSessionByID(socket);
+    if (session == nullptr) {
+        LOG_ERROR("Dont find session to socket: %d. Close connection.\n", socket);
+        closeSessionByID(socket);
+        return;
+    }
+
+    (this->*session->readPtrFunc)(socket, session);
+}
+
+void HTTP::asyncEvent(int socket, uint16_t flags)
+{
+    LOG_DEBUG("Event handler call\n");
+    if (flags & EventPool::M_EOF || flags & EventPool::M_ERROR) {
+        LOG_ERROR("Event error or eof, socket: %d\n", socket);
+        closeSessionByID(socket);
+    }
+}
+
+void HTTP::defaultReadFunc(int socket, Session *session)
+{
+    char buffer[1 << 16];
+    int64_t bufferSize = (1 << 16);
+
+    int64_t readBytes = ::read(socket, &buffer[0], bufferSize - 1);
+    if (readBytes < 0) {
+        closeSessionByID(socket);
+        LOG_ERROR("Dont read to socket: %d. Close connection.\n", socket);
+        return;
+    }
+    buffer[readBytes] = '\0';
+    session->readBuffer.append(buffer);
+    if (session->readBuffer.find("\n\n") != std::string::npos
+        || session->readBuffer.find("\r\n\r\n") != std::string::npos) {
+        // включаем write
+        enableWriteEvent(socket);
+    }
+}
+
+void HTTP::defaultWriteFunc(int socket, Session *session)
+{
     Response response;
     Request request;
 
@@ -164,46 +219,16 @@ void HTTP::asyncWrite(int socket)
     session->writeBuffer.append(response.getContent());
     std::string& writeBuffer = session->writeBuffer;
     int64_t writeBytes = ::write(socket, writeBuffer.c_str(), writeBuffer.size());
-    session->writeBuffer.erase(0, writeBytes);
-
-    // выключаем write
-    disableWriteEvent(socket);
-}
-
-void HTTP::asyncRead(int socket)
-{
-    LOG_DEBUG("Event reader call\n");
-
-    Session *session = getSessionByID(socket);
-    if (session == nullptr) {
-        LOG_ERROR("Dont find session to socket: %d. Close connection.\n", socket);
-        close(socket);
+    if (writeBytes < 0) {
+        closeSessionByID(socket);
+        LOG_ERROR("Dont write to socket: %d. Close connection.\n", socket);
         return;
     }
-
-    std::string buffer;
-    int64_t bufferSize = (1 << 16);
-
-    buffer.resize(bufferSize);
-
-    int64_t readBytes = ::read(socket, &buffer[0], bufferSize - 1);
-    if (readBytes < 0) {
-        close(socket);
-        LOG_ERROR("Dont read to socket: %d. Close connection.\n", socket);
-    }
-
-    session->readBuffer.append(buffer.c_str());
-
-    // включаем write
-    enableWriteEvent(socket);
-}
-
-void HTTP::asyncEvent(int socket, uint16_t flags)
-{
-    LOG_DEBUG("Event handler call\n");
-    if (flags & EventPool::M_EOF || flags & EventPool::M_ERROR) {
-        LOG_ERROR("Event error or eof, socket: %d\n", socket);
-        close(socket);
+    session->writeBuffer.clear();
+    //session->writeBuffer.erase(0, writeBytes);
+    // выключаем write
+    disableWriteEvent(socket);
+    if (writeBytes == 0) {
     }
 }
 

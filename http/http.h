@@ -14,6 +14,7 @@ struct Session;
 
 class HTTP : public EventPool
 {
+    friend struct Session;
 public:
     HTTP();
     virtual ~HTTP();
@@ -34,6 +35,9 @@ protected:
     void handler(Request& request, Response &response);
     void cgi(Request &request, Response& response, Route* route);
     void autoindex(Request &request, Response& response, Route* route);
+
+    void defaultReadFunc(int socket, Session* session);
+    void defaultWriteFunc(int socket, Session* session);
 
     typedef std::map<int, Session> tdSessionMap;
 private:

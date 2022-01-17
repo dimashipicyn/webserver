@@ -2,14 +2,14 @@
 // Created by Lajuana Bespin on 1/16/22.
 //
 
-#include <sys/time.h>
-#include "Time.h"
+//#include <ctime>
+#include "CustomTime.h"
 
-Time::time Time::now() {
+Time::customTime Time::now() {
     struct timeval tv = {};
     struct timezone tz = {};
 
     gettimeofday(&tv, &tz);
 
-    return static_cast<time>(tv.tv_sec);
+    return static_cast<customTime>(tv.tv_sec);
 }

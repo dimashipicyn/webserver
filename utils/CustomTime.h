@@ -8,9 +8,9 @@
 
 namespace Time
 {
-    typedef int64_t time;
+    typedef int64_t customTime;
 
-    time now();
+    customTime now();
 }
 
 
