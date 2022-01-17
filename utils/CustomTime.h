@@ -5,6 +5,7 @@
 #ifndef WEBSERV_TIME_H
 #define WEBSERV_TIME_H
 
+#include <cstdint>
 
 namespace Time
 {

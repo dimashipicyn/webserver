@@ -19,30 +19,28 @@ struct Session
 {
     Session()
         : host()
-//        , lastModifiedTime(Time::now())
         , writeBuffer()
         , readBuffer()
         , readPtrFunc(&HTTP::defaultReadFunc)
         , writePtrFunc(&HTTP::defaultWriteFunc)
-        , keepAlive(true)
     {
 
     }
     Session(const std::string& host)
         : host(host)
-//        , lastModifiedTime(Time::now())
         , writeBuffer()
         , readBuffer()
-        , keepAlive(true)
+        , readPtrFunc(&HTTP::defaultReadFunc)
+        , writePtrFunc(&HTTP::defaultWriteFunc)
     {
 
     };
     Session(Session& session)
         : host(session.host)
-//        , lastModifiedTime(Time::now())
         , writeBuffer(session.writeBuffer)
         , readBuffer(session.readBuffer)
-        , keepAlive(true)
+        , readPtrFunc(session.readPtrFunc)
+        , writePtrFunc(session.writePtrFunc)
     {
     };
     Session& operator=(Session& session) {
@@ -50,10 +48,10 @@ struct Session
             return *this;
         }
         host = session.host;
-//        lastModifiedTime = session.lastModifiedTime;
         writeBuffer = session.writeBuffer;
         readBuffer = session.readBuffer;
-        keepAlive = session.keepAlive;
+        readPtrFunc = session.readPtrFunc;
+        writePtrFunc = session.writePtrFunc;
         return *this;
     };
     ~Session() {
@@ -61,12 +59,10 @@ struct Session
     };
 
     std::string         host;
-//    Time::customTime       lastModifiedTime;
     std::string         writeBuffer;
     std::string         readBuffer;
     handlerFunc         readPtrFunc;
     handlerFunc         writePtrFunc;
-    bool                keepAlive;
 };
 
 HTTP::HTTP()
@@ -108,6 +104,7 @@ Session* HTTP::getSessionByID(int id)
 }
 
 void HTTP::closeSessionByID(int id) {
+    disableTimerEvent(id, 0);
     ::close(id);
     sessionMap_.erase(id);
 }
@@ -141,6 +138,7 @@ void HTTP::asyncAccept(TcpSocket& socket)
         Session s(conn.getHost());
         newSessionByID(conn.getSock(), s);
         enableReadEvent(conn.getSock());
+        enableTimerEvent(conn.getSock(), 20000); // TODO add config
     }
     catch (std::exception& e)
     {
@@ -183,6 +181,10 @@ void HTTP::asyncEvent(int socket, uint16_t flags)
         LOG_ERROR("Event error or eof, socket: %d\n", socket);
         closeSessionByID(socket);
     }
+    if (flags & EventPool::M_TIMER) {
+        LOG_ERROR("Event timeout, socket: %d\n", socket);
+        closeSessionByID(socket);
+    }
 }
 
 void HTTP::defaultReadFunc(int socket, Session *session)
@@ -217,18 +219,24 @@ void HTTP::defaultWriteFunc(int socket, Session *session)
     handler(request, response);
 
     session->writeBuffer.append(response.getContent());
+
     std::string& writeBuffer = session->writeBuffer;
     int64_t writeBytes = ::write(socket, writeBuffer.c_str(), writeBuffer.size());
+
     if (writeBytes < 0) {
         closeSessionByID(socket);
         LOG_ERROR("Dont write to socket: %d. Close connection.\n", socket);
         return;
     }
-    session->writeBuffer.clear();
-    //session->writeBuffer.erase(0, writeBytes);
+
+    session->writeBuffer.erase(0, writeBytes);
+
     // выключаем write
-    disableWriteEvent(socket);
-    if (writeBytes == 0) {
+    if (session->writeBuffer.empty()) {
+        disableWriteEvent(socket);
+        if (request.hasHeader("Connection") && request.getHeaderValue("Connection") == "close") {
+            closeSessionByID(socket);
+        }
     }
 }
 

@@ -20,6 +20,8 @@ add_executable(webserv
         utils/Logger.cpp
         utils/utils.cpp
         utils/utils.h
+        utils/CustomTime.h
+        utils/CustomTime.cpp
 
         http/Request.h
         http/Request.cpp

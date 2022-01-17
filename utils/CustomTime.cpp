@@ -2,7 +2,7 @@
 // Created by Lajuana Bespin on 1/16/22.
 //
 
-//#include <ctime>
+#include <sys/time.h>
 #include "CustomTime.h"
 
 Time::customTime Time::now() {
