@@ -48,6 +48,7 @@ private:
 	void methodNotAllowed(const Request&, Response&);
 //	void BadRequest(Response&);
 
+
     typedef std::map<std::string, void (HTTP::*)(const Request &, Response&, Route*)> MethodHttp;
     static MethodHttp _method;
 	static MethodHttp 	initMethods();
