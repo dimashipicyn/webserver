@@ -166,3 +166,51 @@ std::string Route::getDefaultPage(const std::string &resource)
 	}
 	throw DefaultFileNotFoundException("There is no default files at directory");
 }
+
+int Route::checkRedirectOnPath(std::string &redirectTo, const std::string &resource)
+{
+	std::vector<std::string> splittedResource = utils::split(const_cast<std::string &>(resource), '/');
+	Route::redirect *mostEqualRedirect = nullptr;
+	int status = -1;
+	uint32_t mostEqualLevel = 0;
+	for (std::vector<Route::redirect>::iterator i = redirects_.begin(); i != redirects_.end(); i++)
+	{
+		std::string redirectWhat = (*i).from;
+		if (redirectWhat[redirectWhat.size() - 1] != '/')
+		{
+			if (redirectWhat == resource)
+			{
+				redirectTo = (*i).to;
+				return (*i).status;
+			}
+			continue;
+		}
+		std::vector<std::string> splittedRedirect = utils::split(const_cast<std::string &> (redirectWhat), '/');
+		uint32_t currentLevel = 0;
+		size_t maxDepth = std::min(splittedResource.size(), splittedRedirect.size());
+		if (maxDepth > mostEqualLevel)
+		{
+			for (size_t j = 0; j < maxDepth; j++)
+			{
+				if (splittedResource.at(j) == splittedRedirect.at(j))
+					currentLevel++;
+				else
+					break;
+			}
+			if (currentLevel > mostEqualLevel)
+			{
+				mostEqualLevel = currentLevel;
+				mostEqualRedirect = &(*i);
+			}
+		}
+	}
+	if (mostEqualRedirect != nullptr) {
+		std::string tail = "";
+		for (std::vector<std::string>::iterator i = splittedResource.begin() + mostEqualLevel;
+			i != splittedResource.end();i++)
+			tail += "/" + (*i);
+		redirectTo = mostEqualRedirect->to + tail;
+		status = mostEqualRedirect->status;
+	}
+	return status;
+}

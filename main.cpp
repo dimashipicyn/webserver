@@ -4,8 +4,6 @@
 #include "Response.h"
 #include "settingsManager/SettingsManager.hpp"
 #include "Logger.h"
-#include "Route.hpp"
-#include "Server.hpp"
 
 # define DEFAULT_CONFIG "settingsManager/webserv_default.yaml"
 

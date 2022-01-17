@@ -119,6 +119,17 @@ public:
 	 */
 	std::string getDefaultPage(std::string const &resource);
 
+	/**
+	 * @brief проверяет ресурс на редиректы
+	 *
+	 * @param redirectTo ссылка на строку куда писать адрес редиректа, если найден.
+	 *
+	 * @param resource ресурс из http запроса
+	 *
+	 * @return статус редиректа, -1 если редиректов по данному ресурсу не найдено
+	 */
+	int checkRedirectOnPath(std::string &redirectTo, std::string const &resource);
+
 	// геттеры сеттеры
 	const std::string &getLocation() const;
 

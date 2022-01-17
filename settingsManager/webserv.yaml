@@ -15,7 +15,7 @@
 ## Setup default error pages
 #error_page: /var/www/404.html
 
-## Limit client body size (default = 1MByte). K/M/G for kibibyte/mebibyte/gibibyte.
+## Limit client body size (default = 1MByte). B/K/M/G for byte/kibibyte/mebibyte/gibibyte.
 #max_body_size: 10M
 
 ## Setup routes with one or multiple of the following rules/configuration (routes wont be using regexp):
@@ -61,11 +61,11 @@ server:
       upload_to: /var/www/downloads
       method:
         - GET
-#      autoindex: on
+      autoindex: on
       redirect:
         - rewrite:
             status: 301
-            from: /foo
+            from: /foo/
             to: http://bar.com/foo
         - rewrite:
             status: 302
