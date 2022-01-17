@@ -10,16 +10,62 @@
 #include "utils.h"
 #include "Logger.h"
 
-Request::Request() : state_(PARSE_QUERY) {
+Request::Request()
+    : state_(PARSE_QUERY)
+    , receivedBytes_(0)
+    , buffer_()
+    , host_()
+    , port_()
+    , method_()
+    , version_()
+    , path_()
+    , query_string_()
+    , body_()
+    , headers_()
+{
 }
 
 Request::~Request() {
+}
+
+
+Request::Request(const Request& request)
+    : state_(request.state_)
+    , receivedBytes_(request.receivedBytes_)
+    , buffer_()
+    , host_(request.host_)
+    , port_(request.port_)
+    , method_(request.method_)
+    , version_(request.version_)
+    , path_(request.path_)
+    , query_string_(request.query_string_)
+    , body_(request.body_)
+    , headers_(request.headers_)
+{
+}
+
+Request& Request::operator=(const Request& request) {
+    if (this == &request) {
+        return *this;
+    }
+    state_ = request.state_;
+    receivedBytes_ = request.receivedBytes_;
+    host_ = request.host_;
+    port_ = request.port_;
+    method_ = request.method_;
+    version_ = request.version_;
+    path_ = request.path_;
+    query_string_ = request.query_string_;
+    body_ = request.body_;
+    headers_ = request.headers_;
+    return *this;
 }
 
 void Request::parse(const char *buf)
 {
     buffer_.write(buf, strlen(buf));
 
+    std::cout << buffer_.str() << "\n";
     std::size_t foundTwoNewLines = buffer_.str().find("\n\n");
     std::size_t foundTwoNewLinesWithCarriageReturn = buffer_.str().find("\r\n\r\n");
     if (   (state_ == PARSE_QUERY)
@@ -27,10 +73,9 @@ void Request::parse(const char *buf)
         && (foundTwoNewLinesWithCarriageReturn == std::string::npos)
         )
     {
-        LOG_DEBUG("Query dont full\n");
-    //    return;
+        LOG_DEBUG("Query no two new lines\n");
+        return;
     }
-
 
     // parse
     if (state_ == PARSE_QUERY) {
@@ -41,8 +86,7 @@ void Request::parse(const char *buf)
         if (hasHeader("Content-Length")) {
             state_ = PARSE_BODY_WITH_LENGTH;
         }
-        else if (   hasHeader("Transfer-Encoding")
-            && getHeaderValue("Transfer-Encoding") == "chunked"){
+        else if (hasHeader("Transfer-Encoding") && getHeaderValue("Transfer-Encoding") == "chunked") {
             state_ = PARSE_CHUNKED_BODY;
         }
         else {
@@ -79,8 +123,12 @@ static void skipNewLines(std::stringstream& ss)
 
 void Request::parse_first_line()
 {
-    buffer_ >> method_ >> path_ >> version_;
-    skipNewLines(buffer_);
+    std::string line;
+    std::getline(buffer_, line, '\n');
+
+    std::stringstream firstLine(line);
+
+    firstLine >> method_ >> path_ >> version_;
     if (method_.empty() || path_.empty() || version_.empty()) {
         state_ = PARSE_ERROR;
     }
@@ -97,35 +145,48 @@ void Request::parse_first_line()
 
 void Request::parse_headers()
 {
-    std::string key;
-    std::string value;
+    std::string line;
 
-    skipNewLines(buffer_);
-    while (!buffer_.eof()) {
-        std::getline(buffer_, key, ':');
-        std::getline(buffer_, value, '\n');
-        headers_.insert(std::pair<std::string, std::string>(utils::trim(key, " "), value));
-        skipNewLines(buffer_);
+    std::getline(buffer_, line, '\n');
+    while (!line.empty())
+    {
+        if (utils::isValidPairString(line, ':')) {
+            headers_.insert(utils::breakPair(line, ':'));
+        }
+        else {
+            state_ = PARSE_ERROR;
+            return;
+        }
+        std::getline(buffer_, line, '\n');
     }
 }
 
 void Request::parse_body_with_length()
 {
     uint64_t contentLen = utils::to_number<uint64_t>(getHeaderValue("Content-Length"));
-    const uint64_t bufSize = 1 << 16;
 
-    skipNewLines(buffer_);
+    std::string line;
+    std::getline(buffer_, line, '\0');
 
-    std::streamsize readLen = static_cast<std::streamsize>(std::min(contentLen - body_.size(), bufSize));
-    std::string bodyStr;
-    bodyStr.resize(readLen + 1); // для нуль терминатора
-    buffer_.read(&bodyStr[0], readLen);
+    if ((receivedBytes_ + line.size()) <= contentLen) {
+        receivedBytes_ += line.size();
+        body_.append(line);
+    }
+    else {
+        int64_t size = contentLen - receivedBytes_;
+        receivedBytes_ = contentLen;
+        body_.append(line, 0, size);
+        buffer_.str(std::string(line, size, line.size()));
+    }
 
-    body_.append(bodyStr.c_str());
-    buffer_.str("");
-    buffer_.clear();
 
-    if (contentLen == body_.size()) {
+    if (buffer_.eof()) {
+        buffer_.str("");
+        buffer_.clear();
+    }
+
+
+    if (contentLen == receivedBytes_) {
         state_ = PARSE_DONE;
     }
 }
@@ -140,10 +201,6 @@ void Request::parse_body() {
     body_.append(s);
     buffer_.str("");
     buffer_.clear();
-    //if (buffer_.str().empty()) { FIXME
-        state_ = PARSE_DONE;
-    //    return;
-    //}
 }
 
 Request::State Request::getState() const {
@@ -161,6 +218,13 @@ std::ostream& operator<<(std::ostream& os, const Request& request) {
     os << "Query string: " << request.getQueryString() << std::endl;
     os << "Body: " << request.getBody() << std::endl;
     return os;
+}
+
+std::string Request::drainBody()
+{
+    std::string res(body_);
+    body_.clear();
+    return res;
 }
 
 
@@ -211,13 +275,16 @@ const std::string& Request::getHeaderValue(const std::string &key) {
 }
 
 void Request::reset() {
-    method_ = "";
-    path_ = "";
-    version_ = "";
-    query_string_ = "";
-    body_ = "";
+    method_.clear();
+    path_.clear();
+    version_.clear();
+    query_string_.clear();
+    body_.clear();
     buffer_.str("");
     buffer_.clear();
     headers_.clear();
+    receivedBytes_ = 0;
+    host_.clear();
+    port_.clear();
     state_ = PARSE_QUERY;
 }

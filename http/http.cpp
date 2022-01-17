@@ -19,29 +19,30 @@ struct Session
 {
     Session()
         : host()
+        , request()
         , writeBuffer()
-        , readBuffer()
         , readPtrFunc(&HTTP::defaultReadFunc)
         , writePtrFunc(&HTTP::defaultWriteFunc)
     {
-
+        request.setHost(host);
     }
     Session(const std::string& host)
         : host(host)
+        , request()
         , writeBuffer()
-        , readBuffer()
         , readPtrFunc(&HTTP::defaultReadFunc)
         , writePtrFunc(&HTTP::defaultWriteFunc)
     {
-
+        request.setHost(host);
     };
     Session(Session& session)
         : host(session.host)
+        , request(session.request)
         , writeBuffer(session.writeBuffer)
-        , readBuffer(session.readBuffer)
         , readPtrFunc(session.readPtrFunc)
         , writePtrFunc(session.writePtrFunc)
     {
+        request.setHost(host);
     };
     Session& operator=(Session& session) {
         if (&session == this) {
@@ -49,9 +50,10 @@ struct Session
         }
         host = session.host;
         writeBuffer = session.writeBuffer;
-        readBuffer = session.readBuffer;
+        request = session.request;
         readPtrFunc = session.readPtrFunc;
         writePtrFunc = session.writePtrFunc;
+        request.setHost(host);
         return *this;
     };
     ~Session() {
@@ -59,8 +61,8 @@ struct Session
     };
 
     std::string         host;
+    Request             request;
     std::string         writeBuffer;
-    std::string         readBuffer;
     handlerFunc         readPtrFunc;
     handlerFunc         writePtrFunc;
 };
@@ -138,7 +140,7 @@ void HTTP::asyncAccept(TcpSocket& socket)
         Session s(conn.getHost());
         newSessionByID(conn.getSock(), s);
         enableReadEvent(conn.getSock());
-        enableTimerEvent(conn.getSock(), 20000); // TODO add config
+        //enableTimerEvent(conn.getSock(), 20000); // TODO add config
     }
     catch (std::exception& e)
     {
@@ -199,9 +201,8 @@ void HTTP::defaultReadFunc(int socket, Session *session)
         return;
     }
     buffer[readBytes] = '\0';
-    session->readBuffer.append(buffer);
-    if (session->readBuffer.find("\n\n") != std::string::npos
-        || session->readBuffer.find("\r\n\r\n") != std::string::npos) {
+    session->request.parse(buffer);
+    if (session->request.getState() != Request::PARSE_QUERY) {
         // включаем write
         enableWriteEvent(socket);
     }
@@ -210,13 +211,8 @@ void HTTP::defaultReadFunc(int socket, Session *session)
 void HTTP::defaultWriteFunc(int socket, Session *session)
 {
     Response response;
-    Request request;
 
-    request.parse(session->readBuffer.c_str());
-    request.setHost(session->host);
-
-    session->readBuffer.clear();
-    handler(request, response);
+    handler(session->request, response);
 
     session->writeBuffer.append(response.getContent());
 
@@ -234,6 +230,7 @@ void HTTP::defaultWriteFunc(int socket, Session *session)
     // выключаем write
     if (session->writeBuffer.empty()) {
         disableWriteEvent(socket);
+        Request& request = session->request;
         if (request.hasHeader("Connection") && request.getHeaderValue("Connection") == "close") {
             closeSessionByID(socket);
         }

@@ -25,6 +25,8 @@ public:
 public:
     Request();
     ~Request();
+    Request(const Request& request);
+    Request& operator=(const Request& request);
 
     void setHost(const std::string& host);
 
@@ -40,6 +42,8 @@ public:
     bool                    hasHeader(const std::string& key);
     const std::string&      getHeaderValue(const std::string& key);
 
+    std::string             drainBody();
+
     void parse(const char* buf);
     void reset();
 
@@ -51,12 +55,10 @@ private:
     void parse_chunked_body();
 
 
-private:
-    Request(const Request&) {};
-    Request& operator=(const Request&) {return *this;};
 
 private:
     State               state_;
+    uint64_t            receivedBytes_;
     std::stringstream   buffer_;
     std::string         host_;
     std::string         port_;
