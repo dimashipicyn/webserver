@@ -54,6 +54,7 @@ server:
   max_body_size: 100B
   route:
     - location: /
+      root: /var/www/test
       default_file:
         - index.html
         - index.jsp

@@ -407,7 +407,7 @@ void HTTP::handler(Request& request, Response& response) {
 	void HTTP::methodNotAllowed(const Request& request, Response& response){
 		response.setStatusCode(405);
 		std::string strAllowMethods;
-		for (std::map<std::string, void (HTTP::*)(const Request &, Response&, Route*)>::iterator it = _method.begin();
+		for (HTTP::MethodHttp::iterator it = _method.begin();
 			 it != _method.end(); ++it){
 			if (it == _method.begin()) strAllowMethods += it->first;
 			else strAllowMethods = strAllowMethods + ", " + it->first;
@@ -428,6 +428,7 @@ void HTTP::handler(Request& request, Response& response) {
 
 //==============================Moved from Response class=====================
 
+
     HTTP::MethodHttp 	HTTP::initMethods()
 	{
 		std::map<std::string, void (HTTP::*)(const Request &, Response&, Route*)> map;
@@ -436,6 +437,8 @@ void HTTP::handler(Request& request, Response& response) {
 		map["DELETE"] = &HTTP::methodDELETE;
 		return map;
 	}
+
+
 
 	HTTP::MethodHttp HTTP::_method
 			= HTTP::initMethods();
