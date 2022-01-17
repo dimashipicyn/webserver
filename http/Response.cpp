@@ -24,10 +24,6 @@ const std::string& Response::getContent() {
     return content_;
 }
 
-void Response::reset() {
-    content_ = "";
-}
-
 //Change: take from config errorfile paths
 std::string Response::getErrorPath(const Request &request) const {
 	return ".\\root\\www\\page404.html";
@@ -80,49 +76,64 @@ void		Response::buildErrorPage(int code, Request& request) {
 	content_ = getHeader() + os.str();
 }
 
+void Response::buildDelPage(const Request& request) {
+	std::ostringstream os;
+	os << "<!DOCTYPE html>";
+	os << "<html>";
+	os << "<body>";
+	os << "<h1>File deleted.</h1>";
+	os << "</body>";
+	os << "/html";
+	setStatusCode(200);
+	setHeaderField("Host", request.getHost());
+	setHeaderField("Content-Length", os.str().size());
+	setHeaderField("Content-Type", "text/html");
+	content_ = getHeader() + os.str();
+}
+
 std::string Response::readFile(const std::string &path) {
 	std::ifstream sourceFile;
 	sourceFile.open(path.c_str(), std::ifstream::in);
 	std::ostringstream os;
-	if (!sourceFile.is_open()) throw httpEx<NotFound>;
+	if (!sourceFile.is_open() ) throw httpEx<NotFound>("file not found");
 	os << sourceFile.rdbuf();
 	sourceFile.close();
 	return os.str();
 }
-/*
-std::string 	Response::writeContent(const std::string& path, const Request& request) {
-	std::ofstream	file;
-	std::string content = request.getBody();
-	if (pathIsFile(path))
-	{
-		file.open(path.c_str());
-		file << content;
-		file.close();
-		//return (204);
-	}
-	else
-	{
-		file.open(_path.c_str(), std::ofstream::out | std::ofstream::trunc);
-		if (file.is_open() == false)
-			return (403);
 
-		file << content;
+void	Response::writeContent(const std::string& path, const Request& request) {
+	std::ofstream	file;
+	const std::string& body = request.getBody();
+	if (utils::isFile(path)) {
+		file.open(path.c_str());
+		file << body;
 		file.close();
-		return (201);
+		setStatusCode(204);
+	}
+	else {
+		file.open(path.c_str(), std::ofstream::out | std::ofstream::trunc);
+		if (!file.is_open()) throw httpEx<Forbidden>("Forbidden");
+		file << body;
+		file.close();
+		setHeaderField("Content-Length", body.size());
+		setHeaderField("Content-Location", path);
+		setContentType(path);
+		content_ = getHeader() + body;
+		setStatusCode(201);
 	}
 }
-*/
+
 std::map<std::string, std::string> Response::initContentType() {
 	std::map<std::string, std::string> contentType;
 
-	contentType["html"] = "text/html";
-	contentType["css"] = "text/css";
-	contentType["js"] = "text/javascript";
-	contentType["jpeg"] = "image/jpeg";
-	contentType["jpg"] = "image/jpeg";
-	contentType["png"] = "image/png";
-	contentType["bmp"] = "image/bmp";
-	contentType["text/plain"] = "text/plain";
+	contentType[".html"] = "text/html";
+	contentType[".css"] = "text/css";
+	contentType[".js"] = "text/javascript";
+	contentType[".jpeg"] = "image/jpeg";
+	contentType[".jpg"] = "image/jpeg";
+	contentType[".png"] = "image/png";
+	contentType[".bmp"] = "image/bmp";
+	contentType[".txt"] = "text/plain";
 	return contentType;
 }
 

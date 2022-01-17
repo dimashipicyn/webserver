@@ -239,7 +239,7 @@ void HTTP::handler(Request& request, Response& response) {
 		SettingsManager *settingsManager = SettingsManager::getInstance();
 
 		Server *server = settingsManager->findServer(request.getHost());
-		Route *route = server == nullptr ? nullptr : server->findRouteByPath(request.getPath());
+		Route *route = (server == nullptr) ? nullptr : server->findRouteByPath(request.getPath());
 		if (route == nullptr) {
 			throw httpEx<NotFound>("Not Found");
 		}
@@ -416,11 +416,32 @@ void HTTP::handler(Request& request, Response& response) {
 		response.setContent(response.getHeader() + body);*/
 }
 
-	void HTTP::methodDELETE(const Request& request, Response& response, Route* route){}
+	void HTTP::methodDELETE(const Request& request, Response& response, Route* route){
+		const std::string& path = route->getFullPath(request.getPath());
+		if (utils::isFile(path)) {
+			if (remove(path.c_str()) == 0)
+				response.buildDelPage(request);
+			else
+				throw httpEx<Forbidden>("Forbidden");
+		}
+		else
+			throw httpEx<NotFound>("Not Found");
+}
 
-	void HTTP::methodPUT(const Request & request, Response & response, Route *) {}
+	void HTTP::methodPUT(const Request & request, Response & response, Route *route) {
+		const std::string& path = route->getFullPath(request.getPath());
+		response.writeContent(path, request);
+}
 
-	void HTTP::methodHEAD(const Request &, Response &, Route *) {}
+	void HTTP::methodHEAD(const Request& request, Response& response, Route* route) {
+		std::string path = route->getFullPath(request.getPath());
+		std::string body = response.readFile(path);
+		response.setStatusCode(200);
+		response.setHeaderField("Host", request.getHost());
+		response.setContentType(path);
+		response.setHeaderField("Content-Length", body.size() );
+		response.setContent(response.getHeader());
+}
 	void HTTP::methodNotAllowed(const Request& request, Response& response){
 		response.setStatusCode(405);
 		std::string strAllowMethods;
@@ -431,17 +452,6 @@ void HTTP::handler(Request& request, Response& response) {
 		}
 		response.setHeaderField("Allow", strAllowMethods);
 	}
-
-/*
-	void HTTP::BadRequest(Response& response){
-		response.setStatusCode(400);
-		std::stringstream ss;
-		std::string s("Bad Request\n");
-		response.setHeaderField("Content-Length", s.size());
-		response.setContentType("text/html");
-		response.setContent(response.getHeader() + s);
-	}*/
-//=============================================================//
 
 //==============================Moved from Response class=====================
 

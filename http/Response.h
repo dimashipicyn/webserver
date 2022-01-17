@@ -19,7 +19,7 @@ public:
     void	setContent(const std::string& s);
     const	std::string&	getContent();
 	void	buildErrorPage(int code, Request&);
-    void reset();
+	void	buildDelPage(const Request&);
 
 	std::string 		getErrorPath(const Request&) const;
 	std::string			getHeader();
@@ -28,7 +28,7 @@ public:
 	void 				setHeaderField(const std::string&, int);
 	void				setContentType(const std::string& path);
 	std::string			readFile(const std::string& path);
-	std::string 		writeContent(const std::string& content);
+	void 				writeContent(const std::string& content, const Request&);
 
 
 private:

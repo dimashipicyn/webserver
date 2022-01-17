@@ -5,6 +5,7 @@
 #ifndef WEBSERV_UTILS_H
 #define WEBSERV_UTILS_H
 #include <sstream>
+#include <sys/stat.h>
 
 namespace utils
 {
@@ -64,6 +65,8 @@ namespace utils
         ss >> result;
         return result;
     }
+
+	bool isFile(const std::string& path);
 }
 
 #endif //WEBSERV_UTILS_H

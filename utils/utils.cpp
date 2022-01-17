@@ -87,6 +87,15 @@ namespace utils {
 	}
 }
 
+bool utils::isFile(const std::string& path){
+	struct stat s;
+	if	(stat(path.c_str(), &s) == 0){
+		if(s.st_mode & S_IFREG)
+			return true;
+	}
+	return false;
+}
+
 /*
 int main() {
     std::string s = "hello world bro";
