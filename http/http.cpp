@@ -240,7 +240,9 @@ void HTTP::handler(Request& request, Response& response) {
 		Server *server = settingsManager->findServer(request.getHost());
 		Route *route = server == nullptr ? nullptr : server->findRouteByPath(
 				request.getPath());
-
+		if (route == nullptr) {
+			throw httpEx<NotFound>("Not Found");
+		}
 //  cgi and autoindex is kind of get request. In my opinion we need
 //  place this functions in GETMethod() function
 		cgi(request, response, route);
@@ -250,8 +252,12 @@ void HTTP::handler(Request& request, Response& response) {
 			(this->*_method.at(method))(
 					request, response, route); // updating idea: here we can use try catch (if bad method) catch badrequest
 			//also make pointers for all HTTP methods and in that methods implementation compare method with config allowed
-		else if (_allMethods.count(method)) methodNotAllowed(request);
-		else throw httpEx<BadRequest>("Bad Request");
+		else if (_allMethods.count(method)) {
+			methodNotAllowed(request, response);
+		}
+		else {
+			throw httpEx<BadRequest>("Bad Request");
+		}
 	}
 	catch (httpEx<BadRequest> &e) {
 		LOG_INFO("BadRequest: %s\n", e.what());
@@ -368,7 +374,7 @@ void HTTP::handler(Request& request, Response& response) {
 
 //=======================Moved from web.1.0 ===================================
 
-	void HTTP::methodGET(const Request& request, Response& response, Route& route){
+	void HTTP::methodGET(const Request& request, Response& response, Route* route){
 
 		LOG_DEBUG("Http handler call\n");
 		LOG_DEBUG("--------------PRINT REQUEST--------------\n");
@@ -378,44 +384,33 @@ void HTTP::handler(Request& request, Response& response) {
 		 * put autoindex && cgi her
 		 */
 
-		std::string path = route.getFullPath(request.getPath());
-		std::string finalContent;
-		std::ifstream sourceFile(path);
-		if (!sourceFile.good()){
+		std::string path = route->getFullPath(request.getPath());
+		std::ifstream sourceFile;
+		std::string content;
+		if ( !sourceFile.good() ){
+			//path = response.getErrorPath(request); set errorfile from config here
+			std::string errorPage = response.getErrorPage(404);
 			response.setStatusCode(404);
-			path = response.getErrorPath(request);
-			std::ifstream errorFile(path);
-			if (!errorFile.good() ){
-				response.setStatusCode(500);
-				return;
+			response.setHeaderField("Content-Type: ", "text/html");
+			response.setHeaderField("Content-Length", errorPage.size() );
+			response.setContent(response.getHeader() + errorPage);
 			} else {
-				std::string errorContent((std::istreambuf_iterator<char>(errorFile)),
-										 std::istreambuf_iterator<char>());
-				finalContent = errorContent;
-				response.setHeaderField("Content-Type: ", "text/html");
-			}
-			errorFile.close();
-		} else {
-			response.setStatusCode(200);
-			std::string content((std::istreambuf_iterator<char>(inputFile)),
+			std::string content((std::istreambuf_iterator<char>(sourceFile)),
 								std::istreambuf_iterator<char>());
-			finalContent = content;
-			inputFile.close();
+			sourceFile.close();
+			response.setStatusCode(200);
 			response.setContentType(path);
+			response.setHeaderField("Content-Length", content.size() );
+			response.setContent(response.getHeader() + content);
 		}
-		response.setHeaderField("Content-Length", finalContent.size() );
-		response.setContent(response.getHeader() + finalContent);  // here is a output for GET method, this must to be
-		// transfere to socket. Need I set response _output && pull it from response
-		// again?
 	}
 
-
-	void HTTP::methodPOST(const Request& request, Response& response, Route& route){}
-	void HTTP::methodDELETE(const Request& request, Response& response, Route& route){}
+	void HTTP::methodPOST(const Request& request, Response& response, Route* route){}
+	void HTTP::methodDELETE(const Request& request, Response& response, Route* route){}
 	void HTTP::methodNotAllowed(const Request& request, Response& response){
 		response.setStatusCode(405);
 		std::string strAllowMethods;
-		for (std::map<std::string, void (HTTP::*)(const Request &, Response&, Route&)>::iterator it = _method.begin();
+		for (std::map<std::string, void (HTTP::*)(const Request &, Response&, Route*)>::iterator it = _method.begin();
 			 it != _method.end(); ++it){
 			if (it == _method.begin()) strAllowMethods += it->first;
 			else strAllowMethods = strAllowMethods + ", " + it->first;
@@ -423,7 +418,7 @@ void HTTP::handler(Request& request, Response& response) {
 		response.setHeaderField("Allow", strAllowMethods);
 	}
 
-
+/*
 	void HTTP::BadRequest(Response& response){
 		response.setStatusCode(400);
 		std::stringstream ss;
@@ -431,20 +426,21 @@ void HTTP::handler(Request& request, Response& response) {
 		response.setHeaderField("Content-Length", s.size());
 		response.setContentType("text/html");
 		response.setContent(response.getHeader() + s);
-	}
+	}*/
 //=============================================================//
 
 //==============================Moved from Response class=====================
-	std::map<std::string, void (HTTP::*)(const Request &, Response&, Route&)>	HTTP::initMethods()
+
+    HTTP::MethodHttp 	HTTP::initMethods()
 	{
-		std::map<std::string, void (HTTP::*)(const Request &, Response&, Route&)> map;
+		std::map<std::string, void (HTTP::*)(const Request &, Response&, Route*)> map;
 		map["GET"] = &HTTP::methodGET;
 		map["POST"] = &HTTP::methodPOST;
 		map["DELETE"] = &HTTP::methodDELETE;
 		return map;
 	}
 
-	std::map<std::string, void (HTTP::*)(const Request &, Response&, Route&)> HTTP::_method
+	HTTP::MethodHttp HTTP::_method
 			= HTTP::initMethods();
 
 	std::set<std::string> HTTP::initAllMethods(){
