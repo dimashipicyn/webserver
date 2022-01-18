@@ -380,11 +380,12 @@ void HTTP::handler(Request& request, Response& response) {
 
 		//read source file
 		std::string path = route->getFullPath(request.getPath());
-		if ( !utils::isFile(request.getPath()) ){
-			//put getting default file name here
-		}
-		std::string body = response.readFile(path);
-
+		std::string body;
+        if ( !utils::isFile(path) ){
+			body = route->getDefaultPage(request.getPath());
+		} else {
+            body = response.readFile(path);
+        }
 	//	std::string errorPage = SettingsManager::getInstance()->findServer(request.getHost())->getErrorPage();// if not empty use config errorfile
 
 		response.setStatusCode(200);
