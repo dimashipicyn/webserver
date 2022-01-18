@@ -54,11 +54,11 @@ server:
   max_body_size: 100B
   route:
     - location: /
-      root: /Users/griddler/webserver2.0
+      root: /Users/griddler/www
       default_file:
-        - index.html
+        - page1.html
         - index.jsp
-      upload_to: /var/www/downloads
+      upload_to: /Users/griddler/www/downloads
       method:
         - GET
 #      autoindex: on

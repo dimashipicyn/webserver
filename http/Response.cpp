@@ -65,7 +65,7 @@ void		Response::buildErrorPage(int code, const Request& request) {
 	os << "</head>";
 	os << "<body>";
 	os << "<h1>Oops! An Error Occurred</h1>";
-	os << "<h2>The server returned a " << code << _errors[code] << "</h2>";
+	os << "<h2>The server returned a " << code << ". " << _errors[code] << "</h2>";
 	os << "</body>";
 	os << "</html>";
 
