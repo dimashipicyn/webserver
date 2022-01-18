@@ -11,10 +11,12 @@ class Response;
 class TcpSocket;
 class Route;
 struct Session;
+struct RequestState;
 
 class HTTP : public EventPool
 {
     friend struct Session;
+    friend struct RequestState;
 public:
     HTTP();
     virtual ~HTTP();
@@ -38,6 +40,7 @@ protected:
 
     void defaultReadFunc(int socket, Session* session);
     void defaultWriteFunc(int socket, Session* session);
+    void doneFunc(int socket, Session* session);
 
     typedef std::map<int, Session> tdSessionMap;
 private:

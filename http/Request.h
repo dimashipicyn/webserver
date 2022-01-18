@@ -13,15 +13,6 @@ class Request {
 public:
     typedef std::map<std::string, std::string> headersMap;
 
-    enum State {
-        PARSE_QUERY,
-        PARSE_BODY,
-        PARSE_BODY_WITH_LENGTH,
-        PARSE_CHUNKED_BODY,
-        PARSE_ERROR,
-        PARSE_DONE
-    };
-
 public:
     Request();
     ~Request();
@@ -29,6 +20,7 @@ public:
     Request& operator=(const Request& request);
 
     void setHost(const std::string& host);
+    void setID(int id);
 
     const std::string&      getMethod() const;
     const std::string&      getVersion() const;
@@ -37,37 +29,32 @@ public:
     const std::string&      getBody() const;
     const std::string&      getHost() const;
     const headersMap&       getHeaders() const;
-    State                   getState() const;
+    int                     getID() const;
 
-    bool                    hasHeader(const std::string& key);
-    const std::string&      getHeaderValue(const std::string& key);
+    bool                    hasHeader(const std::string& key) const;
+    const std::string&      getHeaderValue(const std::string& key) const;
 
-    std::string             drainBody();
+    bool good() const;
 
-    void parse(const char* buf);
+    void parse(const std::string& s);
     void reset();
 
 private:
     void parse_first_line();
     void parse_headers();
     void parse_body();
-    void parse_body_with_length();
-    void parse_chunked_body();
-
-
 
 private:
-    State               state_;
-    uint64_t            receivedBytes_;
     std::stringstream   buffer_;
     std::string         host_;
-    std::string         port_;
     std::string         method_;
     std::string         version_;
     std::string         path_;
     std::string         query_string_;
     std::string         body_;
     headersMap          headers_;
+    int                 id_;
+    bool                isGood_;
 };
 
 std::ostream& operator<<(std::ostream& os, const Request& request);

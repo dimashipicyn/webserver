@@ -1,4 +1,5 @@
 #include <iostream>
+#include <array>
 #include "Logger.h"
 #include "http.h"
 #include "Request.h"
@@ -11,49 +12,60 @@
 #include "SettingsManager.hpp"
 #include "Cgi.hpp"
 #include "httpExceptions.h"
-//#include "Time.h"
 
 typedef void (HTTP::*handlerFunc)(int, Session*);
+
+struct RequestState {
+    RequestState()
+        : state(GET_REQUEST)
+        , readBuf()
+        , writeBuf()
+        , funcs()
+    {
+        funcs[GET_REQUEST] = &HTTP::defaultReadFunc;
+        funcs[GET_RESPONSE] = &HTTP::defaultWriteFunc;
+        funcs[DONE] = &HTTP::doneFunc;
+    }
+
+    handlerFunc func() {
+        return funcs[state];
+    }
+    enum State {
+        GET_REQUEST,
+        GET_RESPONSE,
+        DONE,
+        Total
+    };
+    State       state;
+    std::string readBuf;
+    std::string writeBuf;
+    std::array<handlerFunc, Total> funcs;
+};
+
 
 struct Session
 {
     Session()
         : host()
-        , request()
-        , writeBuffer()
-        , readPtrFunc(&HTTP::defaultReadFunc)
-        , writePtrFunc(&HTTP::defaultWriteFunc)
+        , reqState()
     {
-        request.setHost(host);
     }
     Session(const std::string& host)
         : host(host)
-        , request()
-        , writeBuffer()
-        , readPtrFunc(&HTTP::defaultReadFunc)
-        , writePtrFunc(&HTTP::defaultWriteFunc)
+        , reqState()
     {
-        request.setHost(host);
     };
     Session(Session& session)
         : host(session.host)
-        , request(session.request)
-        , writeBuffer(session.writeBuffer)
-        , readPtrFunc(session.readPtrFunc)
-        , writePtrFunc(session.writePtrFunc)
+        , reqState()
     {
-        request.setHost(host);
     };
     Session& operator=(Session& session) {
         if (&session == this) {
             return *this;
         }
         host = session.host;
-        writeBuffer = session.writeBuffer;
-        request = session.request;
-        readPtrFunc = session.readPtrFunc;
-        writePtrFunc = session.writePtrFunc;
-        request.setHost(host);
+        reqState = session.reqState;
         return *this;
     };
     ~Session() {
@@ -61,10 +73,7 @@ struct Session
     };
 
     std::string         host;
-    Request             request;
-    std::string         writeBuffer;
-    handlerFunc         readPtrFunc;
-    handlerFunc         writePtrFunc;
+    RequestState        reqState;
 };
 
 HTTP::HTTP()
@@ -140,7 +149,7 @@ void HTTP::asyncAccept(TcpSocket& socket)
         Session s(conn.getHost());
         newSessionByID(conn.getSock(), s);
         enableReadEvent(conn.getSock());
-        //enableTimerEvent(conn.getSock(), 20000); // TODO add config
+        enableTimerEvent(conn.getSock(), 20000); // TODO add config
     }
     catch (std::exception& e)
     {
@@ -158,8 +167,7 @@ void HTTP::asyncWrite(int socket)
         closeSessionByID(socket);
         return;
     }
-
-    (this->*session->writePtrFunc)(socket, session);
+    (this->*session->reqState.func())(socket, session);
 }
 
 void HTTP::asyncRead(int socket)
@@ -172,8 +180,7 @@ void HTTP::asyncRead(int socket)
         closeSessionByID(socket);
         return;
     }
-
-    (this->*session->readPtrFunc)(socket, session);
+    (this->*session->reqState.func())(socket, session);
 }
 
 void HTTP::asyncEvent(int socket, uint16_t flags)
@@ -191,33 +198,46 @@ void HTTP::asyncEvent(int socket, uint16_t flags)
 
 void HTTP::defaultReadFunc(int socket, Session *session)
 {
-    char buffer[1 << 16];
-    int64_t bufferSize = (1 << 16);
+    const int64_t bufSize = (1 << 16);
+    char buf[bufSize];
 
-    int64_t readBytes = ::read(socket, &buffer[0], bufferSize - 1);
+    int64_t readBytes = ::read(socket, buf, bufSize - 1);
     if (readBytes < 0) {
         closeSessionByID(socket);
         LOG_ERROR("Dont read to socket: %d. Close connection.\n", socket);
         return;
     }
-    buffer[readBytes] = '\0';
-    session->request.parse(buffer);
-    if (session->request.getState() != Request::PARSE_QUERY) {
+    buf[readBytes] = '\0';
+    session->reqState.readBuf.append(buf);
+    if (session->reqState.readBuf.find("\n\n") != std::string::npos
+    || session->reqState.readBuf.find("\r\n\r\n") != std::string::npos)
+    {
+        session->reqState.state = RequestState::GET_RESPONSE;
         // включаем write
         enableWriteEvent(socket);
+        disableReadEvent(socket);
     }
 }
 
 void HTTP::defaultWriteFunc(int socket, Session *session)
 {
+    Request request;
     Response response;
 
-    handler(session->request, response);
+    session->reqState.state = RequestState::DONE;
 
-    session->writeBuffer.append(response.getContent());
+    std::string& rbuf = session->reqState.readBuf;
+    request.parse(rbuf);
+    rbuf.clear();
 
-    std::string& writeBuffer = session->writeBuffer;
-    int64_t writeBytes = ::write(socket, writeBuffer.c_str(), writeBuffer.size());
+    request.setHost(session->host);
+    request.setID(socket);
+    handler(request, response);
+
+    std::string& wbuf = session->reqState.writeBuf;
+    wbuf.append(response.getContent());
+
+    int64_t writeBytes = ::write(socket, wbuf.c_str(), wbuf.size());
 
     if (writeBytes < 0) {
         closeSessionByID(socket);
@@ -225,15 +245,27 @@ void HTTP::defaultWriteFunc(int socket, Session *session)
         return;
     }
 
-    session->writeBuffer.erase(0, writeBytes);
+    wbuf.erase(0, writeBytes);
+}
 
-    // выключаем write
-    if (session->writeBuffer.empty()) {
+void HTTP::doneFunc(int socket, Session *session)
+{
+    std::string& wbuf = session->reqState.writeBuf;
+
+    if (wbuf.empty()) {
         disableWriteEvent(socket);
-        Request& request = session->request;
-        if (request.hasHeader("Connection") && request.getHeaderValue("Connection") == "close") {
+        enableReadEvent(socket);
+    }
+    else {
+        int64_t writeBytes = ::write(socket, wbuf.c_str(), wbuf.size());
+
+        if (writeBytes < 0) {
             closeSessionByID(socket);
+            LOG_ERROR("Dont write to socket: %d. Close connection.\n", socket);
+            return;
         }
+
+        wbuf.erase(0, writeBytes);
     }
 }
 
