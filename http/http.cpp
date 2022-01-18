@@ -240,25 +240,16 @@ void HTTP::handler(Request& request, Response& response) {
 		SettingsManager *settingsManager = SettingsManager::getInstance();
 
 		Server *server = settingsManager->findServer(request.getHost());
-<<<<<<< HEAD
-		Route *route = (server == nullptr) ? nullptr : server->findRouteByPath(request.getPath());
-=======
 		Route *route = (server == nullptr ? nullptr : server->findRouteByPath(request.getPath()));
->>>>>>> 72cc2204876890b25e6cfdc095b6329093e93150
+
 		if (route == nullptr) {
 			throw httpEx<NotFound>("Not Found");
 		}
 		std::string method = request.getMethod();
-		if (_method.count(method))
-			(this->*_method.at(method))(
-					request, response, route); // updating idea: here we can use try catch (if bad method) catch badrequest
-			//also make pointers for all HTTP methods and in that methods implementation compare method with config allowed
-		else if (_allMethods.count(method)) {
-			methodNotAllowed(request, response);
-		}
-		else {
-			throw httpEx<BadRequest>("Bad Request");
-		}
+		(this->*_method.at(method))(request, response, route);
+	}
+	catch (const std::out_of_range& e){
+		response.buildErrorPage(400, request);
 	}
 	catch (httpEx<BadRequest> &e) {
 		LOG_INFO("BadRequest: %s\n", e.what());
@@ -443,6 +434,24 @@ void HTTP::handler(Request& request, Response& response) {
 		response.setHeaderField("Content-Length", body.size() );
 		response.setContent(response.getHeader());
 }
+
+	void HTTP::methodCONNECT(const Request& request, Response& response, Route*){
+		response.setHeaderField("Allow", "GET"); // need to put all allowed methods here from config set
+		response.buildErrorPage(405, request);
+	}
+	void HTTP::methodOPTIONS(const Request& request, Response& response, Route*){
+		response.setHeaderField("Allow", "GET"); // need to put all allowed methods here from config set
+		response.buildErrorPage(405, request);
+	}
+	void HTTP::methodTRACE(const Request& request, Response& response, Route*){
+		response.setHeaderField("Allow", "GET"); // need to put all allowed methods here from config set
+		response.buildErrorPage(405, request);
+	}
+	void HTTP::methodPATCH(const Request& request, Response& response, Route*){
+		response.setHeaderField("Allow", "GET"); // need to put all allowed methods here from config set
+		response.buildErrorPage(405, request);
+	}
+/*
 	void HTTP::methodNotAllowed(const Request& request, Response& response){
 		response.setStatusCode(405);
 		std::string strAllowMethods;
@@ -453,7 +462,7 @@ void HTTP::handler(Request& request, Response& response) {
 		}
 		response.setHeaderField("Allow", strAllowMethods);
 	}
-
+*/
 //==============================Moved from Response class=====================
 
 
@@ -465,6 +474,10 @@ void HTTP::handler(Request& request, Response& response) {
 		map["DELETE"] = &HTTP::methodDELETE;
 		map["PUT"] = &HTTP::methodPUT;
 		map["HEAD"] = &HTTP::methodHEAD;
+		map["CONNECT"] = &HTTP::methodCONNECT;
+		map["OPTIONS"] = &HTTP::methodOPTIONS;
+		map["TRACE"] = &HTTP::methodTRACE;
+		map["PATCH"] = &HTTP::methodPATCH;
 		return map;
 	}
 

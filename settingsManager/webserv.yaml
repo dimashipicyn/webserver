@@ -54,7 +54,7 @@ server:
   max_body_size: 100B
   route:
     - location: /
-      root: /var/www/test
+      root: /Users/griddler/webserver2.0
       default_file:
         - index.html
         - index.jsp

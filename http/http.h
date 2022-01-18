@@ -49,7 +49,11 @@ private:
 	void methodDELETE(const Request&, Response&, Route*);
 	void methodPUT(const Request&, Response&, Route*);
 	void methodHEAD(const Request&, Response&, Route*);
-	void methodNotAllowed(const Request&, Response&);
+	void methodCONNECT(const Request&, Response&, Route*);
+	void methodOPTIONS(const Request&, Response&, Route*);
+	void methodTRACE(const Request&, Response&, Route*);
+	void methodPATCH(const Request&, Response&, Route*);
+//	void methodNotAllowed(const Request&, Response&);
 //	void BadRequest(Response&);
 
 

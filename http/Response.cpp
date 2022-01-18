@@ -56,7 +56,7 @@ std::string		Response::getHeader(){
 	return	header_.getHeader();
 }
 
-void		Response::buildErrorPage(int code, Request& request) {
+void		Response::buildErrorPage(int code, const Request& request) {
 	std::ostringstream os;
 	os << "<!DOCTYPE html>";
 	os << "<html>";
