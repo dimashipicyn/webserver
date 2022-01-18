@@ -12,6 +12,7 @@
 #include "SettingsManager.hpp"
 #include "Cgi.hpp"
 #include "httpExceptions.h"
+#include <algorithm>
 
 struct Session
 {
@@ -245,8 +246,7 @@ void HTTP::handler(Request& request, Response& response) {
 		if (route == nullptr) {
 			throw httpEx<NotFound>("Not Found");
 		}
-		std::string method = request.getMethod();
-		(this->*_method.at(method))(request, response, route);
+		( this->*_method.at(request.getMethod()) )(request, response, route);
 	}
 	catch (const std::out_of_range& e){
 		response.buildErrorPage(400, request);
@@ -269,6 +269,7 @@ void HTTP::handler(Request& request, Response& response) {
 	}
 	catch (httpEx<MethodNotAllowed> &e) {
 		LOG_INFO("MethodNotAllowed: %s\n", e.what());
+		response.buildErrorPage(e.error_code, request);
 	}
 	catch (httpEx<NotAcceptable> &e) {
 		LOG_INFO("NotAcceptable: %s\n", e.what());
@@ -372,7 +373,7 @@ void HTTP::handler(Request& request, Response& response) {
 		LOG_DEBUG("Http handler call\n");
 		LOG_DEBUG("--------------PRINT REQUEST--------------\n");
 		std::cout << request << std::endl;
-
+		checkIfAllowed(request, route);
 		cgi(request, response, route);
 		autoindex(request, response, route);
 		if (!response.getContent().empty()) return; // Костыльно, но времени не хватит для более глубокой интеграции
@@ -390,8 +391,9 @@ void HTTP::handler(Request& request, Response& response) {
 		response.setContent(response.getHeader() + body);
 	}
 
-	void HTTP::methodPOST(const Request& request, Response& response, Route* route){/*
-	//watch for methods allowed
+	void HTTP::methodPOST(const Request& request, Response& response, Route* route){
+		checkIfAllowed(request, route);
+		/*
 		std::cout << request << std::endl;
 
 		/*
@@ -409,6 +411,7 @@ void HTTP::handler(Request& request, Response& response) {
 }
 
 	void HTTP::methodDELETE(const Request& request, Response& response, Route* route){
+		checkIfAllowed(request, route);
 		const std::string& path = route->getFullPath(request.getPath());
 		if (utils::isFile(path)) {
 			if (remove(path.c_str()) == 0)
@@ -421,11 +424,13 @@ void HTTP::handler(Request& request, Response& response) {
 }
 
 	void HTTP::methodPUT(const Request & request, Response & response, Route *route) {
+		checkIfAllowed(request, route);
 		const std::string& path = route->getFullPath(request.getPath());
 		response.writeContent(path, request);
 }
 
 	void HTTP::methodHEAD(const Request& request, Response& response, Route* route) {
+		checkIfAllowed(request, route);
 		std::string path = route->getFullPath(request.getPath());
 		std::string body = response.readFile(path);
 		response.setStatusCode(200);
@@ -450,6 +455,13 @@ void HTTP::handler(Request& request, Response& response) {
 	void HTTP::methodPATCH(const Request& request, Response& response, Route*){
 		response.setHeaderField("Allow", "GET"); // need to put all allowed methods here from config set
 		response.buildErrorPage(405, request);
+	}
+
+	void HTTP::checkIfAllowed(const Request& request, Route *route){
+		const std::vector<std::string>& allowedMethods = route->getMethods();
+		if ( find(std::begin(allowedMethods), std::end(allowedMethods), request.getMethod()) == allowedMethods.end() ) {
+			throw httpEx<MethodNotAllowed>("Method Not Allowed");
+		}
 	}
 /*
 	void HTTP::methodNotAllowed(const Request& request, Response& response){

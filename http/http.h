@@ -53,6 +53,7 @@ private:
 	void methodOPTIONS(const Request&, Response&, Route*);
 	void methodTRACE(const Request&, Response&, Route*);
 	void methodPATCH(const Request&, Response&, Route*);
+	void checkIfAllowed(const Request&, Route*);
 //	void methodNotAllowed(const Request&, Response&);
 //	void BadRequest(Response&);
 
