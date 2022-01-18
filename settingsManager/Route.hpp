@@ -96,14 +96,11 @@ public:
 	void addRedirect(Route::redirect &redirect);
 
 	/**
-	 * @brief генерирует полный путь до ресурса на сервере. root + resource
+	 * @brief склеивает root + resource
 	 *
-	 * @param resource - запрошенный ресур, например "index.html". Если resource папка, будут производиться попытки
-	 * найти дефолтные ресурсы поочередно.
+	 * @param resource - запрошенный ресур, например "index.html".
 	 *
-	 * @return возрващает полный путь на сервере до ресурса. Если ничего не найдено.
-	 *
-	 * @throws runtime_error если нет указанного ресурса
+	 * @return возрващает строку абсолютного пути до ресурс, без проверок
 	 */
 	std::string getFullPath(std::string const &resource) const;
 
@@ -121,6 +118,17 @@ public:
 	 * @throws httpEx<NotFound> если подается не существующий ресурс
 	 */
 	std::string getDefaultPage(std::string const &resource);
+
+	/**
+	 * @brief проверяет ресурс на редиректы
+	 *
+	 * @param redirectTo ссылка на строку куда писать адрес редиректа, если найден.
+	 *
+	 * @param resource ресурс из http запроса
+	 *
+	 * @return статус редиректа, -1 если редиректов по данному ресурсу не найдено
+	 */
+	int checkRedirectOnPath(std::string &redirectTo, std::string const &resource);
 
 	// геттеры сеттеры
 	const std::string &getLocation() const;

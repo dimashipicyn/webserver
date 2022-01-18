@@ -95,7 +95,7 @@ std::string Response::readFile(const std::string &path) {
 	std::ifstream sourceFile;
 	sourceFile.open(path.c_str(), std::ifstream::in);
 	std::ostringstream os;
-	if (!sourceFile.is_open() ) throw httpEx<NotFound>("file not found");
+	if (!sourceFile.is_open()) throw httpEx<NotFound>("Cannot open requested resource");
 	os << sourceFile.rdbuf();
 	sourceFile.close();
 	return os.str();
