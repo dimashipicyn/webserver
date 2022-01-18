@@ -109,7 +109,7 @@ void Route::setCgi(const std::string &cgi)
 
 bool Route::isValidMethod(const std::string &str)
 {
-	return str == "GET" || str == "POST" || str =="DELETE";
+	return str == "GET" || str == "POST" || str == "DELETE";
 }
 
 void Route::addMethod(const std::string &method)
@@ -139,23 +139,9 @@ void Route::setAutoindex(bool autoindex)
 
 std::string Route::getFullPath(const std::string &resource) const
 {
-	std::string defaultFile;
-
-	if (utils::getExtension(resource).empty()) {
-		for (std::vector<std::string>::const_iterator i = defaultFiles_.begin(); i != defaultFiles_.end(); i++) {
-			std::string tryPath = root_
-					+ (resource[0] == '/' ? resource : ("/" + resource))
-					+ (resource[resource.size() - 1] == '/' ? (*i) : ("/" + (*i)));
-			if (access(tryPath.c_str(), F_OK) != -1)
-				return tryPath;
-		}
-	}
-
-	std::string tryPath = root_ + (resource[0] == '/' ? resource : ("/" + resource));
-	if (access(tryPath.c_str(), F_OK) != -1)
-		return tryPath;
-	else
-		throw httpEx<NotFound>(std::string("Requested resource is not exist! ") + " \"" + resource + "\"");
+	std::string root = root_;
+	return (root[root.size() - 1] == '/' ? root.substr(0, root.size() - 1) : root)
+		   + (resource[0] == '/' ? resource : ("/" + resource));
 }
 
 std::string Route::getDefaultPage(const std::string &resource)
@@ -164,15 +150,67 @@ std::string Route::getDefaultPage(const std::string &resource)
 	std::string line;
 	std::string result = "";
 
-	if (utils::getExtension(fullPath).empty())
-		throw DefaultFileNotFoundException("There is no default files at directory");
-
-	std::ifstream file(fullPath);
-	while(true)
+	for (std::vector<std::string>::const_iterator i = defaultFiles_.begin(); i != defaultFiles_.end(); i++)
 	{
-		if (file.eof()) break;
-		getline(file, line);
-		result += line;
+		std::string tryPath = fullPath + (*i);
+		if (access(tryPath.c_str(), F_OK) != -1) {
+			std::ifstream file(tryPath);
+			while (true)
+			{
+				if (file.eof()) break;
+				getline(file, line);
+				result += line;
+			}
+			return result;
+		}
 	}
-	return result;
+	throw DefaultFileNotFoundException("There is no default files at directory");
+}
+
+int Route::checkRedirectOnPath(std::string &redirectTo, const std::string &resource)
+{
+	std::vector<std::string> splittedResource = utils::split(const_cast<std::string &>(resource), '/');
+	Route::redirect *mostEqualRedirect = nullptr;
+	int status = -1;
+	uint32_t mostEqualLevel = 0;
+	for (std::vector<Route::redirect>::iterator i = redirects_.begin(); i != redirects_.end(); i++)
+	{
+		std::string redirectWhat = (*i).from;
+		if (redirectWhat[redirectWhat.size() - 1] != '/')
+		{
+			if (redirectWhat == resource)
+			{
+				redirectTo = (*i).to;
+				return (*i).status;
+			}
+			continue;
+		}
+		std::vector<std::string> splittedRedirect = utils::split(const_cast<std::string &> (redirectWhat), '/');
+		uint32_t currentLevel = 0;
+		size_t maxDepth = std::min(splittedResource.size(), splittedRedirect.size());
+		if (maxDepth > mostEqualLevel)
+		{
+			for (size_t j = 0; j < maxDepth; j++)
+			{
+				if (splittedResource.at(j) == splittedRedirect.at(j))
+					currentLevel++;
+				else
+					break;
+			}
+			if (currentLevel > mostEqualLevel)
+			{
+				mostEqualLevel = currentLevel;
+				mostEqualRedirect = &(*i);
+			}
+		}
+	}
+	if (mostEqualRedirect != nullptr) {
+		std::string tail = "";
+		for (std::vector<std::string>::iterator i = splittedResource.begin() + mostEqualLevel;
+			i != splittedResource.end();i++)
+			tail += "/" + (*i);
+		redirectTo = mostEqualRedirect->to + tail;
+		status = mostEqualRedirect->status;
+	}
+	return status;
 }

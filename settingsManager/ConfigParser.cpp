@@ -106,6 +106,8 @@ size_t ConfigParser::parseBodySize(const std::string &str)
 		throw std::runtime_error(formConfigErrorText("Invalid max_body_size parameter!"));
 	switch (end[0])
 	{
+		case 'B':
+			return value;
 		case 'K':
 			return value * Server::KB;
 		case 'M':

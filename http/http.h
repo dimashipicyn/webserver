@@ -3,6 +3,7 @@
 
 #include <string>
 #include <map>
+#include <set>
 
 #include "EventPool.h"
 
@@ -21,8 +22,7 @@ public:
     HTTP();
     virtual ~HTTP();
 
-    void listen(const std::string& host);
-    void start();
+	static void startServer();
 
 protected:
     virtual void asyncAccept(TcpSocket& socket);
@@ -30,13 +30,16 @@ protected:
     virtual void asyncWrite(int socket);
     virtual void asyncEvent(int socket, uint16_t flags);
 
+	void listen(const std::string& host);
+	void start();
+
     Session*    getSessionByID(int id);
     void        closeSessionByID(int id);
     void        newSessionByID(int id, Session& session);
 
     void handler(Request& request, Response &response);
-    void cgi(Request &request, Response& response, Route* route);
-    void autoindex(Request &request, Response& response, Route* route);
+    void cgi(const Request &request, Response& response, Route* route);
+    void autoindex(const Request &request, Response& response, Route* route);
 
     void defaultReadFunc(int socket, Session* session);
     void defaultWriteFunc(int socket, Session* session);
@@ -45,6 +48,27 @@ protected:
     typedef std::map<int, Session> tdSessionMap;
 private:
     tdSessionMap    sessionMap_;
+
+
+	//===========================Moved from web.1.0 ==========================//
+	void methodGET(const Request&, Response&, Route*);
+	void methodPOST(const Request&, Response&, Route*);
+	void methodDELETE(const Request&, Response&, Route*);
+	void methodPUT(const Request&, Response&, Route*);
+	void methodHEAD(const Request&, Response&, Route*);
+	void methodNotAllowed(const Request&, Response&);
+//	void BadRequest(Response&);
+
+
+    typedef std::map<std::string, void (HTTP::*)(const Request &, Response&, Route*)> MethodHttp;
+    static MethodHttp _method;
+	static MethodHttp 	initMethods();
+
+	static std::set<std::string> _allMethods;
+	static std::set<std::string> initAllMethods();
+	//==========================================================================
+
+
 };
 
 #endif // HTTP_H

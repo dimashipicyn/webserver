@@ -24,8 +24,9 @@ struct httpEx : public std::exception
     int         error_code;
 };
 
-struct BadRequest {enum {error_code = 400};};
+
 struct Unauthorized {enum {error_code = 401};};
+struct BadRequest {enum {error_code = 400};};
 struct PaymentRequired {enum {error_code = 402};};
 struct Forbidden {enum {error_code = 403};};
 struct NotFound {enum {error_code = 404};};

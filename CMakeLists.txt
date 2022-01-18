@@ -27,6 +27,8 @@ add_executable(webserv
         http/Request.cpp
         http/Response.h
         http/Response.cpp
+        http/ResponseHeader.hpp
+        http/ResponseHeader.cpp
         http/http.cpp
         http/http.h
         http/httpExceptions.h
