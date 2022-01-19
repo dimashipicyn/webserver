@@ -28,6 +28,7 @@ public:
 	void 				setHeaderField(const std::string&, int);
 	void				setContentType(const std::string& path);
 	std::string			readFile(const std::string& path);
+    void                writeFile(const std::string& path, const std::string body);
 	void 				writeContent(const std::string& content, const Request&);
 
 

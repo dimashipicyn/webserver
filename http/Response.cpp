@@ -101,13 +101,22 @@ std::string Response::readFile(const std::string &path) {
 	return os.str();
 }
 
+void    Response::writeFile(const std::string& path, const std::string body){
+    std::ofstream	file;
+    file.open(path.c_str(), std::ofstream::out | std::ofstream::trunc);
+    if (!file.is_open()) throw httpEx<Forbidden>("Forbidden");
+    file << body;
+    file.close();
+}
+
 void	Response::writeContent(const std::string& path, const Request& request) {
 	std::ofstream	file;
-	const std::string& body = request.getBody();
+    std::string body = request.getBody();
 	if (utils::isFile(path)) {
 		file.open(path.c_str());
 		file << body;
 		file.close();
+        body.clear();
 		setStatusCode(204);
 	}
 	else {
@@ -115,12 +124,12 @@ void	Response::writeContent(const std::string& path, const Request& request) {
 		if (!file.is_open()) throw httpEx<Forbidden>("Forbidden");
 		file << body;
 		file.close();
-		setHeaderField("Content-Length", body.size());
-		setHeaderField("Content-Location", path);
-		setContentType(path);
-		content_ = getHeader() + body;
 		setStatusCode(201);
 	}
+    setHeaderField("Content-Type", request.getHeaders().at("Content-Type"));
+    setHeaderField("Content-Length", body.size());
+    setHeaderField("Content-Location", path);
+    content_ = getHeader() + body;
 }
 
 std::map<std::string, std::string> Response::initContentType() {

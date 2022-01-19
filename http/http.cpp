@@ -207,6 +207,17 @@ void HTTP::cgi(const Request &request, Response& response, Route* route) {
 
     if (route != nullptr && utils::getExtension(path) == route->getCgi()) {
         response.setContent(Cgi(request, *route).runCGI());
+
+        //=================oleg==================
+ /*
+  * Check meta which method call cgi!!!
+  * should be like this
+  *     const std::string& body = Cgi(request, *route).runCGI();
+        response.setHeaderField("Content-Type", request.getHeaders().at("Content-Type"));
+        response.setHeaderField("Content-Length", body.size());
+        response.setStatusCode(200);
+        response.setContent(response.getHeader() + body);
+        */
     }
 }
 
@@ -382,6 +393,7 @@ void HTTP::handler(Request& request, Response& response) {
 		std::string path = route->getFullPath(request.getPath());
 		std::string body;
         if ( !utils::isFile(path) ){
+    // need fileName to inspect file type
 			body = route->getDefaultPage(request.getPath());
 		} else {
             body = response.readFile(path);
@@ -397,21 +409,16 @@ void HTTP::handler(Request& request, Response& response) {
 
 	void HTTP::methodPOST(const Request& request, Response& response, Route* route){
 		checkIfAllowed(request, route);
-		/*
 		std::cout << request << std::endl;
-
-		/*
-		 * put autoindex && cgi her
-		 */
-
-		//read source file
-/*		std::string path = route->getFullPath(request.getPath());
-		std::string body = response.writeFile(path);
-		response.setStatusCode(200);
-		response.setHeaderField("Host", request.getHost());
-		response.setContentType(path);
-		response.setHeaderField("Content-Length", body.size() );
-		response.setContent(response.getHeader() + body);*/
+        cgi(request, response, route);
+        autoindex(request, response, route);
+        if (!response.getContent().empty()) return; // Костыльно, но времени не хватит для более глубокой интеграции
+        const std::string& path = route->getFullPath(request.getPath());
+        const std::string& body = request.getBody();
+        response.writeFile(path, body);
+        response.setStatusCode(201);
+        //response.setHeaderField("Content-Location", "/filename.xxx");
+        response.setContent(response.getHeader());
 }
 
 	void HTTP::methodDELETE(const Request& request, Response& response, Route* route){
@@ -467,20 +474,8 @@ void HTTP::handler(Request& request, Response& response) {
 			throw httpEx<MethodNotAllowed>("Method Not Allowed");
 		}
 	}
-/*
-	void HTTP::methodNotAllowed(const Request& request, Response& response){
-		response.setStatusCode(405);
-		std::string strAllowMethods;
-		for (HTTP::MethodHttp::iterator it = _method.begin();
-			 it != _method.end(); ++it){
-			if (it == _method.begin()) strAllowMethods += it->first;
-			else strAllowMethods = strAllowMethods + ", " + it->first;
-		}
-		response.setHeaderField("Allow", strAllowMethods);
-	}
-*/
-//==============================Moved from Response class=====================
 
+//==============================Moved from Response class=====================
 
     HTTP::MethodHttp 	HTTP::initMethods()
 	{
