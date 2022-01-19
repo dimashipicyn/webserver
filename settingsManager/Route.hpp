@@ -120,6 +120,11 @@ public:
 	std::string getDefaultPage(std::string const &resource);
 
 	/**
+	 * @brief то же самое что и getDefaultPage, только отдает абсолютный путь к файлу, вместо содержимого
+	 */
+	std::string getDefaultFileName(std::string const &resource);
+
+	/**
 	 * @brief проверяет ресурс на редиректы
 	 *
 	 * @param redirectTo ссылка на строку куда писать адрес редиректа, если найден.

@@ -214,3 +214,19 @@ int Route::checkRedirectOnPath(std::string &redirectTo, const std::string &resou
 	}
 	return status;
 }
+
+std::string Route::getDefaultFileName(const std::string &resource)
+{
+	std::string fullPath = getFullPath(resource);
+	std::string line;
+	std::string result = "";
+
+	for (std::vector<std::string>::const_iterator i = defaultFiles_.begin(); i != defaultFiles_.end(); i++)
+	{
+		std::string tryPath = fullPath + (*i);
+		if (access(tryPath.c_str(), F_OK) != -1) {
+			return tryPath;
+		}
+	}
+	throw DefaultFileNotFoundException("There is no default files at directory");
+}
