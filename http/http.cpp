@@ -179,6 +179,7 @@ void HTTP::defaultReadFunc(int socket, Session *session)
 	}
 	buf[readBytes] = '\0';
 	session->readBuf.append(buf);
+    LOG_DEBUG("rbuf: %s", session->readBuf.c_str());
 	if (session->readBuf.find("\n\n") != std::string::npos
 		|| session->readBuf.find("\r\n\r\n") != std::string::npos)
 	{
@@ -462,7 +463,8 @@ void HTTP::handler(Request& request, Response& response) {
 	}
 	catch (httpEx<MethodNotAllowed> &e) {
 		LOG_INFO("MethodNotAllowed: %s\n", e.what());
-		response.buildErrorPage(e.error_code, request);
+        //response.setStatusCode(e.error_code);
+        response.buildErrorPage(e.error_code, request);
 	}
 	catch (httpEx<NotAcceptable> &e) {
 		LOG_INFO("NotAcceptable: %s\n", e.what());
@@ -623,12 +625,12 @@ void HTTP::handler(Request& request, Response& response) {
 
 	void HTTP::methodHEAD(const Request& request, Response& response, Route* route) {
 		checkIfAllowed(request, route);
-		std::string path = route->getFullPath(request.getPath());
-		std::string body = utils::readFile(path);
+//		std::string path = route->getFullPath(request.getPath());
+//		std::string body = utils::readFile(path);
 		response.setStatusCode(200);
 		response.setHeaderField("Host", request.getHost());
-		response.setContentType(path);
-		response.setHeaderField("Content-Length", body.size() );
+//		response.setContentType(path);
+//		response.setHeaderField("Content-Length", body.size() );
 }
 
 	void HTTP::methodCONNECT(const Request& request, Response& response, Route*){
