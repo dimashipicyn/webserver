@@ -373,23 +373,25 @@ void HTTP::cgi(const Request &request, Response& response, Route* route) {
 }
 
 void HTTP::autoindex(const Request &request, Response &response, Route *route) {
-	const std::string& path = request.getPath();
 
-	if (route != nullptr && route->isAutoindex() && utils::getExtension(path).empty()) {
-		std::stringstream header;
-		std::string html;
-		try
-		{
-			html = route->getDefaultPage(path);
-		} catch (Route::DefaultFileNotFoundException &e) {
-			LOG_DEBUG("Default file at %s not found. Proceed autoindexing.\n", path.c_str());
-			html = Autoindex(*route).generatePage(path);
-		}
-		header << "HTTP/1.1 200 OK\n"
-			   << "Content-Length: " << html.size() << "\n"
-			   << "Content-Type: text/html\n\n";
-		response.setContent(header.str() + html);
-	}
+    const std::string& path = request.getPath();
+
+    if (route != nullptr && route->isAutoindex() && utils::getExtension(path).empty()) {
+        std::stringstream header;
+        std::string html;
+
+        try
+        {
+            html = route->getDefaultPage(path);
+        } catch (Route::DefaultFileNotFoundException &e) {
+            LOG_DEBUG("Default file at %s not found. Proceed autoindexing.\n", path.c_str());
+            html = Autoindex(*route).generatePage(path);
+        }
+        response.setStatusCode(200);
+        response.setHeaderField("Content-Length", html.size());
+        response.setHeaderField("Content-Type", "text/html");
+        response.setBody(header.str() + html);
+    }
 }
 
 // здесь происходит обработка запроса

@@ -22,8 +22,13 @@ void Response::setContent(const std::string &s) {
 }
 
 const std::string& Response::getContent() {
-	content_ = "HTTP/1.1 " + utils::to_string(statusCode_) + " " + reasonPhrase[statusCode_] + "\r\n";
-	content_ += header_ + "\r\n" + body_;
+    content_ = "HTTP/1.1 "
+            + utils::to_string(statusCode_)
+            + " " + reasonPhrase[statusCode_]
+            + "\r\n"
+            + header_
+            + "\r\n\r\n"
+            + body_;
 	return content_;
 }
 
