@@ -96,6 +96,27 @@ bool utils::isFile(const std::string& path){
 	return false;
 }
 
+std::string			utils::getDate(void){
+	char			buffer[100];
+	struct timeval	tv;
+	struct tm		*tm;
+
+	gettimeofday(&tv, NULL);
+	tm = gmtime(&tv.tv_sec);
+	strftime(buffer, 100, "%a, %d %b %Y %H:%M:%S GMT", tm);
+	return std::string(buffer);
+}
+
+std::string utils::readFile(const std::string &path) {
+	std::ifstream sourceFile;
+	sourceFile.open(path.c_str(), std::ifstream::in);
+	std::ostringstream os;
+	if (!sourceFile.is_open()) throw httpEx<NotFound>("Cannot open requested resource");
+	os << sourceFile.rdbuf();
+	sourceFile.close();
+	return os.str();
+}
+
 /*
 int main() {
     std::string s = "hello world bro";

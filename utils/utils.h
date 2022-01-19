@@ -6,6 +6,9 @@
 #define WEBSERV_UTILS_H
 #include <sstream>
 #include <sys/stat.h>
+#include <sys/time.h>
+#include <fstream>
+#include "httpExceptions.h"
 
 namespace utils
 {
@@ -67,6 +70,10 @@ namespace utils
     }
 
 	bool isFile(const std::string& path);
+
+	std::string		getDate(void);
+
+	std::string readFile(const std::string &path);
 }
 
 #endif //WEBSERV_UTILS_H

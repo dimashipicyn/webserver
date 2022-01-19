@@ -54,7 +54,7 @@ server:
   max_body_size: 100B
   route:
     - location: /
-      root: /Users/dinaa/CLionProjects/yoopi
+      root: /Users/griddler/www
       default_file:
         - page1.html
         - index.jsp

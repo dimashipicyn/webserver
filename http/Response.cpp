@@ -7,6 +7,7 @@
 #include "utils.h"
 #include "SettingsManager.hpp"
 #include "Route.hpp"
+#include "Request.h"
 
 Response::Response() {
 
@@ -21,7 +22,9 @@ void Response::setContent(const std::string &s) {
 }
 
 const std::string& Response::getContent() {
-    return content_;
+	content_ = "HTTP/1.1 " + utils::to_string(statusCode_) + " " + reasonPhrase[statusCode_] + "\r\n";
+	content_ += header_ + "\r\n" + body_;
+	return content_;
 }
 
 //Change: take from config errorfile paths
@@ -29,51 +32,42 @@ std::string Response::getErrorPath(const Request &request) const {
 	return ".\\root\\www\\page404.html";
 }
 
-void Response::setStatusCode(int code){ header_.setStatusCode(code); }
-
-void Response::setHeaderField(const std::string &key, const std::string &value) {
-	header_.setHeaderField(key, value);
-}
-
-void Response::setHeaderField(const std::string &key, int value) {
-	std::ostringstream os;
-	os << value;
-	header_.setHeaderField(key, os.str() );
+void Response::setStatusCode(int code){
+	statusCode_ = code;
 }
 
 void Response::setContentType(const std::string& path) {
 	std::string type = utils::getExtension(path);
-	std::string value;
-	try {
-		value = _contentType.at(type);
-	} catch(const std::exception& e) {
-		value = "text/plain";
+	std::string value = "text/plain";
+	if (!type.empty() ) {
+		try {
+			value = _contentType.at(type);
+		} catch (const std::out_of_range &e) {}
 	}
-	setHeaderField("Content-Type", value);
+	header_ += "Content-Type: " + value + "\n";
 }
 
 std::string		Response::getHeader(){
-	return	header_.getHeader();
+	return	header_;
 }
 
 void		Response::buildErrorPage(int code, const Request& request) {
-	std::ostringstream os;
-	os << "<!DOCTYPE html>";
-	os << "<html>";
-	os << "<head>";
-	os << "<title>Error" << code << "</title>";
-	os << "</head>";
-	os << "<body>";
-	os << "<h1>Oops! An Error Occurred</h1>";
-	os << "<h2>The server returned a " << code << ". " << _errors[code] << "</h2>";
-	os << "</body>";
-	os << "</html>";
+	body_ = "<!DOCTYPE html>";
+	body_ += "<html>";
+	body_ += "<head>";
+	body_ += "<title>Error" + utils::to_string(code) + "</title>";
+	body_ += "</head>";
+	body_ += "<body>";
+	body_ += "<h1>Oops! An Error Occurred</h1>";
+	body_ += "<h2>The server returned a " + utils::to_string(code) + ". ";
+	body_ += reasonPhrase[code] + "</h2>";
+	body_ += "</body>";
+	body_ += "</html>";
 
-	setStatusCode(code);
-	setHeaderField("Host", request.getHost());
-	setHeaderField("Content-Length", os.str().size());
-	setHeaderField("Content-Type", "text/html");
-	content_ = getHeader() + os.str();
+	statusCode_ = code;
+	header_ += "Host: " + request.getHost() + "\r\n";
+	header_ += "Content-Length: " + utils::to_string(body_.size()) + "\r\n";
+	header_ += "Content-Type: text/html\r\n";
 }
 
 void Response::buildDelPage(const Request& request) {
@@ -85,21 +79,11 @@ void Response::buildDelPage(const Request& request) {
 	os << "</body>";
 	os << "/html";
 	setStatusCode(200);
-	setHeaderField("Host", request.getHost());
+	setHeaderField("Host", request.getHost() );
 	setHeaderField("Content-Length", os.str().size());
 	setHeaderField("Content-Type", "text/html");
-	content_ = getHeader() + os.str();
 }
 
-std::string Response::readFile(const std::string &path) {
-	std::ifstream sourceFile;
-	sourceFile.open(path.c_str(), std::ifstream::in);
-	std::ostringstream os;
-	if (!sourceFile.is_open()) throw httpEx<NotFound>("Cannot open requested resource");
-	os << sourceFile.rdbuf();
-	sourceFile.close();
-	return os.str();
-}
 
 void    Response::writeFile(const std::string& path, const std::string body){
     std::ofstream	file;
@@ -131,6 +115,22 @@ void	Response::writeContent(const std::string& path, const Request& request) {
     setHeaderField("Content-Location", path);
     content_ = getHeader() + body;
 }
+//=================part from Response Header====================================
+void Response::setHeaderField(const std::string &key, const std::string &value) {
+	header_ += key + ": " + value + "\r\n";
+}
+
+void Response::setHeaderField(const std::string &key, int value) {
+	header_ += key + ": " + utils::to_string(value) + "\n";
+}
+
+void Response::setBody(const std::string &body) {
+	body_ = body;
+}
+
+const std::string& Response::getBody(){
+	return body_;
+}
 
 std::map<std::string, std::string> Response::initContentType() {
 	std::map<std::string, std::string> contentType;
@@ -150,20 +150,19 @@ std::map<std::string, std::string> Response::_contentType
 		= Response::initContentType();
 
 std::map<int, std::string>	Response::initErrorMap(){
-	std::map<int, std::string> errors;
-	errors[100] = "Continue";
-	errors[200] = "OK";
-	errors[201] = "Created";
-	errors[204] = "No Content";
-	errors[400] = "Bad Request";
-	errors[403] = "Forbidden";
-	errors[404] = "Not Found";
-	errors[405] = "Method Not Allowed";
-	errors[413] = "Payload Too Large";
-	errors[500] = "Internal Server Error";
-	return errors;
+	std::map<int, std::string> reasonPhrase;
+	reasonPhrase[100] = "Continue";
+	reasonPhrase[200] = "OK";
+	reasonPhrase[201] = "Created";
+	reasonPhrase[204] = "No Content";
+	reasonPhrase[400] = "Bad Request";
+	reasonPhrase[403] = "Forbidden";
+	reasonPhrase[404] = "Not Found";
+	reasonPhrase[405] = "Method Not Allowed";
+	reasonPhrase[413] = "Payload Too Large";
+	reasonPhrase[500] = "Internal Server Error";
+	return reasonPhrase;
 }
 
-std::map<int, std::string> Response::_errors
-		= ResponseHeader::initErrorMap();
+std::map<int, std::string> Response::reasonPhrase = Response::initErrorMap();
 

@@ -78,9 +78,6 @@ private:
     typedef std::map<std::string, void (HTTP::*)(const Request &, Response&, Route*)> MethodHttp;
     static MethodHttp _method;
 	static MethodHttp 	initMethods();
-
-	static std::set<std::string> _allMethods;
-	static std::set<std::string> initAllMethods();
 	//==========================================================================
 
 

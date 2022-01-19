@@ -356,7 +356,7 @@ void HTTP::cgi(const Request &request, Response& response, Route* route) {
     const std::string& path = request.getPath();
 
     if (route != nullptr && utils::getExtension(path) == route->getCgi()) {
-        response.setContent(Cgi(request, *route).runCGI());
+        response.setBody(Cgi(request, *route).runCGI());
 
         //=================oleg==================
  /*
@@ -366,7 +366,7 @@ void HTTP::cgi(const Request &request, Response& response, Route* route) {
         response.setHeaderField("Content-Type", request.getHeaders().at("Content-Type"));
         response.setHeaderField("Content-Length", body.size());
         response.setStatusCode(200);
-        response.setContent(response.getHeader() + body);
+        response.setBody(body);
         */
     }
 }
@@ -398,7 +398,7 @@ void HTTP::handler(Request& request, Response& response) {
 		LOG_DEBUG("--------------PRINT REQUEST--------------\n");
         std::cout << request << std::endl;
 
-
+/*
         if (request.getMethod() == "GET") {
             sendFile(request, response, "./index.html");
             return;
@@ -407,7 +407,7 @@ void HTTP::handler(Request& request, Response& response) {
             recvFile(request, response, "./my_file");
             return;
         }
-
+*/
 
 		// Сравниваем расширение запрошенного ресурса с cgi расширением для этого локейшена. Если бьется, запуск скрипта
 		SettingsManager *settingsManager = SettingsManager::getInstance();
@@ -418,13 +418,18 @@ void HTTP::handler(Request& request, Response& response) {
 		if (route == nullptr) {
 			throw httpEx<NotFound>("Not Found");
 		}
-		( this->*_method.at(request.getMethod()) )(request, response, route);
-	}
-	catch (const std::out_of_range& e){
-		response.buildErrorPage(400, request);
+		std::string method = request.getMethod();
+		if (method.empty() ) throw httpEx<BadRequest>("Invalid Request");
+		try {
+			(this->*_method.at(method))(request, response, route);
+		}
+		catch (const std::out_of_range& e) {
+			throw httpEx<BadRequest>("Invalid Request");
+		}
 	}
 	catch (httpEx<BadRequest> &e) {
 		LOG_INFO("BadRequest: %s\n", e.what());
+		response.buildErrorPage(e.error_code, request);
 	}
 	catch (httpEx<Unauthorized> &e) {
 		LOG_INFO("Unauthorized: %s\n", e.what());
@@ -548,7 +553,7 @@ void HTTP::handler(Request& request, Response& response) {
 		checkIfAllowed(request, route);
 		cgi(request, response, route);
 		autoindex(request, response, route);
-        if (!response.getContent().empty()) return; // Костыльно, но времени не хватит для более глубокой интеграции
+        if (!response.getBody().empty()) return; // Костыльно, но времени не хватит для более глубокой интеграции
 
 		//read source file
 		std::string path = route->getFullPath(request.getPath());
@@ -557,7 +562,7 @@ void HTTP::handler(Request& request, Response& response) {
     // need fileName to inspect file type
 			body = route->getDefaultPage(request.getPath());
 		} else {
-            body = response.readFile(path);
+            body = utils::readFile(path);
         }
 	//	std::string errorPage = SettingsManager::getInstance()->findServer(request.getHost())->getErrorPage();// if not empty use config errorfile
 
@@ -565,7 +570,7 @@ void HTTP::handler(Request& request, Response& response) {
 		response.setHeaderField("Host", request.getHost());
 		response.setContentType(path);
 		response.setHeaderField("Content-Length", body.size() );
-		response.setContent(response.getHeader() + body);
+		response.setBody(body);
 	}
 
 	void HTTP::methodPOST(const Request& request, Response& response, Route* route){
@@ -573,13 +578,12 @@ void HTTP::handler(Request& request, Response& response) {
 		std::cout << request << std::endl;
         cgi(request, response, route);
         autoindex(request, response, route);
-        if (!response.getContent().empty()) return; // Костыльно, но времени не хватит для более глубокой интеграции
+        if (!response.getBody().empty()) return; // Костыльно, но времени не хватит для более глубокой интеграции
         const std::string& path = route->getFullPath(request.getPath());
         const std::string& body = request.getBody();
         response.writeFile(path, body);
         response.setStatusCode(201);
         //response.setHeaderField("Content-Location", "/filename.xxx");
-        response.setContent(response.getHeader());
 }
 
 	void HTTP::methodDELETE(const Request& request, Response& response, Route* route){
@@ -604,12 +608,11 @@ void HTTP::handler(Request& request, Response& response) {
 	void HTTP::methodHEAD(const Request& request, Response& response, Route* route) {
 		checkIfAllowed(request, route);
 		std::string path = route->getFullPath(request.getPath());
-		std::string body = response.readFile(path);
+		std::string body = utils::readFile(path);
 		response.setStatusCode(200);
 		response.setHeaderField("Host", request.getHost());
 		response.setContentType(path);
 		response.setHeaderField("Content-Length", body.size() );
-		response.setContent(response.getHeader());
 }
 
 	void HTTP::methodCONNECT(const Request& request, Response& response, Route*){
@@ -640,7 +643,7 @@ void HTTP::handler(Request& request, Response& response) {
 
     HTTP::MethodHttp 	HTTP::initMethods()
 	{
-		std::map<std::string, void (HTTP::*)(const Request &, Response&, Route*)> map;
+		HTTP::MethodHttp map;
 		map["GET"] = &HTTP::methodGET;
 		map["POST"] = &HTTP::methodPOST;
 		map["DELETE"] = &HTTP::methodDELETE;
@@ -653,26 +656,10 @@ void HTTP::handler(Request& request, Response& response) {
 		return map;
 	}
 
-
-
 	HTTP::MethodHttp HTTP::_method
 			= HTTP::initMethods();
 
-	std::set<std::string> HTTP::initAllMethods(){
-		std::set<std::string> allMethods;
-		allMethods.insert("GET");
-		allMethods.insert("HEAD");
-		allMethods.insert("POST");
-		allMethods.insert("PUT");
-		allMethods.insert("DELETE");
-		allMethods.insert("CONNECT");
-		allMethods.insert("OPTIONS");
-		allMethods.insert("TRACE");
-		allMethods.insert("PATCH");
-		return allMethods;
-	}
 
-	std::set<std::string> HTTP::_allMethods = initAllMethods();
 //=========================================================================
 
 
