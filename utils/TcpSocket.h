@@ -4,11 +4,9 @@
 
 #ifndef WEBSERV_TCPSOCKET_H
 #define WEBSERV_TCPSOCKET_H
-#include <iostream>
-#include <netinet/in.h>
-#include <sys/fcntl.h>
-#include <arpa/inet.h>
-#include <unistd.h>
+
+#include <string>
+#include <sys/socket.h>
 
 class TcpSocket
 {

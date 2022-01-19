@@ -2,6 +2,11 @@
 // Created by Lajuana Bespin on 10/29/21.
 //
 
+#include <netinet/in.h>
+#include <sys/fcntl.h>
+#include <arpa/inet.h>
+#include <unistd.h>
+
 #include "TcpSocket.h"
 #include "utils.h"
 #include "Logger.h"

@@ -10,57 +10,64 @@
 #include "utils.h"
 #include "Logger.h"
 
-Request::Request() : state_(PARSE_QUERY) {
+Request::Request()
+    : buffer_()
+    , host_()
+    , method_()
+    , version_()
+    , path_()
+    , query_string_()
+    , body_()
+    , headers_()
+    , id_(-1)
+    , isGood_(true)
+{
 }
 
 Request::~Request() {
 }
 
-void Request::parse(const char *buf)
+
+Request::Request(const Request& request)
+    : buffer_()
+    , host_(request.host_)
+    , method_(request.method_)
+    , version_(request.version_)
+    , path_(request.path_)
+    , query_string_(request.query_string_)
+    , body_(request.body_)
+    , headers_(request.headers_)
+    , id_(-1)
+    , isGood_(true)
 {
-    buffer_.write(buf, strlen(buf));
+}
 
-    std::size_t foundTwoNewLines = buffer_.str().find("\n\n");
-    std::size_t foundTwoNewLinesWithCarriageReturn = buffer_.str().find("\r\n\r\n");
-    if (   (state_ == PARSE_QUERY)
-        && (foundTwoNewLines                   == std::string::npos)
-        && (foundTwoNewLinesWithCarriageReturn == std::string::npos)
-        )
-    {
-        LOG_DEBUG("Query dont full\n");
-    //    return;
+Request& Request::operator=(const Request& request) {
+    if (this == &request) {
+        return *this;
     }
+    host_ = request.host_;
+    method_ = request.method_;
+    version_ = request.version_;
+    path_ = request.path_;
+    query_string_ = request.query_string_;
+    body_ = request.body_;
+    headers_ = request.headers_;
+    id_ = request.id_;
+    isGood_ = request.isGood_;
+    return *this;
+}
 
+void Request::parse(const std::string& s)
+{
+    buffer_.write(s.c_str(), s.size());
+
+    LOG_DEBUG("Parse query\n");
 
     // parse
-    if (state_ == PARSE_QUERY) {
-        LOG_DEBUG("Parse query\n");
-        parse_first_line();
-        parse_headers();
-
-        if (hasHeader("Content-Length")) {
-            state_ = PARSE_BODY_WITH_LENGTH;
-        }
-        else if (   hasHeader("Transfer-Encoding")
-            && getHeaderValue("Transfer-Encoding") == "chunked"){
-            state_ = PARSE_CHUNKED_BODY;
-        }
-        else {
-            state_ = PARSE_BODY;
-        }
-    }
-    if (state_ == PARSE_BODY) {
-        LOG_DEBUG("Parse body\n");
-        parse_body();
-    }
-    if (state_ == PARSE_BODY_WITH_LENGTH) {
-        LOG_DEBUG("Parse body with length\n");
-        parse_body_with_length();
-    }
-    if (state_ == PARSE_CHUNKED_BODY) {
-        LOG_DEBUG("Parse chunked body\n");
-        parse_chunked_body();
-    }
+    parse_first_line();
+    parse_headers();
+    parse_body();
 }
 
 static void skipNewLines(std::stringstream& ss)
@@ -79,10 +86,14 @@ static void skipNewLines(std::stringstream& ss)
 
 void Request::parse_first_line()
 {
-    buffer_ >> method_ >> path_ >> version_;
-    skipNewLines(buffer_);
+    std::string line;
+    std::getline(buffer_, line, '\n');
+
+    std::stringstream firstLine(line);
+
+    firstLine >> method_ >> path_ >> version_;
     if (method_.empty() || path_.empty() || version_.empty()) {
-        state_ = PARSE_ERROR;
+        isGood_ = false;
     }
     else {
         // проверяем на наличие query string
@@ -97,57 +108,43 @@ void Request::parse_first_line()
 
 void Request::parse_headers()
 {
-    std::string key;
-    std::string value;
-
-    skipNewLines(buffer_);
-    while (!buffer_.eof()) {
-        std::getline(buffer_, key, ':');
-        std::getline(buffer_, value, '\n');
-        headers_.insert(std::pair<std::string, std::string>(utils::trim(key, " "), value));
-        skipNewLines(buffer_);
+    if (!isGood_) { // false
+        return;
     }
-}
 
-void Request::parse_body_with_length()
-{
-    uint64_t contentLen = utils::to_number<uint64_t>(getHeaderValue("Content-Length"));
-    const uint64_t bufSize = 1 << 16;
+    std::string line;
+    size_t pos;
 
-    skipNewLines(buffer_);
-
-    std::streamsize readLen = static_cast<std::streamsize>(std::min(contentLen - body_.size(), bufSize));
-    std::string bodyStr;
-    bodyStr.resize(readLen + 1); // для нуль терминатора
-    buffer_.read(&bodyStr[0], readLen);
-
-    body_.append(bodyStr.c_str());
-    buffer_.str("");
-    buffer_.clear();
-
-    if (contentLen == body_.size()) {
-        state_ = PARSE_DONE;
+    std::getline(buffer_, line, '\n');
+    if ((pos = line.find_last_of("\r")) != std::string::npos) {
+        line.erase(pos);
     }
-}
+    while (!line.empty())
+    {
+        pos = line.find_first_of(":");
+        if (pos == std::string::npos) {
+            isGood_ = false;
+            return;
+        }
 
-void Request::parse_chunked_body() {
+        headers_[line.substr(0, pos)] = utils::trim(line.substr(pos + 1), " \t\n\r");
 
+        std::getline(buffer_, line, '\n');
+        if ((pos = line.find_last_of("\r")) != std::string::npos) {
+            line.erase(pos);
+        }
+    }
 }
 
 void Request::parse_body() {
+    if (!isGood_) { // false
+        return;
+    }
     std::string s;
     std::getline(buffer_, s, '\0');
     body_.append(s);
     buffer_.str("");
     buffer_.clear();
-    //if (buffer_.str().empty()) { FIXME
-        state_ = PARSE_DONE;
-    //    return;
-    //}
-}
-
-Request::State Request::getState() const {
-    return state_;
 }
 
 std::ostream& operator<<(std::ostream& os, const Request& request) {
@@ -162,7 +159,6 @@ std::ostream& operator<<(std::ostream& os, const Request& request) {
     os << "Body: " << request.getBody() << std::endl;
     return os;
 }
-
 
 const std::string& Request::getQueryString() const
 {
@@ -199,25 +195,40 @@ void Request::setHost(const std::string& host) {
     host_ = host;
 }
 
-bool Request::hasHeader(const std::string &key) {
+bool Request::hasHeader(const std::string &key) const {
     if (headers_.find(key) != headers_.end()) {
         return true;
     }
     return false;
 }
 
-const std::string& Request::getHeaderValue(const std::string &key) {
-    return headers_[key];
+const std::string& Request::getHeaderValue(const std::string &key) const {
+    if (headers_.find(key) != headers_.end()) {
+        return headers_.find(key)->second;
+    }
+    throw std::runtime_error("NOT FOUND HEADER VALUE\n");
 }
 
 void Request::reset() {
-    method_ = "";
-    path_ = "";
-    version_ = "";
-    query_string_ = "";
-    body_ = "";
+    method_.clear();
+    path_.clear();
+    version_.clear();
+    query_string_.clear();
+    body_.clear();
     buffer_.str("");
     buffer_.clear();
     headers_.clear();
-    state_ = PARSE_QUERY;
+    isGood_ = true;
+}
+
+bool Request::good() const {
+    return isGood_;
+}
+
+void Request::setID(int id) {
+    id_ = id;
+}
+
+int Request::getID() const {
+    return id_;
 }
