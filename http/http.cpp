@@ -28,22 +28,22 @@ typedef void (HTTP::*handlerFunc)(int, Session*);
 
 struct Session
 {
-    void bind(handlerFunc f) {
-        func = f;
-    };
+	void bind(handlerFunc f) {
+		func = f;
+	};
 
-    std::string readBuf;
-    std::string writeBuf;
+	std::string readBuf;
+	std::string writeBuf;
 
-    handlerFunc func;
-    int32_t     fileDesc;
-    int64_t     fileSize;
-    int64_t     recvBytes;
-    Request     request;
+	handlerFunc func;
+	int32_t     fileDesc;
+	int64_t     fileSize;
+	int64_t     recvBytes;
+	Request     request;
 };
 
 HTTP::HTTP()
-    : sessionMap_()
+		: sessionMap_()
 {
 
 }
@@ -54,41 +54,41 @@ HTTP::~HTTP()
 }
 
 void HTTP::start() {
-    EventPool::start();
+	EventPool::start();
 }
 
 void HTTP::listen(const std::string& host)
 {
-    try {
-        TcpSocket conn(host);
-        conn.listen();
-        conn.makeNonBlock();
+	try {
+		TcpSocket conn(host);
+		conn.listen();
+		conn.makeNonBlock();
 
-        Session listenSession;
-        newListenerEvent(conn);
-        newSessionByID(conn.getSock(), listenSession);
-    }  catch (std::exception& e) {
-        LOG_ERROR("HTTP: %s\n", e.what());
-    }
+		Session listenSession;
+		newListenerEvent(conn);
+		newSessionByID(conn.getSock(), listenSession);
+	}  catch (std::exception& e) {
+		LOG_ERROR("HTTP: %s\n", e.what());
+	}
 }
 
 Session* HTTP::getSessionByID(int id)
 {
-    if (sessionMap_.find(id) != sessionMap_.end()) {
-        return &sessionMap_[id];
-    }
-    return nullptr;
+	if (sessionMap_.find(id) != sessionMap_.end()) {
+		return &sessionMap_[id];
+	}
+	return nullptr;
 }
 
 void HTTP::closeSessionByID(int id) {
-    disableTimerEvent(id, 0);
-    ::close(id);
-    sessionMap_.erase(id);
+	disableTimerEvent(id, 0);
+	::close(id);
+	sessionMap_.erase(id);
 }
 
 void HTTP::newSessionByID(int id, Session& session)
 {
-    sessionMap_[id] = session;
+	sessionMap_[id] = session;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -97,255 +97,255 @@ void HTTP::newSessionByID(int id, Session& session)
 
 void HTTP::asyncAccept(TcpSocket& socket)
 {
-    LOG_DEBUG("Event accepter call\n");
+	LOG_DEBUG("Event accepter call\n");
 
-    try
-    {
-        Session *session = getSessionByID(socket.getSock());
-        if (session == nullptr) {
-            LOG_ERROR("Dont find session to socket: %d. Close.\n", socket.getSock());
-            close(socket.getSock());
-            return;
-        }
+	try
+	{
+		Session *session = getSessionByID(socket.getSock());
+		if (session == nullptr) {
+			LOG_ERROR("Dont find session to socket: %d. Close.\n", socket.getSock());
+			close(socket.getSock());
+			return;
+		}
 
-        TcpSocket conn = socket.accept();
+		TcpSocket conn = socket.accept();
 
-        LOG_DEBUG("New connect fd: %d\n", conn.getSock());
+		LOG_DEBUG("New connect fd: %d\n", conn.getSock());
 
-        Session s;
-        s.bind(&HTTP::defaultReadFunc);
-        s.request.setHost(conn.getHost());
+		Session s;
+		s.bind(&HTTP::defaultReadFunc);
+		s.request.setHost(conn.getHost());
 
-        newSessionByID(conn.getSock(), s);
-        enableReadEvent(conn.getSock());
-        enableTimerEvent(conn.getSock(), sessionTimeout); // TODO add config
-    }
-    catch (std::exception& e)
-    {
-        LOG_ERROR("HTTP::asyncAccept error: %s\n", e.what());
-    }
+		newSessionByID(conn.getSock(), s);
+		enableReadEvent(conn.getSock());
+		enableTimerEvent(conn.getSock(), sessionTimeout); // TODO add config
+	}
+	catch (std::exception& e)
+	{
+		LOG_ERROR("HTTP::asyncAccept error: %s\n", e.what());
+	}
 };
 
 void HTTP::asyncWrite(int socket)
 {
-    LOG_DEBUG("Event writer call\n");
+	LOG_DEBUG("Event writer call\n");
 
-    Session *session = getSessionByID(socket);
-    if (session == nullptr) {
-        LOG_ERROR("Dont find session to socket: %d. Close connection.\n", socket);
-        closeSessionByID(socket);
-        return;
-    }
-    (this->*session->func)(socket, session);
+	Session *session = getSessionByID(socket);
+	if (session == nullptr) {
+		LOG_ERROR("Dont find session to socket: %d. Close connection.\n", socket);
+		closeSessionByID(socket);
+		return;
+	}
+	(this->*session->func)(socket, session);
 }
 
 void HTTP::asyncRead(int socket)
 {
-    LOG_DEBUG("Event reader call\n");
+	LOG_DEBUG("Event reader call\n");
 
-    Session *session = getSessionByID(socket);
-    if (session == nullptr) {
-        LOG_ERROR("Dont find session to socket: %d. Close connection.\n", socket);
-        closeSessionByID(socket);
-        return;
-    }
-    (this->*session->func)(socket, session);
+	Session *session = getSessionByID(socket);
+	if (session == nullptr) {
+		LOG_ERROR("Dont find session to socket: %d. Close connection.\n", socket);
+		closeSessionByID(socket);
+		return;
+	}
+	(this->*session->func)(socket, session);
 }
 
 void HTTP::asyncEvent(int socket, uint16_t flags)
 {
-    LOG_DEBUG("Event handler call\n");
-    if (flags & EventPool::M_EOF || flags & EventPool::M_ERROR) {
-        LOG_ERROR("Event error or eof, socket: %d\n", socket);
-        closeSessionByID(socket);
-    }
-    if (flags & EventPool::M_TIMER) {
-        LOG_ERROR("Event timeout, socket: %d\n", socket);
-        closeSessionByID(socket);
-    }
+	LOG_DEBUG("Event handler call\n");
+	if (flags & EventPool::M_EOF || flags & EventPool::M_ERROR) {
+		LOG_ERROR("Event error or eof, socket: %d\n", socket);
+		closeSessionByID(socket);
+	}
+	if (flags & EventPool::M_TIMER) {
+		LOG_ERROR("Event timeout, socket: %d\n", socket);
+		closeSessionByID(socket);
+	}
 }
 
 void HTTP::defaultReadFunc(int socket, Session *session)
 {
-    LOG_DEBUG("defaultReadFunc call\n");
-    const int64_t bufSize = (1 << 16);
-    char buf[bufSize];
+	LOG_DEBUG("defaultReadFunc call\n");
+	const int64_t bufSize = (1 << 16);
+	char buf[bufSize];
 
-    int64_t readBytes = ::read(socket, buf, bufSize - 1);
-    if (readBytes < 0) {
-        closeSessionByID(socket);
-        LOG_ERROR("Dont read to socket: %d. Close connection.\n", socket);
-        return;
-    }
-    buf[readBytes] = '\0';
-    session->readBuf.append(buf);
-    if (session->readBuf.find("\n\n") != std::string::npos
-    || session->readBuf.find("\r\n\r\n") != std::string::npos)
-    {
-        session->bind(&HTTP::defaultWriteFunc);
-        // включаем write
-        enableWriteEvent(socket);
-        disableReadEvent(socket);
-    }
+	int64_t readBytes = ::read(socket, buf, bufSize - 1);
+	if (readBytes < 0) {
+		closeSessionByID(socket);
+		LOG_ERROR("Dont read to socket: %d. Close connection.\n", socket);
+		return;
+	}
+	buf[readBytes] = '\0';
+	session->readBuf.append(buf);
+	if (session->readBuf.find("\n\n") != std::string::npos
+		|| session->readBuf.find("\r\n\r\n") != std::string::npos)
+	{
+		session->bind(&HTTP::defaultWriteFunc);
+		// включаем write
+		enableWriteEvent(socket);
+		disableReadEvent(socket);
+	}
 }
 
 void HTTP::defaultWriteFunc(int socket, Session *session)
 {
-    LOG_DEBUG("defaultWriteFunc call\n");
-    session->bind(&HTTP::doneFunc);
+	LOG_DEBUG("defaultWriteFunc call\n");
+	session->bind(&HTTP::doneFunc);
 
-    std::string& rbuf = session->readBuf;
-    Request& request = session->request;
+	std::string& rbuf = session->readBuf;
+	Request& request = session->request;
 
-    request.reset();
-    request.parse(rbuf);
-    request.setID(socket);
+	request.reset();
+	request.parse(rbuf);
+	request.setID(socket);
 
-    rbuf.clear();
+	rbuf.clear();
 
-    Response response;
-    handler(request, response);
+	Response response;
+	handler(request, response);
 
-    std::string& wbuf = session->writeBuf;
-    wbuf.append(response.getContent());
+	std::string& wbuf = session->writeBuf;
+	wbuf.append(response.getContent());
 
-    int64_t writeBytes = ::write(socket, wbuf.c_str(), wbuf.size());
+	int64_t writeBytes = ::write(socket, wbuf.c_str(), wbuf.size());
 
-    if (writeBytes < 0) {
-        closeSessionByID(socket);
-        LOG_ERROR("Dont write to socket: %d. Close connection.\n", socket);
-        return;
-    }
+	if (writeBytes < 0) {
+		closeSessionByID(socket);
+		LOG_ERROR("Dont write to socket: %d. Close connection.\n", socket);
+		return;
+	}
 
-    wbuf.erase(0, writeBytes);
+	wbuf.erase(0, writeBytes);
 }
 
 void HTTP::doneFunc(int socket, Session *session)
 {
-    LOG_DEBUG("doneFunc call\n");
-    std::string& wbuf = session->writeBuf;
+	LOG_DEBUG("doneFunc call\n");
+	std::string& wbuf = session->writeBuf;
 
-    if (wbuf.empty()) {
-        disableWriteEvent(socket);
-        enableReadEvent(socket);
-        session->bind(&HTTP::defaultReadFunc);
-    }
-    else {
-        int64_t writeBytes = ::write(socket, wbuf.c_str(), wbuf.size());
+	if (wbuf.empty()) {
+		disableWriteEvent(socket);
+		enableReadEvent(socket);
+		session->bind(&HTTP::defaultReadFunc);
+	}
+	else {
+		int64_t writeBytes = ::write(socket, wbuf.c_str(), wbuf.size());
 
-        if (writeBytes < 0) {
-            closeSessionByID(socket);
-            LOG_ERROR("Dont write to socket: %d. Close connection.\n", socket);
-            return;
-        }
+		if (writeBytes < 0) {
+			closeSessionByID(socket);
+			LOG_ERROR("Dont write to socket: %d. Close connection.\n", socket);
+			return;
+		}
 
-        wbuf.erase(0, writeBytes);
-    }
+		wbuf.erase(0, writeBytes);
+	}
 }
 
 void HTTP::sendFileFunc(int socket, Session* session)
 {
-    LOG_DEBUG("sendFileFunc call\n");
-    const int32_t bufSize = (1 << 16);
-    char buf[bufSize] = {};
+	LOG_DEBUG("sendFileFunc call\n");
+	const int32_t bufSize = (1 << 16);
+	char buf[bufSize] = {};
 
-    int32_t fd = session->fileDesc;
-    int32_t readBytes = ::read(fd, buf, bufSize - 1);
+	int32_t fd = session->fileDesc;
+	int32_t readBytes = ::read(fd, buf, bufSize - 1);
 
-    if (readBytes == 0) {
-        close(fd);
-        session->bind(&HTTP::doneFunc);
-    }
+	if (readBytes == 0) {
+		close(fd);
+		session->bind(&HTTP::doneFunc);
+	}
 
-    if (readBytes < 0) {
-        closeSessionByID(socket);
-        LOG_ERROR("Dont read to file: %d. Close connection.\n", socket);
-        return;
-    }
+	if (readBytes < 0) {
+		closeSessionByID(socket);
+		LOG_ERROR("Dont read to file: %d. Close connection.\n", socket);
+		return;
+	}
 
-    buf[readBytes] = '\0';
+	buf[readBytes] = '\0';
 
-    std::string& wbuf = session->writeBuf;
-    wbuf.append(buf);
+	std::string& wbuf = session->writeBuf;
+	wbuf.append(buf);
 
-    int32_t writeBytes = ::write(socket, wbuf.c_str(), wbuf.size());
+	int32_t writeBytes = ::write(socket, wbuf.c_str(), wbuf.size());
 
-    if (writeBytes < 0) {
-        closeSessionByID(socket);
-        LOG_ERROR("Dont write to socket: %d. Close connection.\n", socket);
-        return;
-    }
+	if (writeBytes < 0) {
+		closeSessionByID(socket);
+		LOG_ERROR("Dont write to socket: %d. Close connection.\n", socket);
+		return;
+	}
 
-    wbuf.erase(0, writeBytes);
+	wbuf.erase(0, writeBytes);
 }
 
 void HTTP::recvFileFunc(int socket, Session* session)
 {
-    LOG_DEBUG("recvFileFunc call\n");
-    const int32_t bufSize = (1 << 16);
-    char buf[bufSize] = {};
+	LOG_DEBUG("recvFileFunc call\n");
+	const int32_t bufSize = (1 << 16);
+	char buf[bufSize] = {};
 
 
-    int32_t readBytes = ::read(socket, buf, bufSize - 1);
+	int32_t readBytes = ::read(socket, buf, bufSize - 1);
 
-    if (readBytes < 0) {
-        closeSessionByID(socket);
-        LOG_ERROR("Dont read to file: %d. Close connection.\n", socket);
-        return;
-    }
+	if (readBytes < 0) {
+		closeSessionByID(socket);
+		LOG_ERROR("Dont read to file: %d. Close connection.\n", socket);
+		return;
+	}
 
-    buf[readBytes] = '\0';
-
-
-    std::string& wbuf = session->writeBuf;
-    wbuf.append(buf);
-
-    int32_t fd = session->fileDesc;
-
-    int64_t bytes = 0;
-    if (session->fileSize != -1) {
-        bytes = std::min<int64_t>(wbuf.size(), session->fileSize - session->recvBytes);
-    }
-    else {
-        bytes = wbuf.size();
-    }
+	buf[readBytes] = '\0';
 
 
-    int32_t writeBytes = ::write(fd, wbuf.c_str(), bytes);
+	std::string& wbuf = session->writeBuf;
+	wbuf.append(buf);
 
-    if (writeBytes < 0) {
-        closeSessionByID(socket);
-        LOG_ERROR("Dont write to socket: %d. Close connection.\n", socket);
-        return;
-    }
+	int32_t fd = session->fileDesc;
 
-    session->recvBytes += writeBytes;
-    if (session->recvBytes == session->fileSize) {
-        session->bind(&HTTP::cgiCaller);
-        disableReadEvent(socket);
-        enableWriteEvent(socket);
-    }
+	int64_t bytes = 0;
+	if (session->fileSize != -1) {
+		bytes = std::min<int64_t>(wbuf.size(), session->fileSize - session->recvBytes);
+	}
+	else {
+		bytes = wbuf.size();
+	}
 
-    if (session->fileSize == -1 && wbuf.size()) {
-        session->bind(&HTTP::cgiCaller);
-        disableReadEvent(socket);
-        enableWriteEvent(socket);
-    }
 
-    wbuf.erase(0, writeBytes);
+	int32_t writeBytes = ::write(fd, wbuf.c_str(), bytes);
+
+	if (writeBytes < 0) {
+		closeSessionByID(socket);
+		LOG_ERROR("Dont write to socket: %d. Close connection.\n", socket);
+		return;
+	}
+
+	session->recvBytes += writeBytes;
+	if (session->recvBytes == session->fileSize) {
+		session->bind(&HTTP::cgiCaller);
+		disableReadEvent(socket);
+		enableWriteEvent(socket);
+	}
+
+	if (session->fileSize == -1 && wbuf.size()) {
+		session->bind(&HTTP::cgiCaller);
+		disableReadEvent(socket);
+		enableWriteEvent(socket);
+	}
+
+	wbuf.erase(0, writeBytes);
 }
 
 
 void HTTP::cgiCaller(int socket, Session* session)
 {
-    LOG_DEBUG("CgiCaller call\n");
-    Request& request = session->request;
+	LOG_DEBUG("CgiCaller call\n");
+	Request& request = session->request;
 
-    Response response;
-    cgi(request, response, nullptr);
+	Response response;
+	cgi(request, response, nullptr);
 
-    session->writeBuf.append(response.getContent());
-    session->bind(&HTTP::doneFunc);
+	session->writeBuf.append(response.getContent());
+	session->bind(&HTTP::doneFunc);
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -353,7 +353,8 @@ void HTTP::cgiCaller(int socket, Session* session)
 ///////////////////////////////////////////////////////////////////////////
 
 void HTTP::cgi(const Request &request, Response& response, Route* route) {
-    const std::string& path = request.getPath();
+	const std::string& path = request.getPath();
+
 
     if (route != nullptr && utils::getExtension(path) == route->getCgi()) {
         response.setBody(Cgi(request, *route).runCGI());
@@ -372,23 +373,23 @@ void HTTP::cgi(const Request &request, Response& response, Route* route) {
 }
 
 void HTTP::autoindex(const Request &request, Response &response, Route *route) {
-    const std::string& path = request.getPath();
+	const std::string& path = request.getPath();
 
-    if (route != nullptr && route->isAutoindex() && utils::getExtension(path).empty()) {
-        std::stringstream header;
-        std::string html;
-        try
-        {
-            html = route->getDefaultPage(path);
-        } catch (Route::DefaultFileNotFoundException &e) {
-            LOG_DEBUG("Default file at %s not found. Proceed autoindexing.\n", path.c_str());
+	if (route != nullptr && route->isAutoindex() && utils::getExtension(path).empty()) {
+		std::stringstream header;
+		std::string html;
+		try
+		{
+			html = route->getDefaultPage(path);
+		} catch (Route::DefaultFileNotFoundException &e) {
+			LOG_DEBUG("Default file at %s not found. Proceed autoindexing.\n", path.c_str());
 			html = Autoindex(*route).generatePage(path);
-        }
-        header << "HTTP/1.1 200 OK\n"
-               << "Content-Length: " << html.size() << "\n"
-               << "Content-Type: text/html\n\n";
-        response.setContent(header.str() + html);
-    }
+		}
+		header << "HTTP/1.1 200 OK\n"
+			   << "Content-Length: " << html.size() << "\n"
+			   << "Content-Type: text/html\n\n";
+		response.setContent(header.str() + html);
+	}
 }
 
 // здесь происходит обработка запроса
@@ -396,7 +397,8 @@ void HTTP::handler(Request& request, Response& response) {
 	try {
 		LOG_DEBUG("Http handler call\n");
 		LOG_DEBUG("--------------PRINT REQUEST--------------\n");
-        std::cout << request << std::endl;
+		std::cout << request << std::endl;
+
 
 /*
         if (request.getMethod() == "GET") {
@@ -408,6 +410,18 @@ void HTTP::handler(Request& request, Response& response) {
             return;
         }
 */
+
+
+//		if (request.getMethod() == "GET") {
+//			sendFile(request, response, "./index.html");
+//			return;
+//		}
+//		if (request.getMethod() == "POST") {
+//			recvFile(request, response, "./my_file");
+//			return;
+//		}
+
+
 
 		// Сравниваем расширение запрошенного ресурса с cgi расширением для этого локейшена. Если бьется, запуск скрипта
 		SettingsManager *settingsManager = SettingsManager::getInstance();
@@ -635,9 +649,10 @@ void HTTP::handler(Request& request, Response& response) {
 	void HTTP::checkIfAllowed(const Request& request, Route *route){
 		const std::vector<std::string>& allowedMethods = route->getMethods();
 		if ( find(std::begin(allowedMethods), std::end(allowedMethods), request.getMethod()) == allowedMethods.end() ) {
-			throw httpEx<MethodNotAllowed>("Method Not Allowed");
+			throw httpEx<MethodNotAllowed>("Method Not Allowed"); // put in structure string of allowed methods
+            //response.setHeaderField("Allow", "GET"); // need to put all allowed methods here from config set
 		}
-	}
+    }
 
 //==============================Moved from Response class=====================
 
@@ -658,7 +673,6 @@ void HTTP::handler(Request& request, Response& response) {
 
 	HTTP::MethodHttp HTTP::_method
 			= HTTP::initMethods();
-
 
 //=========================================================================
 
@@ -703,50 +717,50 @@ void HTTP::startServer()
 
 void HTTP::sendFile(Request& request, Response& response, const std::string& path)
 {
-    int fd = ::open(path.c_str(), O_RDONLY);
+	int fd = ::open(path.c_str(), O_RDONLY);
 
-    if (fd == -1) {
-        throw httpEx<InternalServerError>("Cannot open file: " + path);
-    }
+	if (fd == -1) {
+		throw httpEx<InternalServerError>("Cannot open file: " + path);
+	}
 
-    struct stat info;
+	struct stat info;
 
-    if (::fstat(fd, &info) == -1) {
-        throw httpEx<InternalServerError>("Cannot stat file info: " + path);
-    }
+	if (::fstat(fd, &info) == -1) {
+		throw httpEx<InternalServerError>("Cannot stat file info: " + path);
+	}
 
-    int16_t sizeFile = info.st_size;
+	int16_t sizeFile = info.st_size;
 
-    response.setStatusCode(200);
-    response.setHeaderField("Content-Length", sizeFile);
-    response.setContent(response.getHeader());
+	response.setStatusCode(200);
+	response.setHeaderField("Content-Length", sizeFile);
+	response.setContent(response.getHeader());
 
-    Session* session = getSessionByID(request.getID());
+	Session* session = getSessionByID(request.getID());
 
-    session->fileDesc = fd;
-    session->bind(&HTTP::sendFileFunc);
+	session->fileDesc = fd;
+	session->bind(&HTTP::sendFileFunc);
 }
 
 void HTTP::recvFile(Request& request, Response& response, const std::string& path)
 {
-    int fd = ::open(path.c_str(), O_WRONLY|O_CREAT, 0664);
+	int fd = ::open(path.c_str(), O_WRONLY|O_CREAT, 0664);
 
-    if (fd == -1) {
-        throw httpEx<InternalServerError>("Cannot open file: " + path);
-    }
+	if (fd == -1) {
+		throw httpEx<InternalServerError>("Cannot open file: " + path);
+	}
 
-    Session* session = getSessionByID(request.getID());
+	Session* session = getSessionByID(request.getID());
 
-    session->fileDesc = fd;
-    session->recvBytes = 0;
-    if (request.hasHeader("Content-Length")) {
-        session->fileSize = utils::to_number<int64_t>(request.getHeaderValue("Content-Length"));
-    }
-    else {
-        session->fileSize = -1;
-    }
+	session->fileDesc = fd;
+	session->recvBytes = 0;
+	if (request.hasHeader("Content-Length")) {
+		session->fileSize = utils::to_number<int64_t>(request.getHeaderValue("Content-Length"));
+	}
+	else {
+		session->fileSize = -1;
+	}
 
-    session->bind(&HTTP::recvFileFunc);
-    enableReadEvent(request.getID());
-    disableWriteEvent(request.getID());
+	session->bind(&HTTP::recvFileFunc);
+	enableReadEvent(request.getID());
+	disableWriteEvent(request.getID());
 }

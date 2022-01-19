@@ -61,7 +61,7 @@ server:
       upload_to: /Users/griddler/www/downloads
       method:
         - GET
-#      autoindex: on
+      autoindex: on
       redirect:
         - rewrite:
             status: 301
