@@ -15,49 +15,49 @@ struct Session;
 
 class HTTP : public EventPool
 {
-    friend struct Session;
+	friend struct Session;
 
 public:
-    HTTP();
-    virtual ~HTTP();
+	HTTP();
+	virtual ~HTTP();
 
 	static void startServer();
 
 protected:
-    virtual void asyncAccept(TcpSocket& socket);
-    virtual void asyncRead(int socket);
-    virtual void asyncWrite(int socket);
-    virtual void asyncEvent(int socket, uint16_t flags);
+	virtual void asyncAccept(TcpSocket& socket);
+	virtual void asyncRead(int socket);
+	virtual void asyncWrite(int socket);
+	virtual void asyncEvent(int socket, uint16_t flags);
 
-    void defaultReadFunc(int socket, Session* session);
-    void defaultWriteFunc(int socket, Session* session);
-    void doneFunc(int socket, Session* session);
-    void sendFileFunc(int socket, Session* session);
-    void recvFileFunc(int socket, Session* session);
-    void cgiCaller(int socket, Session* session);
-
-
-    Session*    getSessionByID(int id);
-    void        closeSessionByID(int id);
-    void        newSessionByID(int id, Session& session);
+	void defaultReadFunc(int socket, Session* session);
+	void defaultWriteFunc(int socket, Session* session);
+	void doneFunc(int socket, Session* session);
+	void sendFileFunc(int socket, Session* session);
+	void recvFileFunc(int socket, Session* session);
+	void cgiCaller(int socket, Session* session);
 
 
+	Session*    getSessionByID(int id);
+	void        closeSessionByID(int id);
+	void        newSessionByID(int id, Session& session);
 
 
-    void listen(const std::string& host);
-    void start();
-
-    void handler(Request& request, Response &response);
-    void cgi(const Request &request, Response& response, Route* route);
-    void autoindex(const Request &request, Response& response, Route* route);
-
-    void sendFile(Request& request, Response& response, const std::string& path);
-    void recvFile(Request& request, Response& response, const std::string& path);
 
 
-    typedef std::map<int, Session> tdSessionMap;
+	void listen(const std::string& host);
+	void start();
+
+	void handler(Request& request, Response &response);
+	void cgi(const Request &request, Response& response, Route* route);
+	void autoindex(const Request &request, Response& response, Route* route);
+
+	void sendFile(Request& request, Response& response, const std::string& path);
+	void recvFile(Request& request, Response& response, const std::string& path);
+
+
+	typedef std::map<int, Session> tdSessionMap;
 private:
-    tdSessionMap    sessionMap_;
+	tdSessionMap    sessionMap_;
 
 
 	//===========================Moved from web.1.0 ==========================//
@@ -70,8 +70,8 @@ private:
 //	void BadRequest(Response&);
 
 
-    typedef std::map<std::string, void (HTTP::*)(const Request &, Response&, Route*)> MethodHttp;
-    static MethodHttp _method;
+	typedef std::map<std::string, void (HTTP::*)(const Request &, Response&, Route*)> MethodHttp;
+	static MethodHttp _method;
 	static MethodHttp 	initMethods();
 
 	static std::set<std::string> _allMethods;
