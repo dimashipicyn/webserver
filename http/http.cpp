@@ -2,6 +2,12 @@
 #include <array>
 #include <netdb.h>
 #include <arpa/inet.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+
+
 #include "Logger.h"
 #include "http.h"
 #include "Request.h"
@@ -15,67 +21,24 @@
 #include "Cgi.hpp"
 #include "httpExceptions.h"
 
+const int64_t sessionTimeout = 250000; // 250 sec
+
 typedef void (HTTP::*handlerFunc)(int, Session*);
-
-struct RequestState {
-    RequestState()
-        : state(GET_REQUEST)
-        , readBuf()
-        , writeBuf()
-        , funcs()
-    {
-        funcs[GET_REQUEST] = &HTTP::defaultReadFunc;
-        funcs[GET_RESPONSE] = &HTTP::defaultWriteFunc;
-        funcs[DONE] = &HTTP::doneFunc;
-    }
-
-    handlerFunc func() {
-        return funcs[state];
-    }
-    enum State {
-        GET_REQUEST,
-        GET_RESPONSE,
-        DONE,
-        Total
-    };
-    State       state;
-    std::string readBuf;
-    std::string writeBuf;
-    std::array<handlerFunc, Total> funcs;
-};
-
 
 struct Session
 {
-    Session()
-        : host()
-        , reqState()
-    {
-    }
-    Session(const std::string& host)
-        : host(host)
-        , reqState()
-    {
-    };
-    Session(Session& session)
-        : host(session.host)
-        , reqState()
-    {
-    };
-    Session& operator=(Session& session) {
-        if (&session == this) {
-            return *this;
-        }
-        host = session.host;
-        reqState = session.reqState;
-        return *this;
-    };
-    ~Session() {
-
+    void bind(handlerFunc f) {
+        func = f;
     };
 
-    std::string         host;
-    RequestState        reqState;
+    std::string readBuf;
+    std::string writeBuf;
+
+    handlerFunc func;
+    int32_t     fileDesc;
+    int64_t     fileSize;
+    int64_t     recvBytes;
+    Request     request;
 };
 
 HTTP::HTTP()
@@ -100,7 +63,7 @@ void HTTP::listen(const std::string& host)
         conn.listen();
         conn.makeNonBlock();
 
-        Session listenSession(conn.getHost());
+        Session listenSession;
         newListenerEvent(conn);
         newSessionByID(conn.getSock(), listenSession);
     }  catch (std::exception& e) {
@@ -148,10 +111,13 @@ void HTTP::asyncAccept(TcpSocket& socket)
 
         LOG_DEBUG("New connect fd: %d\n", conn.getSock());
 
-        Session s(conn.getHost());
+        Session s;
+        s.bind(&HTTP::defaultReadFunc);
+        s.request.setHost(conn.getHost());
+
         newSessionByID(conn.getSock(), s);
         enableReadEvent(conn.getSock());
-        enableTimerEvent(conn.getSock(), 20000); // TODO add config
+        enableTimerEvent(conn.getSock(), sessionTimeout); // TODO add config
     }
     catch (std::exception& e)
     {
@@ -169,7 +135,7 @@ void HTTP::asyncWrite(int socket)
         closeSessionByID(socket);
         return;
     }
-    (this->*session->reqState.func())(socket, session);
+    (this->*session->func)(socket, session);
 }
 
 void HTTP::asyncRead(int socket)
@@ -182,7 +148,7 @@ void HTTP::asyncRead(int socket)
         closeSessionByID(socket);
         return;
     }
-    (this->*session->reqState.func())(socket, session);
+    (this->*session->func)(socket, session);
 }
 
 void HTTP::asyncEvent(int socket, uint16_t flags)
@@ -200,6 +166,7 @@ void HTTP::asyncEvent(int socket, uint16_t flags)
 
 void HTTP::defaultReadFunc(int socket, Session *session)
 {
+    LOG_DEBUG("defaultReadFunc call\n");
     const int64_t bufSize = (1 << 16);
     char buf[bufSize];
 
@@ -210,11 +177,11 @@ void HTTP::defaultReadFunc(int socket, Session *session)
         return;
     }
     buf[readBytes] = '\0';
-    session->reqState.readBuf.append(buf);
-    if (session->reqState.readBuf.find("\n\n") != std::string::npos
-    || session->reqState.readBuf.find("\r\n\r\n") != std::string::npos)
+    session->readBuf.append(buf);
+    if (session->readBuf.find("\n\n") != std::string::npos
+    || session->readBuf.find("\r\n\r\n") != std::string::npos)
     {
-        session->reqState.state = RequestState::GET_RESPONSE;
+        session->bind(&HTTP::defaultWriteFunc);
         // включаем write
         enableWriteEvent(socket);
         disableReadEvent(socket);
@@ -223,20 +190,22 @@ void HTTP::defaultReadFunc(int socket, Session *session)
 
 void HTTP::defaultWriteFunc(int socket, Session *session)
 {
-    Request request;
-    Response response;
+    LOG_DEBUG("defaultWriteFunc call\n");
+    session->bind(&HTTP::doneFunc);
 
-    session->reqState.state = RequestState::DONE;
+    std::string& rbuf = session->readBuf;
+    Request& request = session->request;
 
-    std::string& rbuf = session->reqState.readBuf;
+    request.reset();
     request.parse(rbuf);
+    request.setID(socket);
+
     rbuf.clear();
 
-    request.setHost(session->host);
-    request.setID(socket);
+    Response response;
     handler(request, response);
 
-    std::string& wbuf = session->reqState.writeBuf;
+    std::string& wbuf = session->writeBuf;
     wbuf.append(response.getContent());
 
     int64_t writeBytes = ::write(socket, wbuf.c_str(), wbuf.size());
@@ -252,11 +221,13 @@ void HTTP::defaultWriteFunc(int socket, Session *session)
 
 void HTTP::doneFunc(int socket, Session *session)
 {
-    std::string& wbuf = session->reqState.writeBuf;
+    LOG_DEBUG("doneFunc call\n");
+    std::string& wbuf = session->writeBuf;
 
     if (wbuf.empty()) {
         disableWriteEvent(socket);
         enableReadEvent(socket);
+        session->bind(&HTTP::defaultReadFunc);
     }
     else {
         int64_t writeBytes = ::write(socket, wbuf.c_str(), wbuf.size());
@@ -269,6 +240,111 @@ void HTTP::doneFunc(int socket, Session *session)
 
         wbuf.erase(0, writeBytes);
     }
+}
+
+void HTTP::sendFileFunc(int socket, Session* session)
+{
+    LOG_DEBUG("sendFileFunc call\n");
+    const int32_t bufSize = (1 << 16);
+    char buf[bufSize] = {};
+
+    int32_t fd = session->fileDesc;
+    int32_t readBytes = ::read(fd, buf, bufSize - 1);
+
+    if (readBytes == 0) {
+        close(fd);
+        session->bind(&HTTP::doneFunc);
+    }
+
+    if (readBytes < 0) {
+        closeSessionByID(socket);
+        LOG_ERROR("Dont read to file: %d. Close connection.\n", socket);
+        return;
+    }
+
+    buf[readBytes] = '\0';
+
+    std::string& wbuf = session->writeBuf;
+    wbuf.append(buf);
+
+    int32_t writeBytes = ::write(socket, wbuf.c_str(), wbuf.size());
+
+    if (writeBytes < 0) {
+        closeSessionByID(socket);
+        LOG_ERROR("Dont write to socket: %d. Close connection.\n", socket);
+        return;
+    }
+
+    wbuf.erase(0, writeBytes);
+}
+
+void HTTP::recvFileFunc(int socket, Session* session)
+{
+    LOG_DEBUG("recvFileFunc call\n");
+    const int32_t bufSize = (1 << 16);
+    char buf[bufSize] = {};
+
+
+    int32_t readBytes = ::read(socket, buf, bufSize - 1);
+
+    if (readBytes < 0) {
+        closeSessionByID(socket);
+        LOG_ERROR("Dont read to file: %d. Close connection.\n", socket);
+        return;
+    }
+
+    buf[readBytes] = '\0';
+
+
+    std::string& wbuf = session->writeBuf;
+    wbuf.append(buf);
+
+    int32_t fd = session->fileDesc;
+
+    int64_t bytes = 0;
+    if (session->fileSize != -1) {
+        bytes = std::min<int64_t>(wbuf.size(), session->fileSize - session->recvBytes);
+    }
+    else {
+        bytes = wbuf.size();
+    }
+
+
+    int32_t writeBytes = ::write(fd, wbuf.c_str(), bytes);
+
+    if (writeBytes < 0) {
+        closeSessionByID(socket);
+        LOG_ERROR("Dont write to socket: %d. Close connection.\n", socket);
+        return;
+    }
+
+    session->recvBytes += writeBytes;
+    if (session->recvBytes == session->fileSize) {
+        session->bind(&HTTP::cgiCaller);
+        disableReadEvent(socket);
+        enableWriteEvent(socket);
+    }
+
+    if (session->fileSize == -1 && wbuf.size()) {
+        session->bind(&HTTP::cgiCaller);
+        disableReadEvent(socket);
+        enableWriteEvent(socket);
+    }
+
+    wbuf.erase(0, writeBytes);
+}
+
+
+void HTTP::cgiCaller(int socket, Session* session)
+{
+    LOG_DEBUG("CgiCaller call\n");
+    Request& request = session->request;
+
+    Response response;
+    cgi(request, response, nullptr);
+
+    session->writeBuf.append(response.getContent());
+    session->bind(&HTTP::doneFunc);
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -308,7 +384,18 @@ void HTTP::handler(Request& request, Response& response) {
 	try {
 		LOG_DEBUG("Http handler call\n");
 		LOG_DEBUG("--------------PRINT REQUEST--------------\n");
-		std::cout << request << std::endl;
+        std::cout << request << std::endl;
+
+
+        if (request.getMethod() == "GET") {
+            sendFile(request, response, "./index.html");
+            return;
+        }
+        if (request.getMethod() == "POST") {
+            recvFile(request, response, "./my_file");
+            return;
+        }
+
 
 		// Сравниваем расширение запрошенного ресурса с cgi расширением для этого локейшена. Если бьется, запуск скрипта
 		SettingsManager *settingsManager = SettingsManager::getInstance();
@@ -446,15 +533,11 @@ void HTTP::handler(Request& request, Response& response) {
 
 //=======================Moved from web.1.0 ===================================
 
-	void HTTP::methodGET(const Request& request, Response& response, Route* route){
-
-		LOG_DEBUG("Http handler call\n");
-		LOG_DEBUG("--------------PRINT REQUEST--------------\n");
-		std::cout << request << std::endl;
-
+    void HTTP::methodGET(const Request& request, Response& response, Route* route)
+    {
 		cgi(request, response, route);
 		autoindex(request, response, route);
-		if (!response.getContent().empty()) return; // Костыльно, но времени не хватит для более глубокой интеграции
+        if (!response.getContent().empty()) return; // Костыльно, но времени не хватит для более глубокой интеграции
 
 		//read source file
 		std::string path = route->getFullPath(request.getPath());
@@ -586,4 +669,55 @@ void HTTP::startServer()
 		serve.listen(ipstr + std::string(":") + port);
 	}
 	serve.start();
+}
+
+
+void HTTP::sendFile(Request& request, Response& response, const std::string& path)
+{
+    int fd = ::open(path.c_str(), O_RDONLY);
+
+    if (fd == -1) {
+        throw httpEx<InternalServerError>("Cannot open file: " + path);
+    }
+
+    struct stat info;
+
+    if (::fstat(fd, &info) == -1) {
+        throw httpEx<InternalServerError>("Cannot stat file info: " + path);
+    }
+
+    int16_t sizeFile = info.st_size;
+
+    response.setStatusCode(200);
+    response.setHeaderField("Content-Length", sizeFile);
+    response.setContent(response.getHeader());
+
+    Session* session = getSessionByID(request.getID());
+
+    session->fileDesc = fd;
+    session->bind(&HTTP::sendFileFunc);
+}
+
+void HTTP::recvFile(Request& request, Response& response, const std::string& path)
+{
+    int fd = ::open(path.c_str(), O_WRONLY|O_CREAT, 0664);
+
+    if (fd == -1) {
+        throw httpEx<InternalServerError>("Cannot open file: " + path);
+    }
+
+    Session* session = getSessionByID(request.getID());
+
+    session->fileDesc = fd;
+    session->recvBytes = 0;
+    if (request.hasHeader("Content-Length")) {
+        session->fileSize = utils::to_number<int64_t>(request.getHeaderValue("Content-Length"));
+    }
+    else {
+        session->fileSize = -1;
+    }
+
+    session->bind(&HTTP::recvFileFunc);
+    enableReadEvent(request.getID());
+    disableWriteEvent(request.getID());
 }

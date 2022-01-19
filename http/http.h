@@ -12,12 +12,11 @@ class Response;
 class TcpSocket;
 class Route;
 struct Session;
-struct RequestState;
 
 class HTTP : public EventPool
 {
     friend struct Session;
-    friend struct RequestState;
+
 public:
     HTTP();
     virtual ~HTTP();
@@ -30,20 +29,31 @@ protected:
     virtual void asyncWrite(int socket);
     virtual void asyncEvent(int socket, uint16_t flags);
 
-	void listen(const std::string& host);
-	void start();
+    void defaultReadFunc(int socket, Session* session);
+    void defaultWriteFunc(int socket, Session* session);
+    void doneFunc(int socket, Session* session);
+    void sendFileFunc(int socket, Session* session);
+    void recvFileFunc(int socket, Session* session);
+    void cgiCaller(int socket, Session* session);
+
 
     Session*    getSessionByID(int id);
     void        closeSessionByID(int id);
     void        newSessionByID(int id, Session& session);
 
+
+
+
+    void listen(const std::string& host);
+    void start();
+
     void handler(Request& request, Response &response);
     void cgi(const Request &request, Response& response, Route* route);
     void autoindex(const Request &request, Response& response, Route* route);
 
-    void defaultReadFunc(int socket, Session* session);
-    void defaultWriteFunc(int socket, Session* session);
-    void doneFunc(int socket, Session* session);
+    void sendFile(Request& request, Response& response, const std::string& path);
+    void recvFile(Request& request, Response& response, const std::string& path);
+
 
     typedef std::map<int, Session> tdSessionMap;
 private:

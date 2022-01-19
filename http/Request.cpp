@@ -54,6 +54,7 @@ Request& Request::operator=(const Request& request) {
     body_ = request.body_;
     headers_ = request.headers_;
     id_ = request.id_;
+    isGood_ = request.isGood_;
     return *this;
 }
 
@@ -112,18 +113,26 @@ void Request::parse_headers()
     }
 
     std::string line;
+    size_t pos;
 
     std::getline(buffer_, line, '\n');
+    if ((pos = line.find_last_of("\r")) != std::string::npos) {
+        line.erase(pos);
+    }
     while (!line.empty())
     {
-        if (utils::isValidPairString(line, ':')) {
-            headers_.insert(utils::breakPair(line, ':'));
-        }
-        else {
+        pos = line.find_first_of(":");
+        if (pos == std::string::npos) {
             isGood_ = false;
             return;
         }
+
+        headers_[line.substr(0, pos)] = utils::trim(line.substr(pos + 1), " \t\n\r");
+
         std::getline(buffer_, line, '\n');
+        if ((pos = line.find_last_of("\r")) != std::string::npos) {
+            line.erase(pos);
+        }
     }
 }
 
@@ -209,7 +218,7 @@ void Request::reset() {
     buffer_.str("");
     buffer_.clear();
     headers_.clear();
-    host_.clear();
+    isGood_ = true;
 }
 
 bool Request::good() const {
