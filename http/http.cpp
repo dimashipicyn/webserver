@@ -768,3 +768,11 @@ void HTTP::recvFile(Request& request, Response& response, const std::string& pat
 	enableReadEvent(request.getID());
 	disableWriteEvent(request.getID());
 }
+
+bool HTTP::isValidMethod(const std::string &method)
+{
+	try {
+		return _method.at(method) != nullptr;
+	}
+	catch (std::out_of_range &e) {return false;}
+}
