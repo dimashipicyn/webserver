@@ -8,7 +8,6 @@
 
 #include <string>
 #include <map>
-#include "ResponseHeader.hpp"
 
 class Request;
 class Response {
@@ -18,8 +17,8 @@ public:
 
     void	setContent(const std::string& s);
     const	std::string&	getContent();
-	void	buildErrorPage(int code, Request&);
-    void reset();
+	void	buildErrorPage(int code, const Request&);
+	void	buildDelPage(const Request&);
 
 	std::string 		getErrorPath(const Request&) const;
 	std::string			getHeader();
@@ -27,8 +26,10 @@ public:
 	void 				setHeaderField(const std::string&, const std::string&);
 	void 				setHeaderField(const std::string&, int);
 	void				setContentType(const std::string& path);
-	std::string			readFile(const std::string& path);
-	std::string 		writeContent(const std::string& content);
+    void                writeFile(const std::string& path, const std::string body);
+	void 				writeContent(const std::string& content, const Request&);
+	void 				setBody(const std::string&);
+	const std::string&	getBody();
 
 
 private:
@@ -37,14 +38,14 @@ private:
 
 private:
     std::string content_;
-	ResponseHeader header_;
-
-
+	std::string body_;
+	std::string header_;
+	int			statusCode_;
 
 	static std::map<std::string, std::string>	_contentType;
 	static std::map<std::string, std::string>	initContentType();
 
-	static std::map<int, std::string>	_errors;
+	static std::map<int, std::string>	reasonPhrase;
 	static std::map<int, std::string>	initErrorMap();
 };
 

@@ -66,16 +66,18 @@ private:
 	void methodDELETE(const Request&, Response&, Route*);
 	void methodPUT(const Request&, Response&, Route*);
 	void methodHEAD(const Request&, Response&, Route*);
-	void methodNotAllowed(const Request&, Response&);
+	void methodCONNECT(const Request&, Response&, Route*);
+	void methodOPTIONS(const Request&, Response&, Route*);
+	void methodTRACE(const Request&, Response&, Route*);
+	void methodPATCH(const Request&, Response&, Route*);
+	void checkIfAllowed(const Request&, Route*);
+//	void methodNotAllowed(const Request&, Response&);
 //	void BadRequest(Response&);
 
 
 	typedef std::map<std::string, void (HTTP::*)(const Request &, Response&, Route*)> MethodHttp;
 	static MethodHttp _method;
 	static MethodHttp 	initMethods();
-
-	static std::set<std::string> _allMethods;
-	static std::set<std::string> initAllMethods();
 	//==========================================================================
 
 

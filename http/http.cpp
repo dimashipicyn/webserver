@@ -20,6 +20,7 @@
 #include "SettingsManager.hpp"
 #include "Cgi.hpp"
 #include "httpExceptions.h"
+#include <algorithm>
 
 const int64_t sessionTimeout = 250000; // 250 sec
 
@@ -354,9 +355,21 @@ void HTTP::cgiCaller(int socket, Session* session)
 void HTTP::cgi(const Request &request, Response& response, Route* route) {
 	const std::string& path = request.getPath();
 
-	if (route != nullptr && utils::getExtension(path) == route->getCgi()) {
-		response.setContent(Cgi(request, *route).runCGI());
-	}
+
+    if (route != nullptr && utils::getExtension(path) == route->getCgi()) {
+        response.setBody(Cgi(request, *route).runCGI());
+
+        //=================oleg==================
+ /*
+  * Check meta which method call cgi!!!
+  * should be like this
+  *     const std::string& body = Cgi(request, *route).runCGI();
+        response.setHeaderField("Content-Type", request.getHeaders().at("Content-Type"));
+        response.setHeaderField("Content-Length", body.size());
+        response.setStatusCode(200);
+        response.setBody(body);
+        */
+    }
 }
 
 void HTTP::autoindex(const Request &request, Response &response, Route *route) {
@@ -387,6 +400,18 @@ void HTTP::handler(Request& request, Response& response) {
 		std::cout << request << std::endl;
 
 
+/*
+        if (request.getMethod() == "GET") {
+            sendFile(request, response, "./index.html");
+            return;
+        }
+        if (request.getMethod() == "POST") {
+            recvFile(request, response, "./my_file");
+            return;
+        }
+*/
+
+
 //		if (request.getMethod() == "GET") {
 //			sendFile(request, response, "./index.html");
 //			return;
@@ -397,28 +422,28 @@ void HTTP::handler(Request& request, Response& response) {
 //		}
 
 
+
 		// Сравниваем расширение запрошенного ресурса с cgi расширением для этого локейшена. Если бьется, запуск скрипта
 		SettingsManager *settingsManager = SettingsManager::getInstance();
 
 		Server *server = settingsManager->findServer(request.getHost());
 		Route *route = (server == nullptr ? nullptr : server->findRouteByPath(request.getPath()));
+
 		if (route == nullptr) {
 			throw httpEx<NotFound>("Not Found");
 		}
 		std::string method = request.getMethod();
-		if (_method.count(method))
-			(this->*_method.at(method))(
-					request, response, route); // updating idea: here we can use try catch (if bad method) catch badrequest
-			//also make pointers for all HTTP methods and in that methods implementation compare method with config allowed
-		else if (_allMethods.count(method)) {
-			methodNotAllowed(request, response);
+		if (method.empty() ) throw httpEx<BadRequest>("Invalid Request");
+		try {
+			(this->*_method.at(method))(request, response, route);
 		}
-		else {
-			throw httpEx<BadRequest>("Bad Request");
+		catch (const std::out_of_range& e) {
+			throw httpEx<BadRequest>("Invalid Request");
 		}
 	}
 	catch (httpEx<BadRequest> &e) {
 		LOG_INFO("BadRequest: %s\n", e.what());
+		response.buildErrorPage(e.error_code, request);
 	}
 	catch (httpEx<Unauthorized> &e) {
 		LOG_INFO("Unauthorized: %s\n", e.what());
@@ -435,6 +460,7 @@ void HTTP::handler(Request& request, Response& response) {
 	}
 	catch (httpEx<MethodNotAllowed> &e) {
 		LOG_INFO("MethodNotAllowed: %s\n", e.what());
+		response.buildErrorPage(e.error_code, request);
 	}
 	catch (httpEx<NotAcceptable> &e) {
 		LOG_INFO("NotAcceptable: %s\n", e.what());
@@ -533,104 +559,121 @@ void HTTP::handler(Request& request, Response& response) {
 
 //=======================Moved from web.1.0 ===================================
 
-void HTTP::methodGET(const Request& request, Response& response, Route* route)
-{
-	cgi(request, response, route);
-	autoindex(request, response, route);
-	if (!response.getContent().empty()) return; // Костыльно, но времени не хватит для более глубокой интеграции
+	void HTTP::methodGET(const Request& request, Response& response, Route* route){
 
-	//read source file
-	std::string path = route->getFullPath(request.getPath());
-	std::string body = response.readFile(path);
+		LOG_DEBUG("Http handler call\n");
+		LOG_DEBUG("--------------PRINT REQUEST--------------\n");
+		std::cout << request << std::endl;
+		checkIfAllowed(request, route);
+		cgi(request, response, route);
+		autoindex(request, response, route);
+        if (!response.getBody().empty()) return; // Костыльно, но времени не хватит для более глубокой интеграции
 
+		//read source file
+		std::string path = route->getFullPath(request.getPath());
+		std::string body;
+        if ( !utils::isFile(path) ){
+    // need fileName to inspect file type
+			body = route->getDefaultPage(request.getPath());
+		} else {
+            body = utils::readFile(path);
+        }
 	//	std::string errorPage = SettingsManager::getInstance()->findServer(request.getHost())->getErrorPage();// if not empty use config errorfile
 
-	response.setStatusCode(200);
-	response.setHeaderField("Host", request.getHost());
-	response.setContentType(path);
-	response.setHeaderField("Content-Length", body.size() );
-	response.setContent(response.getHeader() + body);
-}
-
-void HTTP::methodPOST(const Request& request, Response& response, Route* route){/*
-	//watch for methods allowed
-		std::cout << request << std::endl;
-
-		/*
-		 * put autoindex && cgi her
-		 */
-
-	//read source file
-/*		std::string path = route->getFullPath(request.getPath());
-		std::string body = response.writeFile(path);
 		response.setStatusCode(200);
 		response.setHeaderField("Host", request.getHost());
 		response.setContentType(path);
 		response.setHeaderField("Content-Length", body.size() );
-		response.setContent(response.getHeader() + body);*/
-}
-
-void HTTP::methodDELETE(const Request& request, Response& response, Route* route){}
-
-void HTTP::methodPUT(const Request & request, Response & response, Route *) {}
-
-void HTTP::methodHEAD(const Request &, Response &, Route *) {}
-void HTTP::methodNotAllowed(const Request& request, Response& response){
-	response.setStatusCode(405);
-	std::string strAllowMethods;
-	for (HTTP::MethodHttp::iterator it = _method.begin();
-		 it != _method.end(); ++it){
-		if (it == _method.begin()) strAllowMethods += it->first;
-		else strAllowMethods = strAllowMethods + ", " + it->first;
+		response.setBody(body);
 	}
-	response.setHeaderField("Allow", strAllowMethods);
+
+	void HTTP::methodPOST(const Request& request, Response& response, Route* route){
+		checkIfAllowed(request, route);
+		std::cout << request << std::endl;
+        cgi(request, response, route);
+        autoindex(request, response, route);
+        if (!response.getBody().empty()) return; // Костыльно, но времени не хватит для более глубокой интеграции
+        const std::string& path = route->getFullPath(request.getPath());
+        const std::string& body = request.getBody();
+        response.writeFile(path, body);
+        response.setStatusCode(201);
+        //response.setHeaderField("Content-Location", "/filename.xxx");
 }
 
-/*
-	void HTTP::BadRequest(Response& response){
-		response.setStatusCode(400);
-		std::stringstream ss;
-		std::string s("Bad Request\n");
-		response.setHeaderField("Content-Length", s.size());
-		response.setContentType("text/html");
-		response.setContent(response.getHeader() + s);
-	}*/
-//=============================================================//
+	void HTTP::methodDELETE(const Request& request, Response& response, Route* route){
+		checkIfAllowed(request, route);
+		const std::string& path = route->getFullPath(request.getPath());
+		if (utils::isFile(path)) {
+			if (remove(path.c_str()) == 0)
+				response.buildDelPage(request);
+			else
+				throw httpEx<Forbidden>("Forbidden");
+		}
+		else
+			throw httpEx<NotFound>("Not Found");
+}
+
+	void HTTP::methodPUT(const Request & request, Response & response, Route *route) {
+		checkIfAllowed(request, route);
+		const std::string& path = route->getFullPath(request.getPath());
+		response.writeContent(path, request);
+}
+
+	void HTTP::methodHEAD(const Request& request, Response& response, Route* route) {
+		checkIfAllowed(request, route);
+		std::string path = route->getFullPath(request.getPath());
+		std::string body = utils::readFile(path);
+		response.setStatusCode(200);
+		response.setHeaderField("Host", request.getHost());
+		response.setContentType(path);
+		response.setHeaderField("Content-Length", body.size() );
+}
+
+	void HTTP::methodCONNECT(const Request& request, Response& response, Route*){
+		response.setHeaderField("Allow", "GET"); // need to put all allowed methods here from config set
+		response.buildErrorPage(405, request);
+	}
+	void HTTP::methodOPTIONS(const Request& request, Response& response, Route*){
+		response.setHeaderField("Allow", "GET"); // need to put all allowed methods here from config set
+		response.buildErrorPage(405, request);
+	}
+	void HTTP::methodTRACE(const Request& request, Response& response, Route*){
+		response.setHeaderField("Allow", "GET"); // need to put all allowed methods here from config set
+		response.buildErrorPage(405, request);
+	}
+	void HTTP::methodPATCH(const Request& request, Response& response, Route*){
+		response.setHeaderField("Allow", "GET"); // need to put all allowed methods here from config set
+		response.buildErrorPage(405, request);
+	}
+
+	void HTTP::checkIfAllowed(const Request& request, Route *route){
+		const std::vector<std::string>& allowedMethods = route->getMethods();
+		if ( find(std::begin(allowedMethods), std::end(allowedMethods), request.getMethod()) == allowedMethods.end() ) {
+			throw httpEx<MethodNotAllowed>("Method Not Allowed"); // put in structure string of allowed methods
+            //response.setHeaderField("Allow", "GET"); // need to put all allowed methods here from config set
+		}
+    }
 
 //==============================Moved from Response class=====================
 
+    HTTP::MethodHttp 	HTTP::initMethods()
+	{
+		HTTP::MethodHttp map;
+		map["GET"] = &HTTP::methodGET;
+		map["POST"] = &HTTP::methodPOST;
+		map["DELETE"] = &HTTP::methodDELETE;
+		map["PUT"] = &HTTP::methodPUT;
+		map["HEAD"] = &HTTP::methodHEAD;
+		map["CONNECT"] = &HTTP::methodCONNECT;
+		map["OPTIONS"] = &HTTP::methodOPTIONS;
+		map["TRACE"] = &HTTP::methodTRACE;
+		map["PATCH"] = &HTTP::methodPATCH;
+		return map;
+	}
 
-HTTP::MethodHttp 	HTTP::initMethods()
-{
-	std::map<std::string, void (HTTP::*)(const Request &, Response&, Route*)> map;
-	map["GET"] = &HTTP::methodGET;
-	map["POST"] = &HTTP::methodPOST;
-	map["DELETE"] = &HTTP::methodDELETE;
-	map["PUT"] = &HTTP::methodPUT;
-	map["HEAD"] = &HTTP::methodHEAD;
-	return map;
-}
+	HTTP::MethodHttp HTTP::_method
+			= HTTP::initMethods();
 
-
-
-HTTP::MethodHttp HTTP::_method
-		= HTTP::initMethods();
-
-std::set<std::string> HTTP::initAllMethods(){
-	std::set<std::string> allMethods;
-	allMethods.insert("GET");
-	allMethods.insert("HEAD");
-	allMethods.insert("POST");
-	allMethods.insert("PUT");
-	allMethods.insert("DELETE");
-	allMethods.insert("CONNECT");
-	allMethods.insert("OPTIONS");
-	allMethods.insert("TRACE");
-	allMethods.insert("PATCH");
-	return allMethods;
-}
-
-std::set<std::string> HTTP::_allMethods = initAllMethods();
 //=========================================================================
 
 
