@@ -1,0 +1,101 @@
+## Server block starts with "server"
+## The first server for a host:port will be the default for this host:port (meaning
+## it will answer to all request that doesn’t belong to an other server)
+#server:
+
+## Choose the host
+#host: example.com
+
+## Choose the port
+#port: 8080
+
+## Setup the server_names or not
+#server_name: foo
+
+## Setup default error pages
+#error_page: /var/www/404.html
+
+## Limit client body size (default = 1MByte). B/K/M/G for byte/kibibyte/mebibyte/gibibyte.
+#max_body_size: 10M
+
+## Setup routes with one or multiple of the following rules/configuration (routes wont be using regexp):
+##  ∗ define a directory or a file from where the file should be search (for example
+##    if url /kapouet is rooted to /tmp/www, url /kapouet/pouic/toto/pouet is
+##    /tmp/www/pouic/toto/pouet)
+##  ∗ default file to answer if the request is a directory
+##  ∗ make the route able to accept uploaded files and configure where it should be saved
+##  ∗ define a list of accepted HTTP Methods for the route
+##  ∗ define an HTTP redirection
+##  ∗ turn on or off directory listing (autoindex)
+##  ∗ execute CGI based on certain file extension (for example .php)
+# route:
+#   - location: /
+#     root: /var/www/superwebsite
+#     default_file:
+#       - index.html
+#       - custom.jsp
+#     upload_to: /var/www/downloads
+#     method:
+#       - GET
+#       - POST
+#       - DELETE
+#     redirect:
+#       - rewrite:
+#           from: /foo
+#           to: http://example.com/bar
+#     autoindex: on
+#     cgi: .php
+
+server:
+  host: 127.0.0.1
+  port: 1234
+  server_name: localhost
+  error_page: /var/www/404.html
+  max_body_size: 100B
+  route:
+    - location: /
+      root: /var/www/test
+      default_file:
+        - index.html
+      upload_to: /var/www/downloads
+      method:
+        - GET
+      autoindex: on
+      redirect:
+        - rewrite:
+            status: 301
+            from: /foo/
+            to: http://bar.com/foo
+        - rewrite:
+            status: 302
+            from: /lol
+            to: http://lmao.kek
+      cgi: .bla
+    - location: /put_test/
+      root: /var/www/test
+      upload_to: /var/www/downloads
+      default_file:
+        - index.html
+      method:
+        - POST
+      cgi: .bla
+    - location: /post_body
+        upload_to: /var/www/downloads
+        default_file:
+          - index.html
+        method:
+          - POST
+        cgi: .bla
+    - location: /directory/
+        root: /var/www/test
+        upload_to: /var/www/downloads
+        cgi: .bla
+        default_file:
+          - youpi.bad_extension
+        method:
+          - GET
+---
+server:
+  host: 127.0.0.1
+  port: 8080
+  max_body_size: 100K
