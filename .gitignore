@@ -35,4 +35,7 @@
 cmake-build-debug
 .DS_Store
 webserv_checklist.pdf
+
 settingsManager/webserv.yaml
+webserv.yaml
+webserv_default.yaml

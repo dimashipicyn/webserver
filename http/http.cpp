@@ -487,46 +487,35 @@ void HTTP::cgiCaller(int socket, Session* session)
 ///////////////////////// HTTP LOGIC //////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////
 
-void HTTP::cgi(const Request &request, Response& response, Route* route) {
+bool HTTP::cgi(const Request &request, Response& response, Route* route) {
     const std::string& path = request.getPath();
-
-
-    if (route != nullptr && utils::getExtension(path) == route->getCgi()) {
-        response.setBody(Cgi(request, *route).runCGI());
-
-        //=================oleg==================
-        /*
-  * Check meta which method call cgi!!!
-  * should be like this
-  *     const std::string& body = Cgi(request, *route).runCGI();
-        response.setHeaderField("Content-Type", request.getHeaders().at("Content-Type"));
+    bool isCGI = route != nullptr && utils::getExtension(path) == route->getCgi();
+    if (isCGI) {
+        if (!utils::isFile(route->getFullPath(path)))
+            throw httpEx<NotFound>("CGI script not found");
+        std::string body = Cgi(request, *route).runCGI();
+        //        response.setHeaderField("Content-Type", request.getHeaders().at("Content-Type"));
         response.setHeaderField("Content-Length", body.size());
         response.setStatusCode(200);
         response.setBody(body);
-        */
     }
+    return isCGI;
 }
 
-void HTTP::autoindex(const Request &request, Response &response, Route *route) {
-
-    const std::string& path = request.getPath();
-
-    if (route != nullptr && route->isAutoindex() && utils::getExtension(path).empty()) {
-        std::stringstream header;
-        std::string html;
-
-        try
+bool HTTP::autoindex(const Request &request, Response &response, Route *route) {
+    bool isAutoindexed = false;
+    if (route != nullptr && route->isAutoindex()) {
+        try {
+            route->getDefaultFileName(request.getPath());
+        } catch (Route::DefaultFileNotFoundException &e)
         {
-            html = route->getDefaultPage(path);
-        } catch (Route::DefaultFileNotFoundException &e) {
-            LOG_DEBUG("Default file at %s not found. Proceed autoindexing.\n", path.c_str());
-            html = Autoindex(*route).generatePage(path);
+            std::string html = Autoindex(*route).generatePage(request.getPath());
+            response.setHeaderField("Content-Type", "text/html");
+            response.setBody(html);
+            isAutoindexed = true;
         }
-        response.setStatusCode(200);
-        response.setHeaderField("Content-Length", html.size());
-        response.setHeaderField("Content-Type", "text/html");
-        response.setBody(header.str() + html);
     }
+    return isAutoindexed;
 }
 
 // здесь происходит обработка запроса
@@ -537,12 +526,12 @@ void HTTP::handler(Request& request, Response& response) {
         std::cout << request << std::endl;
 
 
+        /*
         response.setStatusCode(200);
         //recvFileChunked(request, response, "./test_chunked");
         sendFileChunked(request, response, "./test.sh");
         return;
 
-        /*
         if (request.getMethod() == "GET") {
             sendFile(request, response, "./index.html");
             return;
@@ -551,14 +540,15 @@ void HTTP::handler(Request& request, Response& response) {
             recvFile(request, response, "./my_file");
             return;
         }
-*/
+        */
 
 
         // Сравниваем расширение запрошенного ресурса с cgi расширением для этого локейшена. Если бьется, запуск скрипта
         SettingsManager *settingsManager = SettingsManager::getInstance();
-
         Server *server = settingsManager->findServer(request.getHost());
         Route *route = (server == nullptr ? nullptr : server->findRouteByPath(request.getPath()));
+
+        checkIfAllowed(request, route);
 
         if (route == nullptr) {
             throw httpEx<NotFound>("Not Found");
@@ -566,7 +556,8 @@ void HTTP::handler(Request& request, Response& response) {
         std::string method = request.getMethod();
         if (method.empty() ) throw httpEx<BadRequest>("Invalid Request");
         try {
-            (this->*_method.at(method))(request, response, route);
+            if (!cgi(request, response, route))
+                (this->*_method.at(method))(request, response, route);
         }
         catch (const std::out_of_range& e) {
             throw httpEx<BadRequest>("Invalid Request");
@@ -574,7 +565,11 @@ void HTTP::handler(Request& request, Response& response) {
     }
     catch (httpEx<BadRequest> &e) {
         LOG_INFO("BadRequest: %s\n", e.what());
-        response.buildErrorPage(e.error_code, request);
+        int size = response.buildErrorPage(e.error_code, request);
+        response.setStatusCode(e.error_code);
+        response.setHeaderField("Host", request.getHost());
+        response.setHeaderField("Content-Type", "text/html");
+        response.setHeaderField("Content-Length", size);
     }
     catch (httpEx<Unauthorized> &e) {
         LOG_INFO("Unauthorized: %s\n", e.what());
@@ -584,15 +579,26 @@ void HTTP::handler(Request& request, Response& response) {
     }
     catch (httpEx<Forbidden> &e) {
         LOG_INFO("Forbidden: %s\n", e.what());
+        response.setStatusCode(e.error_code); // одинаковые для всех элементы можно пихнуть в эррор билдер?
+        response.setHeaderField("Host", request.getHost());
+        response.setHeaderField("Content-Type", "text/html");
+        response.setHeaderField("Content-Length", response.buildErrorPage(e.error_code, request));
     }
     catch (httpEx<NotFound> &e) {
         LOG_INFO("NotFound: %s\n", e.what());
-        response.buildErrorPage(e.error_code, request);
+        response.setStatusCode(e.error_code); // одинаковые для всех элементы можно пихнуть в эррор билдер?
+        response.setHeaderField("Host", request.getHost());
+        response.setHeaderField("Content-Type", "text/html");
+        response.setHeaderField("Content-Length", response.buildErrorPage(e.error_code, request));
     }
     catch (httpEx<MethodNotAllowed> &e) {
-        LOG_INFO("MethodNotAllowed: %s\n", e.what());
-        //response.setStatusCode(e.error_code);
-        response.buildErrorPage(e.error_code, request);
+        LOG_INFO("MethodAllowed: %s\n", e.what());
+        int size = response.buildErrorPage(e.error_code, request);
+        response.setStatusCode(e.error_code);
+        response.setHeaderField("Host", request.getHost());
+        response.setHeaderField("Content-Type", "text/html");
+        response.setHeaderField("Content-Length", size);
+        response.setHeaderField("Allow", e.what());
     }
     catch (httpEx<NotAcceptable> &e) {
         LOG_INFO("NotAcceptable: %s\n", e.what());
@@ -692,39 +698,27 @@ void HTTP::handler(Request& request, Response& response) {
 //=======================Moved from web.1.0 ===================================
 
 void HTTP::methodGET(const Request& request, Response& response, Route* route){
-
     LOG_DEBUG("Http handler call\n");
     LOG_DEBUG("--------------PRINT REQUEST--------------\n");
     std::cout << request << std::endl;
-    checkIfAllowed(request, route);
-    cgi(request, response, route);
-    autoindex(request, response, route);
-    if (!response.getBody().empty()) return; // Костыльно, но времени не хватит для более глубокой интеграции
-
-    //read source file
-    std::string path = route->getFullPath(request.getPath());
-    std::string body;
-    if ( !utils::isFile(path) ){
-        // need fileName to inspect file type
-        body = route->getDefaultPage(request.getPath());
-    } else {
-        body = utils::readFile(path);
-    }
+    std::string path = request.getPath();
+    std::string fullPath = route->getFullPath(path);
+    if (!utils::isFile(fullPath) && !autoindex(request, response, route)) // если не файл и автоиндекс не отработал
+        fullPath = route->getDefaultFileName(path);
     //	std::string errorPage = SettingsManager::getInstance()->findServer(request.getHost())->getErrorPage();// if not empty use config errorfile
 
+    if (response.getBody().empty())
+    {
+        response.setBody(utils::readFile(fullPath));
+        response.setContentType(fullPath);
+    }
     response.setStatusCode(200);
     response.setHeaderField("Host", request.getHost());
-    response.setContentType(path);
-    response.setHeaderField("Content-Length", body.size() );
-    response.setBody(body);
+    response.setHeaderField("Content-Length", response.getBody().size() );
 }
 
 void HTTP::methodPOST(const Request& request, Response& response, Route* route){
-    checkIfAllowed(request, route);
     std::cout << request << std::endl;
-    cgi(request, response, route);
-    autoindex(request, response, route);
-    if (!response.getBody().empty()) return; // Костыльно, но времени не хватит для более глубокой интеграции
     const std::string& path = route->getFullPath(request.getPath());
     const std::string& body = request.getBody();
     response.writeFile(path, body);
@@ -733,7 +727,6 @@ void HTTP::methodPOST(const Request& request, Response& response, Route* route){
 }
 
 void HTTP::methodDELETE(const Request& request, Response& response, Route* route){
-    checkIfAllowed(request, route);
     const std::string& path = route->getFullPath(request.getPath());
     if (utils::isFile(path)) {
         if (remove(path.c_str()) == 0)
@@ -746,47 +739,46 @@ void HTTP::methodDELETE(const Request& request, Response& response, Route* route
 }
 
 void HTTP::methodPUT(const Request & request, Response & response, Route *route) {
-    checkIfAllowed(request, route);
     const std::string& path = route->getFullPath(request.getPath());
     response.writeContent(path, request);
 }
 
 void HTTP::methodHEAD(const Request& request, Response& response, Route* route) {
-    checkIfAllowed(request, route);
-    //		std::string path = route->getFullPath(request.getPath());
-    //		std::string body = utils::readFile(path);
+    std::string path = route->getFullPath(request.getPath());
+    std::string body = utils::readFile(path);
     response.setStatusCode(200);
     response.setHeaderField("Host", request.getHost());
-    //		response.setContentType(path);
-    //		response.setHeaderField("Content-Length", body.size() );
+    response.setContentType(path);
+    response.setHeaderField("Content-Length", body.size() );
 }
 
-void HTTP::methodCONNECT(const Request& request, Response& response, Route*){
-    response.setHeaderField("Allow", "GET"); // need to put all allowed methods here from config set
-    response.buildErrorPage(405, request);
+void HTTP::methodCONNECT(const Request&, Response&, Route*){
+    throw httpEx<MethodNotAllowed>("Not Allowed by subject");
 }
-void HTTP::methodOPTIONS(const Request& request, Response& response, Route*){
-    response.setHeaderField("Allow", "GET"); // need to put all allowed methods here from config set
-    response.buildErrorPage(405, request);
+
+void HTTP::methodOPTIONS(const Request&, Response&, Route*){
+    throw httpEx<MethodNotAllowed>("Not Allowed by subject");
 }
-void HTTP::methodTRACE(const Request& request, Response& response, Route*){
-    response.setHeaderField("Allow", "GET"); // need to put all allowed methods here from config set
-    response.buildErrorPage(405, request);
+
+void HTTP::methodTRACE(const Request&, Response&, Route*){
+    throw httpEx<MethodNotAllowed>("Not Allowed by subject");
 }
-void HTTP::methodPATCH(const Request& request, Response& response, Route*){
-    response.setHeaderField("Allow", "GET"); // need to put all allowed methods here from config set
-    response.buildErrorPage(405, request);
+
+void HTTP::methodPATCH(const Request&, Response&, Route*){
+    throw httpEx<MethodNotAllowed>("Not Allowed by subject");
 }
 
 void HTTP::checkIfAllowed(const Request& request, Route *route){
-    const std::vector<std::string>& allowedMethods = route->getMethods();
+    std::vector<std::string> allowedMethods = route->getMethods();
+    std::string headerAllow;
+    for (std::vector<std::string>::iterator it = allowedMethods.begin(); it != allowedMethods.end(); ++it) {
+        headerAllow += (it == allowedMethods.begin()) ? *it : ", " + *it;
+    }
     if ( find(std::begin(allowedMethods), std::end(allowedMethods), request.getMethod()) == allowedMethods.end() ) {
-        throw httpEx<MethodNotAllowed>("Method Not Allowed"); // put in structure string of allowed methods
+        throw httpEx<MethodNotAllowed>(headerAllow); // put in structure string of allowed methods
         //response.setHeaderField("Allow", "GET"); // need to put all allowed methods here from config set
     }
 }
-
-//==============================Moved from Response class=====================
 
 HTTP::MethodHttp 	HTTP::initMethods()
 {
@@ -803,10 +795,7 @@ HTTP::MethodHttp 	HTTP::initMethods()
     return map;
 }
 
-HTTP::MethodHttp HTTP::_method
-= HTTP::initMethods();
-
-//=========================================================================
+HTTP::MethodHttp HTTP::_method = HTTP::initMethods();
 
 
 void HTTP::startServer()
@@ -873,7 +862,7 @@ void HTTP::sendFile(Request& request, Response& response, const std::string& pat
     session->bind(&HTTP::sendFileFunc);
 }
 
-void HTTP::recvFile(Request& request, Response& response, const std::string& path)
+void HTTP::recvFile(Request& request, Response&, const std::string& path)
 {
     int fd = ::open(path.c_str(), O_WRONLY|O_CREAT, 0664);
 
@@ -935,8 +924,8 @@ void HTTP::sendFileChunked(Request& request, Response& response, const std::stri
 
 bool HTTP::isValidMethod(const std::string &method)
 {
-	try {
-		return _method.at(method) != nullptr;
-	}
-	catch (std::out_of_range &e) {return false;}
+    try {
+        return _method.at(method) != nullptr;
+    }
+    catch (std::out_of_range &e) {return false;}
 }

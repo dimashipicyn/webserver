@@ -32,7 +32,6 @@ const std::string& Response::getContent() {
                 + "\r\n"
                 + body_;
     }
-
 	return content_;
 }
 
@@ -60,7 +59,8 @@ std::string		Response::getHeader(){
 	return	header_;
 }
 
-void		Response::buildErrorPage(int code, const Request& request) {
+int		Response::buildErrorPage(int code, const Request& request) {
+	statusCode_ = code;
 	body_ = "<!DOCTYPE html>";
 	body_ += "<html>";
 	body_ += "<head>";
@@ -72,11 +72,7 @@ void		Response::buildErrorPage(int code, const Request& request) {
 	body_ += reasonPhrase[code] + "</h2>";
 	body_ += "</body>";
 	body_ += "</html>";
-
-	statusCode_ = code;
-	header_ += "Host: " + request.getHost() + "\r\n";
-	header_ += "Content-Length: " + utils::to_string(body_.size()) + "\r\n";
-	header_ += "Content-Type: text/html\r\n";
+    return body_.size();
 }
 
 void Response::buildDelPage(const Request& request) {
