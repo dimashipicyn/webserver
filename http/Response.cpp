@@ -22,8 +22,16 @@ void Response::setContent(const std::string &s) {
 }
 
 const std::string& Response::getContent() {
-	content_ = "HTTP/1.1 " + utils::to_string(statusCode_) + " " + reasonPhrase[statusCode_] + "\r\n";
-	content_ += header_ + "\r\n" + body_;
+    content_ = "HTTP/1.1 "
+            + utils::to_string(statusCode_)
+            + " " + reasonPhrase[statusCode_]
+            + "\r\n";
+
+    if (!header_.empty()) {
+        content_ += header_
+                + "\r\n"
+                + body_;
+    }
 	return content_;
 }
 
@@ -51,7 +59,7 @@ std::string		Response::getHeader(){
 	return	header_;
 }
 
-void		Response::buildErrorPage(int code, const Request& request) {
+int		Response::buildErrorPage(int code, const Request& request) {
 	body_ = "<!DOCTYPE html>";
 	body_ += "<html>";
 	body_ += "<head>";
@@ -63,11 +71,7 @@ void		Response::buildErrorPage(int code, const Request& request) {
 	body_ += reasonPhrase[code] + "</h2>";
 	body_ += "</body>";
 	body_ += "</html>";
-
-	statusCode_ = code;
-	header_ += "Host: " + request.getHost() + "\r\n";
-	header_ += "Content-Length: " + utils::to_string(body_.size()) + "\r\n";
-	header_ += "Content-Type: text/html\r\n";
+    return body_.size();
 }
 
 void Response::buildDelPage(const Request& request) {

@@ -109,7 +109,7 @@ void Route::setCgi(const std::string &cgi)
 
 bool Route::isValidMethod(const std::string &str)
 {
-	return str == "GET" || str == "POST" || str == "DELETE";
+    return str == "GET" || str == "POST" || str == "DELETE" || str == "PUT";
 }
 
 void Route::addMethod(const std::string &method)
