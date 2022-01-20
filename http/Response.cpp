@@ -126,11 +126,11 @@ void	Response::writeContent(const std::string& path, const Request& request) {
 }
 //=================part from Response Header====================================
 void Response::setHeaderField(const std::string &key, const std::string &value) {
-	header_ += key + ": " + value + "\r\n";
+    header_ += key + ": " + value + "\r\n";
 }
 
 void Response::setHeaderField(const std::string &key, int value) {
-	header_ += key + ": " + utils::to_string(value) + "\n";
+    header_ += key + ": " + utils::to_string(value) + "\r\n";
 }
 
 void Response::setBody(const std::string &body) {
