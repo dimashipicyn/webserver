@@ -125,7 +125,7 @@ void Response::setHeaderField(const std::string &key, const std::string &value) 
 }
 
 void Response::setHeaderField(const std::string &key, int value) {
-	header_ += key + ": " + utils::to_string(value) + "\n";
+	header_ += key + ": " + utils::to_string(value) + "\r\n";
 }
 
 void Response::setBody(const std::string &body) {

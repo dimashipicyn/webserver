@@ -73,9 +73,6 @@ private:
 	void methodTRACE(const Request&, Response&, Route*);
 	void methodPATCH(const Request&, Response&, Route*);
 	void checkIfAllowed(const Request&, Route*);
-//	void methodNotAllowed(const Request&, Response&);
-//	void BadRequest(Response&);
-
 
 	typedef std::map<std::string, void (HTTP::*)(const Request &, Response&, Route*)> MethodHttp;
 	static MethodHttp _method;

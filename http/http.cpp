@@ -359,7 +359,12 @@ void HTTP::cgi(const Request &request, Response& response, Route* route) {
 
     if (route != nullptr && utils::getExtension(path) == route->getCgi()) {
         const std::string& body = Cgi(request, *route).runCGI();
-        response.setHeaderField("Content-Type", request.getHeaders().at("Content-Type"));
+		try {
+			response.setHeaderField("Content-Type",
+									request.getHeaders().at("Content-Type"));
+		} catch (const std::out_of_range&){
+			response.setHeaderField("Content-Type", "text/plain");
+		}
         response.setHeaderField("Content-Length", body.size());
         response.setStatusCode(200);
         response.setBody(body);
@@ -460,7 +465,11 @@ void HTTP::handler(Request& request, Response& response) {
 	}
 	catch (httpEx<NotFound> &e) {
 		LOG_INFO("NotFound: %s\n", e.what());
-		response.buildErrorPage(e.error_code, request);
+		int size = response.buildErrorPage(e.error_code, request);
+		response.setStatusCode(e.error_code);
+		response.setHeaderField("Host", request.getHost());
+		response.setHeaderField("Content-Type", "text/html");
+		response.setHeaderField("Content-Length", size);
 	}
 	catch (httpEx<MethodNotAllowed> &e) {
 		LOG_INFO("MethodAllowed: %s\n", e.what());
@@ -572,9 +581,26 @@ void HTTP::handler(Request& request, Response& response) {
 		LOG_DEBUG("Http handler call\n");
 		LOG_DEBUG("--------------PRINT REQUEST--------------\n");
 		std::cout << request << std::endl;
+
+/*	{/*==========Redirection Block============================================*/
+/*		std::string path = route->getFullPath(request.getPath());
+		std::string root = route->getRoot();
+		std::vector<Route::redirect> redirect = route->getRedirects(); //make const
+		for (std::vector<Route::redirect>::iterator it = redirect.begin();
+		it != redirect.end(); ++it){
+			if (path == root + it->from){
+				response.setStatusCode(it->status);
+				response.setHeaderField("Location", it->to);
+				return;
+			}
+		}
+	}*/
+	/*========================================================================*/
+
+
 		checkIfAllowed(request, route);
-		cgi(request, response, route);
-		autoindex(request, response, route);
+		cgi(request, response, route); //проверить прошел ли cgi
+		autoindex(request, response, route); // проверить прошел ли индекс
         if (!response.getBody().empty()) return; // Костыльно, но времени не хватит для более глубокой интеграции
 		std::string path = route->getFullPath(request.getPath());
         if ( !utils::isFile(path) ) {

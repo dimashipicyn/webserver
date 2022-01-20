@@ -54,7 +54,7 @@ server:
   max_body_size: 100B
   route:
     - location: /
-      root: /Users/dinaa/CLionProjects/yoopi
+      root: /Users/griddler/www
       default_file:
         - page1.html
         - index.jsp
@@ -65,13 +65,13 @@ server:
       redirect:
         - rewrite:
             status: 301
-            from: /foo/
+            from: /
             to: http://bar.com/foo
         - rewrite:
             status: 302
             from: /lol
             to: http://lmao.kek
-      cgi: .bla
+      cgi: .sh
     - location: /put_test/
       root: /var/www/test
       upload_to: /var/www/downloads

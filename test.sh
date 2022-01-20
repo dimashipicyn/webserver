@@ -1,7 +1,5 @@
 #!/bin/bash
-echo 'HTTP/1.1 200 OK'
-echo "Content-Type: text/html"
-echo ""
+echo '<!DOCTYPE html>'
 echo '<html>'
 echo '<head>'
 echo '<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">'
