@@ -22,6 +22,7 @@ public:
 	virtual ~HTTP();
 
 	static void startServer();
+	static bool isValidMethod(const std::string &method);
 
 protected:
 	virtual void asyncAccept(TcpSocket& socket);

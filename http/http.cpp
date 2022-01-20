@@ -932,3 +932,11 @@ void HTTP::sendFileChunked(Request& request, Response& response, const std::stri
 
     session->bind(&HTTP::recvChunkedReadFromFile);
 }
+
+bool HTTP::isValidMethod(const std::string &method)
+{
+	try {
+		return _method.at(method) != nullptr;
+	}
+	catch (std::out_of_range &e) {return false;}
+}

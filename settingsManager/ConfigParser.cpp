@@ -7,6 +7,7 @@
 #include "utils.h"
 #include "ConfigParser.hpp"
 #include "SettingsManager.hpp"
+#include "http.h"
 
 ConfigParser::ConfigParser() : lineCounter_(0)
 {}
@@ -183,9 +184,9 @@ std::string ConfigParser::parseRoute(std::ifstream &config, Server &server)
 					if (line[0] == '-' && line[1] != '-')
 					{
 						line = utils::trim(line.substr(1), " \t");
-						if (!currentRoute->isValidMethod(line))
+						if (!HTTP::isValidMethod(line))
 							throw std::runtime_error(formConfigErrorText(
-									"Invalid method \"" + line + "\"! Should be GET, POST or DELETE"));
+									"Invalid method \"" + line + "\""));
 						currentRoute->addMethod(line);
 					} else {
 						previousLine = line;
