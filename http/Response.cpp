@@ -60,6 +60,7 @@ std::string		Response::getHeader(){
 }
 
 int		Response::buildErrorPage(int code, const Request& request) {
+	statusCode_ = code;
 	body_ = "<!DOCTYPE html>";
 	body_ += "<html>";
 	body_ += "<head>";
