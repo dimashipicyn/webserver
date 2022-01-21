@@ -147,7 +147,7 @@ std::string Route::getDefaultPage(const std::string &resource)
 
 	for (std::vector<std::string>::const_iterator i = defaultFiles_.begin(); i != defaultFiles_.end(); i++)
 	{
-		std::string tryPath = fullPath + (*i);
+		std::string tryPath = fullPath + (fullPath[fullPath.size() - 1] == '/' ? (*i) : "/" + (*i));
 		if (access(tryPath.c_str(), F_OK) != -1) {
 			std::ifstream file(tryPath);
 			while (true)
@@ -218,7 +218,7 @@ std::string Route::getDefaultFileName(const std::string &resource)
 
 	for (std::vector<std::string>::const_iterator i = defaultFiles_.begin(); i != defaultFiles_.end(); i++)
 	{
-		std::string tryPath = fullPath + (*i);
+		std::string tryPath = fullPath + (fullPath[fullPath.size() - 1] == '/' ? (*i) : "/" + (*i));
 		if (access(tryPath.c_str(), F_OK) != -1) {
 			return tryPath;
 		}
