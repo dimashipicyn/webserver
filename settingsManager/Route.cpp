@@ -135,8 +135,15 @@ void Route::setAutoindex(bool autoindex)
 std::string Route::getFullPath(const std::string &resource) const
 {
 	std::string root = root_;
+	std::string mergedResource = resource;
+	std::string location = location_[location_.length() - 1] == '/' ? location_.substr(0, location_.length() - 1) :
+			location_;
+	size_t position = resource.find(location);
+	if (position != std::string::npos) {
+		mergedResource = mergedResource.erase(position, location.length());
+	}
 	return (root[root.size() - 1] == '/' ? root.substr(0, root.size() - 1) : root)
-		   + (resource[0] == '/' ? resource : ("/" + resource));
+		   + (mergedResource[0] == '/' ? mergedResource : ("/" + mergedResource));
 }
 
 std::string Route::getDefaultPage(const std::string &resource)
@@ -219,7 +226,7 @@ std::string Route::getDefaultFileName(const std::string &resource)
 	for (std::vector<std::string>::const_iterator i = defaultFiles_.begin(); i != defaultFiles_.end(); i++)
 	{
 		std::string tryPath = fullPath + (fullPath[fullPath.size() - 1] == '/' ? (*i) : "/" + (*i));
-		if (access(tryPath.c_str(), F_OK) != -1) {
+		if (utils::isFile(tryPath)) {
 			return tryPath;
 		}
 	}
