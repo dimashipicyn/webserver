@@ -353,8 +353,9 @@ void HTTP::cgiCaller(int socket, Session* session)
 ///////////////////////// HTTP LOGIC //////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////
 
-void HTTP::cgi(const Request &request, Response& response, Route* route) {
+bool HTTP::cgi(const Request &request, Response& response, Route* route) {
 	const std::string& path = request.getPath();
+/*<<<<<<< HEAD*/
 
 
     if (route != nullptr && utils::getExtension(path) == route->getCgi()) {
@@ -365,33 +366,25 @@ void HTTP::cgi(const Request &request, Response& response, Route* route) {
 		} catch (const std::out_of_range&){
 			response.setHeaderField("Content-Type", "text/plain");
 		}
+/*=======
+	bool isCGI = route != nullptr && utils::getExtension(path) == route->getCgi();
+    if (isCGI) {
+		if (!utils::isFile(route->getFullPath(path)))
+			throw httpEx<NotFound>("CGI script not found");
+        std::string body = Cgi(request, *route).runCGI();
+//        response.setHeaderField("Content-Type", request.getHeaders().at("Content-Type"));
+>>>>>>> 6a12ca80487144b07dd2501248b008282dba8e6a*/
         response.setHeaderField("Content-Length", body.size());
         response.setStatusCode(200);
         response.setBody(body);
     }
+	return isCGI;
 }
 
 void HTTP::autoindex(const Request &request, Response &response, Route *route) {
 
-    const std::string& path = request.getPath();
-//==============лучше это вынести в на уровень выше и не заходить в автоиндекс если есть дефолт файл===================
-    if (!utils::isFile(path)){
-        if (utils::isFile(route->getDefaultFileName(request.getPath()))) return;
-    }
-//=====================================================================================================================
-    if (route != nullptr && route->isAutoindex() && utils::getExtension(path).empty()) { // maybe file without extension
-        //would use isFile(path)
-        std::string html;
-
-        try
-        {
-            html = route->getDefaultPage(path); //
-        } catch (Route::DefaultFileNotFoundException &e) {
-            LOG_DEBUG("Default file at %s not found. Proceed autoindexing.\n", path.c_str());
-            html = Autoindex(*route).generatePage(path);
-        }
-        response.setStatusCode(200);
-        response.setHeaderField("Content-Length", html.size());
+    if (route != nullptr && route->isAutoindex()) {
+        std::string html = Autoindex(*route).generatePage(request.getPath());
         response.setHeaderField("Content-Type", "text/html");
         response.setBody(html);
     }
@@ -426,13 +419,11 @@ void HTTP::handler(Request& request, Response& response) {
 //			return;
 //		}
 
-
-
-		// Сравниваем расширение запрошенного ресурса с cgi расширением для этого локейшена. Если бьется, запуск скрипта
 		SettingsManager *settingsManager = SettingsManager::getInstance();
-
 		Server *server = settingsManager->findServer(request.getHost());
 		Route *route = (server == nullptr ? nullptr : server->findRouteByPath(request.getPath()));
+
+		checkIfAllowed(request, route);
 
 		if (route == nullptr) {
 			throw httpEx<NotFound>("Not Found");
@@ -440,7 +431,8 @@ void HTTP::handler(Request& request, Response& response) {
 		std::string method = request.getMethod();
 		if (method.empty() ) throw httpEx<BadRequest>("Invalid Request");
 		try {
-			(this->*_method.at(method))(request, response, route);
+			if (!cgi(request, response, route))
+				(this->*_method.at(method))(request, response, route);
 		}
 		catch (const std::out_of_range& e) {
 			throw httpEx<BadRequest>("Invalid Request");
@@ -581,6 +573,7 @@ void HTTP::handler(Request& request, Response& response) {
 		LOG_DEBUG("Http handler call\n");
 		LOG_DEBUG("--------------PRINT REQUEST--------------\n");
 		std::cout << request << std::endl;
+<<<<<<< HEAD
 
 /*	{/*==========Redirection Block============================================*/
 /*		std::string path = route->getFullPath(request.getPath());
@@ -607,13 +600,29 @@ void HTTP::handler(Request& request, Response& response) {
             path = route->getDefaultFileName(request.getPath());
         }
         std::string body = utils::readFile(path);
+=======
+		std::string path = request.getPath();
+		std::string fullPath = route->getFullPath(path);
+		if (!utils::isFile(fullPath)){ // если не файл в трай, пытаемся вытащить дефолтный файл
+			try {
+				fullPath = route->getDefaultFileName(path); // если дефолтный файл не найден, эксепшн
+			} catch (Route::DefaultFileNotFoundException &e) {
+				LOG_DEBUG("Default file at %s not found. Proceed autoindexing.\n", path.c_str());
+				autoindex(request, response, route); 	// дефолтный файл не нашелся, запускаем автоиндекс
+														// если autoindex:off ничего не запишется в боди
+			}
+		}
+>>>>>>> 6a12ca80487144b07dd2501248b008282dba8e6a
 	//	std::string errorPage = SettingsManager::getInstance()->findServer(request.getHost())->getErrorPage();// if not empty use config errorfile
 
+		if (response.getBody().empty())
+		{
+			response.setBody(utils::readFile(fullPath));
+			response.setContentType(path);
+		}
 		response.setStatusCode(200);
 		response.setHeaderField("Host", request.getHost());
-		response.setContentType(path);
-		response.setHeaderField("Content-Length", body.size() );
-		response.setBody(body);
+		response.setHeaderField("Content-Length", response.getBody().size() );
 	}
 
 	void HTTP::methodPOST(const Request& request, Response& response, Route* route){

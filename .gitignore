@@ -37,5 +37,10 @@ cmake-build-debug
 webserv_checklist.pdf
 
 settingsManager/webserv.yaml
+<<<<<<< HEAD
 settingsManager/webserv_default.yaml
 
+=======
+webserv.yaml
+webserv_default.yaml
+>>>>>>> 6a12ca80487144b07dd2501248b008282dba8e6a
