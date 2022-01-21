@@ -52,16 +52,16 @@ protected:
 	void listen(const std::string& host);
 	void start();
 
-	void handler(Request& request, Response &response);
-	bool cgi(const Request &request, Response& response, Route* route);
-	bool autoindex(const Request &request, Response& response, Route* route);
-	bool redirection(const std::string &path, Response& response, Route* route);
+	void	handler(Request& request, Response &response);
+	bool	cgi(const Request &request, Response& response, Route* route);
+	bool	autoindex(const Request &request, Response& response, Route* route);
+	int		redirection(const std::string &from, std::string &to, Route* route);
 
-	void sendFile(Request& request, Response& response, const std::string& path);
-	void recvFile(Request& request, Response& response, const std::string& path);
+	void	sendFile(Request& request, Response& response, const std::string& path);
+	void	recvFile(Request& request, Response& response, const std::string& path);
 
-    void recvFileChunked(Request& request, Response& response, const std::string& path);
-    void sendFileChunked(Request& request, Response& response, const std::string& path);
+	void recvFileChunked(Request& request, Response& response, const std::string& path);
+	void sendFileChunked(Request& request, Response& response, const std::string& path);
 
 
 

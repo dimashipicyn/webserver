@@ -163,6 +163,8 @@ std::map<int, std::string>	Response::initErrorMap(){
 	reasonPhrase[200] = "OK";
 	reasonPhrase[201] = "Created";
 	reasonPhrase[204] = "No Content";
+	reasonPhrase[301] = "MovedPermanently";
+	reasonPhrase[302] = "Found";
 	reasonPhrase[400] = "Bad Request";
 	reasonPhrase[403] = "Forbidden";
 	reasonPhrase[404] = "Not Found";

@@ -205,7 +205,7 @@ void HTTP::defaultReadFunc(int socket, Session *session)
     if (foundNN != std::string::npos || foundRN != std::string::npos)
     {
         session->bind(&HTTP::defaultWriteFunc);
-
+		LOG_DEBUG("REDIRECTION IN defaultReadFunction line208");
         // включаем write
         enableWriteEvent(socket);
         disableReadEvent(socket);
@@ -223,6 +223,9 @@ void HTTP::defaultWriteFunc(int socket, Session *session)
     handler(request, response);
 
     std::string& wbuf = session->writeBuf;
+	LOG_DEBUG("REDIRECTION HERE\n");
+	std::cout << response.getContent();
+
     wbuf.append(response.getContent());
 }
 
@@ -518,17 +521,9 @@ bool HTTP::autoindex(const Request &request, Response &response, Route *route) {
     return isAutoindexed;
 }
 
-bool HTTP::redirection(const std::string &path, Response& response, Route* route) {
-	std::vector<Route::redirect> redirect = route->getRedirects(); //make const
-	for (std::vector<Route::redirect>::iterator it = redirect.begin();
-		 it != redirect.end(); ++it){
-		if (path == it->from){
-			response.setStatusCode(it->status);
-			response.setHeaderField("Location", it->to);
-			return true;
-		}
-	}
-	return false;
+int HTTP::redirection(const std::string& from, std::string &to, Route* route) {
+	int statusCode = route->checkRedirectOnPath(to, from);
+	return statusCode;
 }
 
 // здесь происходит обработка запроса
@@ -716,8 +711,15 @@ void HTTP::methodGET(const Request& request, Response& response, Route* route){
     LOG_DEBUG("--------------PRINT REQUEST--------------\n");
     std::cout << request << std::endl;
     std::string path = request.getPath();
-	if (redirection(path, response, route))
-		return;
+
+	std::string redirectTo;
+	int statusCode;
+	if ( ( statusCode = redirection(path, redirectTo, route) ) / 100 == 3){
+		response.setStatusCode(statusCode);
+		response.setHeaderField("Location", redirectTo);
+		return ;
+	}
+
 	std::string fullPath = route->getFullPath(path);
     if (!utils::isFile(fullPath) && !autoindex(request, response, route)) // если не файл и автоиндекс не отработал
         fullPath = route->getDefaultFileName(path);
