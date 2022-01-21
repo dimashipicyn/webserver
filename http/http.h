@@ -37,7 +37,10 @@ protected:
 	void sendFileFunc(int socket, Session* session);
 	void recvFileFunc(int socket, Session* session);
 	void cgiCaller(int socket, Session* session);
-
+    void recvChunkedReadFromSocket(int socket, Session* session);
+    void recvChunkedWriteToFile(int socket, Session* session);
+    void recvChunkedWriteToSocket(int socket, Session* session);
+    void recvChunkedReadFromFile(int socket, Session* session);
 
 	Session*    getSessionByID(int id);
 	void        closeSessionByID(int id);
@@ -55,6 +58,11 @@ protected:
 
 	void sendFile(Request& request, Response& response, const std::string& path);
 	void recvFile(Request& request, Response& response, const std::string& path);
+
+    void recvFileChunked(Request& request, Response& response, const std::string& path);
+    void sendFileChunked(Request& request, Response& response, const std::string& path);
+
+
 
 
 	typedef std::map<int, Session> tdSessionMap;
