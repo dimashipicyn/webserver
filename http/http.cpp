@@ -518,9 +518,25 @@ bool HTTP::autoindex(const Request &request, Response &response, Route *route) {
     return isAutoindexed;
 }
 
+bool HTTP::redirection(const std::string &path, Response& response, Route* route) {
+	std::vector<Route::redirect> redirect = route->getRedirects(); //make const
+	for (std::vector<Route::redirect>::iterator it = redirect.begin();
+		 it != redirect.end(); ++it){
+		if (path == it->from){
+			response.setStatusCode(it->status);
+			response.setHeaderField("Location", it->to);
+			return true;
+		}
+	}
+	return false;
+}
+
 // здесь происходит обработка запроса
 void HTTP::handler(Request& request, Response& response) {
-    try {
+	SettingsManager *settingsManager = SettingsManager::getInstance();
+	Server *server = settingsManager->findServer(request.getHost());
+	Route *route = (server == nullptr ? nullptr : server->findRouteByPath(request.getPath()));
+	try {
         LOG_DEBUG("Http handler call\n");
         LOG_DEBUG("--------------PRINT REQUEST--------------\n");
         std::cout << request << std::endl;
@@ -544,10 +560,6 @@ void HTTP::handler(Request& request, Response& response) {
 
 
         // Сравниваем расширение запрошенного ресурса с cgi расширением для этого локейшена. Если бьется, запуск скрипта
-        SettingsManager *settingsManager = SettingsManager::getInstance();
-        Server *server = settingsManager->findServer(request.getHost());
-        Route *route = (server == nullptr ? nullptr : server->findRouteByPath(request.getPath()));
-
         checkIfAllowed(request, route);
 
         if (route == nullptr) {
@@ -565,7 +577,7 @@ void HTTP::handler(Request& request, Response& response) {
     }
     catch (httpEx<BadRequest> &e) {
         LOG_INFO("BadRequest: %s\n", e.what());
-        int size = response.buildErrorPage(e.error_code, request);
+        int size = response.buildErrorPage(e.error_code, server->getErrorPage());
         response.setStatusCode(e.error_code);
         response.setHeaderField("Host", request.getHost());
         response.setHeaderField("Content-Type", "text/html");
@@ -579,21 +591,23 @@ void HTTP::handler(Request& request, Response& response) {
     }
     catch (httpEx<Forbidden> &e) {
         LOG_INFO("Forbidden: %s\n", e.what());
+		int size = response.buildErrorPage(e.error_code, server->getErrorPage());
         response.setStatusCode(e.error_code); // одинаковые для всех элементы можно пихнуть в эррор билдер?
         response.setHeaderField("Host", request.getHost());
         response.setHeaderField("Content-Type", "text/html");
-        response.setHeaderField("Content-Length", response.buildErrorPage(e.error_code, request));
+        response.setHeaderField("Content-Length", size);
     }
     catch (httpEx<NotFound> &e) {
         LOG_INFO("NotFound: %s\n", e.what());
+		int size = response.buildErrorPage(e.error_code, server->getErrorPage());
         response.setStatusCode(e.error_code); // одинаковые для всех элементы можно пихнуть в эррор билдер?
         response.setHeaderField("Host", request.getHost());
         response.setHeaderField("Content-Type", "text/html");
-        response.setHeaderField("Content-Length", response.buildErrorPage(e.error_code, request));
+		response.setHeaderField("Content-Length", size);
     }
     catch (httpEx<MethodNotAllowed> &e) {
         LOG_INFO("MethodAllowed: %s\n", e.what());
-        int size = response.buildErrorPage(e.error_code, request);
+        int size = response.buildErrorPage(e.error_code, server->getErrorPage());
         response.setStatusCode(e.error_code);
         response.setHeaderField("Host", request.getHost());
         response.setHeaderField("Content-Type", "text/html");
@@ -702,10 +716,11 @@ void HTTP::methodGET(const Request& request, Response& response, Route* route){
     LOG_DEBUG("--------------PRINT REQUEST--------------\n");
     std::cout << request << std::endl;
     std::string path = request.getPath();
-    std::string fullPath = route->getFullPath(path);
+	if (redirection(path, response, route))
+		return;
+	std::string fullPath = route->getFullPath(path);
     if (!utils::isFile(fullPath) && !autoindex(request, response, route)) // если не файл и автоиндекс не отработал
         fullPath = route->getDefaultFileName(path);
-    //	std::string errorPage = SettingsManager::getInstance()->findServer(request.getHost())->getErrorPage();// if not empty use config errorfile
 
     if (response.getBody().empty())
     {

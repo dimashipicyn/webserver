@@ -55,6 +55,7 @@ protected:
 	void handler(Request& request, Response &response);
 	bool cgi(const Request &request, Response& response, Route* route);
 	bool autoindex(const Request &request, Response& response, Route* route);
+	bool redirection(const std::string &path, Response& response, Route* route);
 
 	void sendFile(Request& request, Response& response, const std::string& path);
 	void recvFile(Request& request, Response& response, const std::string& path);

@@ -17,7 +17,7 @@ public:
 
     void	setContent(const std::string& s);
     const	std::string&	getContent();
-	int	    buildErrorPage(int code, const Request&);
+	int	    buildErrorPage(int code, const std::string& errorPagePath);
 	void	buildDelPage(const Request&);
 
 	std::string 		getErrorPath(const Request&) const;
