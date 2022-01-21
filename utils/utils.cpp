@@ -117,6 +117,13 @@ std::string utils::readFile(const std::string &path) {
 	return os.str();
 }
 
+std::string utils::glueUri(const std::string &first, const std::string &second)
+{
+	return (first[0] == '/' ? "" : "/")
+			+ (first[first.length() - 1] == '/' ? first.substr(0, first.length() - 1) : first)
+			+ (second[0] == '/' ? second : ("/" + second));
+}
+
 /*
 int main() {
     std::string s = "hello world bro";
