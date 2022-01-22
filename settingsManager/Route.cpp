@@ -142,8 +142,7 @@ std::string Route::getFullPath(const std::string &resource) const
 	if (position != std::string::npos) {
 		mergedResource = mergedResource.erase(position, location.length());
 	}
-	return (root[root.size() - 1] == '/' ? root.substr(0, root.size() - 1) : root)
-		   + (mergedResource[0] == '/' ? mergedResource : ("/" + mergedResource));
+	return utils::glueUri(root, mergedResource);
 }
 
 std::string Route::getDefaultPage(const std::string &resource)
@@ -154,7 +153,7 @@ std::string Route::getDefaultPage(const std::string &resource)
 
 	for (std::vector<std::string>::const_iterator i = defaultFiles_.begin(); i != defaultFiles_.end(); i++)
 	{
-		std::string tryPath = fullPath + (fullPath[fullPath.size() - 1] == '/' ? (*i) : "/" + (*i));
+		std::string tryPath = utils::glueUri(fullPath, (*i));
 		if (access(tryPath.c_str(), F_OK) != -1) {
 			std::ifstream file(tryPath);
 			while (true)
@@ -177,7 +176,7 @@ int Route::checkRedirectOnPath(std::string &redirectTo, const std::string &resou
 	uint32_t mostEqualLevel = 0;
 	for (std::vector<Route::redirect>::iterator i = redirects_.begin(); i != redirects_.end(); i++)
 	{
-		std::string redirectWhat = (*i).from;
+		std::string redirectWhat = utils::glueUri(location_, (*i).from);
 		if (redirectWhat[redirectWhat.size() - 1] != '/')
 		{
 			if (redirectWhat == resource)
@@ -192,7 +191,7 @@ int Route::checkRedirectOnPath(std::string &redirectTo, const std::string &resou
 		size_t maxDepth = std::min(splittedResource.size(), splittedRedirect.size());
 		if (maxDepth > mostEqualLevel)
 		{
-			for (size_t j = 0; j < maxDepth; j++)
+			for (size_t j = 1; j < maxDepth; j++)
 			{
 				if (splittedResource.at(j) == splittedRedirect.at(j))
 					currentLevel++;
@@ -225,7 +224,7 @@ std::string Route::getDefaultFileName(const std::string &resource)
 
 	for (std::vector<std::string>::const_iterator i = defaultFiles_.begin(); i != defaultFiles_.end(); i++)
 	{
-		std::string tryPath = fullPath + (fullPath[fullPath.size() - 1] == '/' ? (*i) : "/" + (*i));
+		std::string tryPath = utils::glueUri(fullPath, (*i));
 		if (utils::isFile(tryPath)) {
 			return tryPath;
 		}

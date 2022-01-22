@@ -551,7 +551,6 @@ void HTTP::handler(Request& request, Response& response) {
         */
 
 
-        // Сравниваем расширение запрошенного ресурса с cgi расширением для этого локейшена. Если бьется, запуск скрипта
         checkIfAllowed(request, route);
 
         if (route == nullptr) {
