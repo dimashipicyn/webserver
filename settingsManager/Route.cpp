@@ -191,7 +191,7 @@ int Route::checkRedirectOnPath(std::string &redirectTo, const std::string &resou
 		size_t maxDepth = std::min(splittedResource.size(), splittedRedirect.size());
 		if (maxDepth > mostEqualLevel)
 		{
-			for (size_t j = 0; j < maxDepth; j++)
+			for (size_t j = 1; j < maxDepth; j++)
 			{
 				if (splittedResource.at(j) == splittedRedirect.at(j))
 					currentLevel++;
