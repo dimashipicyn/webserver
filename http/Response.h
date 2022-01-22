@@ -19,6 +19,7 @@ public:
     const	std::string&	getContent();
 	int	    buildErrorPage(int code, const std::string& errorPagePath);
 	void	buildDelPage(const Request&);
+	void	buildRedirectPage(const Request& request, int status, const std::string &location);
 
 	std::string 		getErrorPath(const Request&) const;
 	std::string			getHeader();

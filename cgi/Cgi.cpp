@@ -63,6 +63,7 @@ void Cgi::convertMeta(const Request &request)
 std::string Cgi::runCGI()
 {
 	pid_t pid;
+	script_ = "./cgi_tester";
 	FILE *fileIn = tmpfile();
 	FILE *fileOut = tmpfile();
 	int cgiIn = fileno(fileIn);
@@ -105,8 +106,8 @@ std::string Cgi::runCGI()
 			result += buf;
 		}
 	}
-//	if (WIFEXITED(status) != 0)
-//		throw httpEx<InternalServerError>("Cannot execute cgi script");
+	if (WIFEXITED(status) != 0)
+		throw httpEx<InternalServerError>("Cannot execute cgi script");
 	return result;
 }
 
