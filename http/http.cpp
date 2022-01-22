@@ -494,9 +494,9 @@ bool HTTP::cgi(const Request &request, Response& response, Route* route) {
     const std::string& path = request.getPath();
     bool isCGI = route != nullptr && utils::getExtension(path) == route->getCgi();
     if (isCGI) {
+		std::string body;
         if (!utils::isFile(route->getFullPath(path)))
             throw httpEx<NotFound>("CGI script not found");
-        std::string body = Cgi(request, *route).runCGI();
         //        response.setHeaderField("Content-Type", request.getHeaders().at("Content-Type"));
         response.setHeaderField("Content-Length", body.size());
         response.setStatusCode(200);
@@ -729,8 +729,7 @@ void HTTP::methodGET(const Request& request, Response& response, Route* route){
 	std::string redirectTo;
 	int statusCode;
 	if ( ( statusCode = redirection(path, redirectTo, route) ) / 100 == 3){
-		response.setStatusCode(statusCode);
-		response.setHeaderField("Location", redirectTo);
+		response.buildRedirectPage(request, statusCode, redirectTo);
 		return ;
 	}
 
