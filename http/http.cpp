@@ -205,7 +205,6 @@ void HTTP::defaultReadFunc(int socket, Session *session)
     if (foundNN != std::string::npos || foundRN != std::string::npos)
     {
         session->bind(&HTTP::defaultWriteFunc);
-		LOG_DEBUG("REDIRECTION IN defaultReadFunction line208");
         // включаем write
         enableWriteEvent(socket);
         disableReadEvent(socket);
@@ -223,8 +222,6 @@ void HTTP::defaultWriteFunc(int socket, Session *session)
     handler(request, response);
 
     std::string& wbuf = session->writeBuf;
-	LOG_DEBUG("REDIRECTION HERE\n");
-	std::cout << response.getContent();
 
     wbuf.append(response.getContent());
 }
@@ -731,7 +728,7 @@ void HTTP::methodGET(const Request& request, Response& response, Route* route){
     }
     response.setStatusCode(200);
     response.setHeaderField("Host", request.getHost());
-    response.setHeaderField("Content-Length", response.getBody().size() );
+	response.setHeaderField("Content-Length", response.getBody().size() );
 }
 
 void HTTP::methodPOST(const Request& request, Response& response, Route* route){
