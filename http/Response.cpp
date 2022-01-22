@@ -59,20 +59,23 @@ std::string		Response::getHeader(){
 	return	header_;
 }
 
-int		Response::buildErrorPage(int code, const Request& request) {
-	statusCode_ = code;
-	body_ = "<!DOCTYPE html>";
-	body_ += "<html>";
-	body_ += "<head>";
-	body_ += "<title>Error" + utils::to_string(code) + "</title>";
-	body_ += "</head>";
-	body_ += "<body>";
-	body_ += "<h1>Oops! An Error Occurred</h1>";
-	body_ += "<h2>The server returned a " + utils::to_string(code) + ". ";
-	body_ += reasonPhrase[code] + "</h2>";
-	body_ += "</body>";
-	body_ += "</html>";
-    return body_.size();
+int		Response::buildErrorPage(int code, const std::string& errorPagePath) {
+	try{
+		body_ = utils::readFile(errorPagePath);
+	} catch (httpEx<NotFound> &e) {
+		body_ = "<!DOCTYPE html>";
+		body_ += "<html>";
+		body_ += "<head>";
+		body_ += "<title>Error" + utils::to_string(code) + "</title>";
+		body_ += "</head>";
+		body_ += "<body>";
+		body_ += "<h1>Oops! An Error Occurred</h1>";
+		body_ += "<h2>The server returned a " + utils::to_string(code) + ". ";
+		body_ += reasonPhrase[code] + "</h2>";
+		body_ += "</body>";
+		body_ += "</html>";
+	}
+	return body_.size();
 }
 
 void Response::buildDelPage(const Request& request) {
@@ -87,6 +90,23 @@ void Response::buildDelPage(const Request& request) {
 	setHeaderField("Host", request.getHost() );
 	setHeaderField("Content-Length", os.str().size());
 	setHeaderField("Content-Type", "text/html");
+}
+
+void Response::buildRedirectPage(const Request& request, int status, const std::string &location) {
+	std::ostringstream os;
+	os << "<html>\r\n";
+	os << "<head><title>" << status << " " << reasonPhrase[status] << "</title></head>\r\n";
+	os << "<body>\r\n";
+	os << "<center><h1>" << status << " " << reasonPhrase[status] << "</h1></center>\r\n";
+	os << "</body>\r\n";
+	os << "</html>";
+	setStatusCode(status);
+	setHeaderField("Server", "webserv");
+	setHeaderField("Date", utils::getDate());
+	setHeaderField("Content-Type", "text/html");
+	setHeaderField("Content-Length", os.str().size());
+	setHeaderField("Location", location);
+	setBody(os.str());
 }
 
 
@@ -160,6 +180,8 @@ std::map<int, std::string>	Response::initErrorMap(){
 	reasonPhrase[200] = "OK";
 	reasonPhrase[201] = "Created";
 	reasonPhrase[204] = "No Content";
+	reasonPhrase[301] = "Moved Permanently";
+	reasonPhrase[302] = "Found";
 	reasonPhrase[400] = "Bad Request";
 	reasonPhrase[403] = "Forbidden";
 	reasonPhrase[404] = "Not Found";

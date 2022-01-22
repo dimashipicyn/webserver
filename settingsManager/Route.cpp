@@ -135,8 +135,14 @@ void Route::setAutoindex(bool autoindex)
 std::string Route::getFullPath(const std::string &resource) const
 {
 	std::string root = root_;
-	return (root[root.size() - 1] == '/' ? root.substr(0, root.size() - 1) : root)
-		   + (resource[0] == '/' ? resource : ("/" + resource));
+	std::string mergedResource = resource;
+	std::string location = location_[location_.length() - 1] == '/' ? location_.substr(0, location_.length() - 1) :
+			location_;
+	size_t position = resource.find(location);
+	if (position != std::string::npos) {
+		mergedResource = mergedResource.erase(position, location.length());
+	}
+	return utils::glueUri(root, mergedResource);
 }
 
 std::string Route::getDefaultPage(const std::string &resource)
@@ -147,7 +153,7 @@ std::string Route::getDefaultPage(const std::string &resource)
 
 	for (std::vector<std::string>::const_iterator i = defaultFiles_.begin(); i != defaultFiles_.end(); i++)
 	{
-		std::string tryPath = fullPath + (*i);
+		std::string tryPath = utils::glueUri(fullPath, (*i));
 		if (access(tryPath.c_str(), F_OK) != -1) {
 			std::ifstream file(tryPath);
 			while (true)
@@ -170,7 +176,7 @@ int Route::checkRedirectOnPath(std::string &redirectTo, const std::string &resou
 	uint32_t mostEqualLevel = 0;
 	for (std::vector<Route::redirect>::iterator i = redirects_.begin(); i != redirects_.end(); i++)
 	{
-		std::string redirectWhat = (*i).from;
+		std::string redirectWhat = utils::glueUri(location_, (*i).from);
 		if (redirectWhat[redirectWhat.size() - 1] != '/')
 		{
 			if (redirectWhat == resource)
@@ -185,7 +191,7 @@ int Route::checkRedirectOnPath(std::string &redirectTo, const std::string &resou
 		size_t maxDepth = std::min(splittedResource.size(), splittedRedirect.size());
 		if (maxDepth > mostEqualLevel)
 		{
-			for (size_t j = 0; j < maxDepth; j++)
+			for (size_t j = 1; j < maxDepth; j++)
 			{
 				if (splittedResource.at(j) == splittedRedirect.at(j))
 					currentLevel++;
@@ -201,7 +207,7 @@ int Route::checkRedirectOnPath(std::string &redirectTo, const std::string &resou
 	}
 	if (mostEqualRedirect != nullptr) {
 		std::string tail = "";
-		for (std::vector<std::string>::iterator i = splittedResource.begin() + mostEqualLevel;
+		for (std::vector<std::string>::iterator i = splittedResource.begin() + mostEqualLevel + 1;
 			i != splittedResource.end();i++)
 			tail += "/" + (*i);
 		redirectTo = mostEqualRedirect->to + tail;
@@ -218,8 +224,8 @@ std::string Route::getDefaultFileName(const std::string &resource)
 
 	for (std::vector<std::string>::const_iterator i = defaultFiles_.begin(); i != defaultFiles_.end(); i++)
 	{
-		std::string tryPath = fullPath + (*i);
-		if (access(tryPath.c_str(), F_OK) != -1) {
+		std::string tryPath = utils::glueUri(fullPath, (*i));
+		if (utils::isFile(tryPath)) {
 			return tryPath;
 		}
 	}

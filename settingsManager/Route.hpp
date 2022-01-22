@@ -31,7 +31,7 @@ public:
 
 	virtual ~Route();
 
-	class DefaultFileNotFoundException : public httpEx<Forbidden> {
+	class DefaultFileNotFoundException : public httpEx<NotFound> {
 	public:
 		explicit DefaultFileNotFoundException(const std::string &err) : httpEx(err)
 		{}
