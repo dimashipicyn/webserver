@@ -207,7 +207,7 @@ int Route::checkRedirectOnPath(std::string &redirectTo, const std::string &resou
 	}
 	if (mostEqualRedirect != nullptr) {
 		std::string tail = "";
-		for (std::vector<std::string>::iterator i = splittedResource.begin() + mostEqualLevel;
+		for (std::vector<std::string>::iterator i = splittedResource.begin() + mostEqualLevel + 1;
 			i != splittedResource.end();i++)
 			tail += "/" + (*i);
 		redirectTo = mostEqualRedirect->to + tail;
