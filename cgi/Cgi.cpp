@@ -9,6 +9,7 @@
 #include "utils.h"
 #include "Logger.h"
 #include "Route.hpp"
+#include "httpExceptions.h"
 
 #define BUFFER 1024
 
@@ -66,6 +67,7 @@ std::string Cgi::runCGI()
 	FILE *fileOut = tmpfile();
 	int cgiIn = fileno(fileIn);
 	int cgiOut = fileno(fileOut);
+	int status = 0;
 	std::string errorInternal = "Status: 500 Internal Server Error\r\n\r\n";
 
 	std::string result;
@@ -85,8 +87,8 @@ std::string Cgi::runCGI()
 
 		if (execve(script_.c_str(), nullptr, env_.data()) < 0)
 		{
-			LOG_ERROR("Execve fail!\n");
-			write(STDOUT_FILENO, errorInternal.c_str(), errorInternal.size());
+//			LOG_ERROR("Execve fail!\n");
+//			write(STDOUT_FILENO, errorInternal.c_str(), errorInternal.size());
 			exit(1);
 		}
 		exit(0);
@@ -94,7 +96,7 @@ std::string Cgi::runCGI()
 		int ret = 1;
 		char buf[BUFFER];
 
-		waitpid(-1, nullptr, 0);
+		waitpid(-1, &status, 0);
 		lseek(cgiOut, 0, SEEK_SET);
 
 		while (ret > 0) {
@@ -103,7 +105,8 @@ std::string Cgi::runCGI()
 			result += buf;
 		}
 	}
-
+//	if (WIFEXITED(status) != 0)
+//		throw httpEx<InternalServerError>("Cannot execute cgi script");
 	return result;
 }
 
