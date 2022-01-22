@@ -59,20 +59,23 @@ std::string		Response::getHeader(){
 	return	header_;
 }
 
-int		Response::buildErrorPage(int code, const Request& request) {
-	statusCode_ = code;
-	body_ = "<!DOCTYPE html>";
-	body_ += "<html>";
-	body_ += "<head>";
-	body_ += "<title>Error" + utils::to_string(code) + "</title>";
-	body_ += "</head>";
-	body_ += "<body>";
-	body_ += "<h1>Oops! An Error Occurred</h1>";
-	body_ += "<h2>The server returned a " + utils::to_string(code) + ". ";
-	body_ += reasonPhrase[code] + "</h2>";
-	body_ += "</body>";
-	body_ += "</html>";
-    return body_.size();
+int		Response::buildErrorPage(int code, const std::string& errorPagePath) {
+	try{
+		body_ = utils::readFile(errorPagePath);
+	} catch (httpEx<NotFound> &e) {
+		body_ = "<!DOCTYPE html>";
+		body_ += "<html>";
+		body_ += "<head>";
+		body_ += "<title>Error" + utils::to_string(code) + "</title>";
+		body_ += "</head>";
+		body_ += "<body>";
+		body_ += "<h1>Oops! An Error Occurred</h1>";
+		body_ += "<h2>The server returned a " + utils::to_string(code) + ". ";
+		body_ += reasonPhrase[code] + "</h2>";
+		body_ += "</body>";
+		body_ += "</html>";
+	}
+	return body_.size();
 }
 
 void Response::buildDelPage(const Request& request) {
@@ -160,6 +163,8 @@ std::map<int, std::string>	Response::initErrorMap(){
 	reasonPhrase[200] = "OK";
 	reasonPhrase[201] = "Created";
 	reasonPhrase[204] = "No Content";
+	reasonPhrase[301] = "MovedPermanently";
+	reasonPhrase[302] = "Found";
 	reasonPhrase[400] = "Bad Request";
 	reasonPhrase[403] = "Forbidden";
 	reasonPhrase[404] = "Not Found";

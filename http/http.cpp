@@ -205,7 +205,7 @@ void HTTP::defaultReadFunc(int socket, Session *session)
     if (foundNN != std::string::npos || foundRN != std::string::npos)
     {
         session->bind(&HTTP::defaultWriteFunc);
-
+		LOG_DEBUG("REDIRECTION IN defaultReadFunction line208");
         // включаем write
         enableWriteEvent(socket);
         disableReadEvent(socket);
@@ -223,6 +223,9 @@ void HTTP::defaultWriteFunc(int socket, Session *session)
     handler(request, response);
 
     std::string& wbuf = session->writeBuf;
+	LOG_DEBUG("REDIRECTION HERE\n");
+	std::cout << response.getContent();
+
     wbuf.append(response.getContent());
 }
 
@@ -518,9 +521,17 @@ bool HTTP::autoindex(const Request &request, Response &response, Route *route) {
     return isAutoindexed;
 }
 
+int HTTP::redirection(const std::string& from, std::string &to, Route* route) {
+	int statusCode = route->checkRedirectOnPath(to, from);
+	return statusCode;
+}
+
 // здесь происходит обработка запроса
 void HTTP::handler(Request& request, Response& response) {
-    try {
+	SettingsManager *settingsManager = SettingsManager::getInstance();
+	Server *server = settingsManager->findServer(request.getHost());
+	Route *route = (server == nullptr ? nullptr : server->findRouteByPath(request.getPath()));
+	try {
         LOG_DEBUG("Http handler call\n");
         LOG_DEBUG("--------------PRINT REQUEST--------------\n");
         std::cout << request << std::endl;
@@ -543,11 +554,6 @@ void HTTP::handler(Request& request, Response& response) {
         */
 
 
-        // Сравниваем расширение запрошенного ресурса с cgi расширением для этого локейшена. Если бьется, запуск скрипта
-        SettingsManager *settingsManager = SettingsManager::getInstance();
-        Server *server = settingsManager->findServer(request.getHost());
-        Route *route = (server == nullptr ? nullptr : server->findRouteByPath(request.getPath()));
-
         checkIfAllowed(request, route);
 
         if (route == nullptr) {
@@ -565,7 +571,7 @@ void HTTP::handler(Request& request, Response& response) {
     }
     catch (httpEx<BadRequest> &e) {
         LOG_INFO("BadRequest: %s\n", e.what());
-        int size = response.buildErrorPage(e.error_code, request);
+        int size = response.buildErrorPage(e.error_code, server->getErrorPage());
         response.setStatusCode(e.error_code);
         response.setHeaderField("Host", request.getHost());
         response.setHeaderField("Content-Type", "text/html");
@@ -579,21 +585,23 @@ void HTTP::handler(Request& request, Response& response) {
     }
     catch (httpEx<Forbidden> &e) {
         LOG_INFO("Forbidden: %s\n", e.what());
+		int size = response.buildErrorPage(e.error_code, server->getErrorPage());
         response.setStatusCode(e.error_code); // одинаковые для всех элементы можно пихнуть в эррор билдер?
         response.setHeaderField("Host", request.getHost());
         response.setHeaderField("Content-Type", "text/html");
-        response.setHeaderField("Content-Length", response.buildErrorPage(e.error_code, request));
+        response.setHeaderField("Content-Length", size);
     }
     catch (httpEx<NotFound> &e) {
         LOG_INFO("NotFound: %s\n", e.what());
+		int size = response.buildErrorPage(e.error_code, server->getErrorPage());
         response.setStatusCode(e.error_code); // одинаковые для всех элементы можно пихнуть в эррор билдер?
         response.setHeaderField("Host", request.getHost());
         response.setHeaderField("Content-Type", "text/html");
-        response.setHeaderField("Content-Length", response.buildErrorPage(e.error_code, request));
+		response.setHeaderField("Content-Length", size);
     }
     catch (httpEx<MethodNotAllowed> &e) {
         LOG_INFO("MethodAllowed: %s\n", e.what());
-        int size = response.buildErrorPage(e.error_code, request);
+        int size = response.buildErrorPage(e.error_code, server->getErrorPage());
         response.setStatusCode(e.error_code);
         response.setHeaderField("Host", request.getHost());
         response.setHeaderField("Content-Type", "text/html");
@@ -702,10 +710,18 @@ void HTTP::methodGET(const Request& request, Response& response, Route* route){
     LOG_DEBUG("--------------PRINT REQUEST--------------\n");
     std::cout << request << std::endl;
     std::string path = request.getPath();
-    std::string fullPath = route->getFullPath(path);
+
+	std::string redirectTo;
+	int statusCode;
+	if ( ( statusCode = redirection(path, redirectTo, route) ) / 100 == 3){
+		response.setStatusCode(statusCode);
+		response.setHeaderField("Location", redirectTo);
+		return ;
+	}
+
+	std::string fullPath = route->getFullPath(path);
     if (!utils::isFile(fullPath) && !autoindex(request, response, route)) // если не файл и автоиндекс не отработал
         fullPath = route->getDefaultFileName(path);
-    //	std::string errorPage = SettingsManager::getInstance()->findServer(request.getHost())->getErrorPage();// if not empty use config errorfile
 
     if (response.getBody().empty())
     {
