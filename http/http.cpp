@@ -594,12 +594,23 @@ int HTTP::redirection(const std::string& from, std::string &to, Route* route) {
 	return statusCode;
 }
 
+void HTTP::methodsCaller(Request& request, Response& response, Route* route) {
+    try {
+        checkIfAllowed(request.getMethod(), route);
+        (this->*_method.at(request.getMethod()))(request, response, route);
+    }
+    catch (const std::out_of_range& e) {
+        throw httpEx<BadRequest>("Invalid Request");
+    }
+}
+
+
 // здесь происходит обработка запроса
 void HTTP::handler(Request& request, Response& response) {
-	SettingsManager *settingsManager = SettingsManager::getInstance();
-	Server *server = settingsManager->findServer(request.getHost());
+    Server *server = SettingsManager::getInstance()->findServer(request.getHost());
 	Route *route = (server == nullptr ? nullptr : server->findRouteByPath(request.getPath()));
-	try {
+
+    try {
         LOG_DEBUG("Http handler call\n");
         LOG_DEBUG("--------------PRINT REQUEST--------------\n");
         std::cout << request << std::endl;
@@ -633,20 +644,16 @@ void HTTP::handler(Request& request, Response& response) {
         if (route == nullptr) {
             throw httpEx<NotFound>("Not Found");
         }
-        std::string method = request.getMethod();
-        if (method.empty() ) throw httpEx<BadRequest>("Invalid Request");
-        try {
-            if (!cgi(request, response, route)) {
-				checkIfAllowed(request, route);
-                (this->*_method.at(method))(request, response, route);
-			}
+
+        /* Request check supported version, check valid path, check empty */
+        requestValidate(request);
+
+        if (cgi(request, response, route)) {
+            return;
         }
-        catch (const std::out_of_range& e) {
-            throw httpEx<BadRequest>("Invalid Request");
-        }
-		catch (httpEx<InternalServerError> &e) {
-			throw httpEx<InternalServerError>(e.what());
-		}
+
+        methodsCaller(request, response, route);
+
     }
     catch (httpEx<BadRequest> &e) {
         LOG_INFO("BadRequest: %s\n", e.what());
@@ -867,15 +874,16 @@ void HTTP::methodPATCH(const Request&, Response&, Route*){
     throw httpEx<MethodNotAllowed>("Not Allowed by subject");
 }
 
-void HTTP::checkIfAllowed(const Request& request, Route *route){
+void HTTP::checkIfAllowed(const std::string& method, Route* route){
     std::vector<std::string> allowedMethods = route->getMethods();
     std::string headerAllow;
+
     for (std::vector<std::string>::iterator it = allowedMethods.begin(); it != allowedMethods.end(); ++it) {
         headerAllow += (it == allowedMethods.begin()) ? *it : ", " + *it;
     }
-    if ( find(std::begin(allowedMethods), std::end(allowedMethods), request.getMethod()) == allowedMethods.end() ) {
+
+    if ( find(std::begin(allowedMethods), std::end(allowedMethods), method) == allowedMethods.end() ) {
         throw httpEx<MethodNotAllowed>(headerAllow); // put in structure string of allowed methods
-        //response.setHeaderField("Allow", "GET"); // need to put all allowed methods here from config set
     }
 }
 
@@ -1147,4 +1155,25 @@ bool HTTP::isValidMethod(const std::string &method)
         return _method.at(method) != nullptr;
     }
     catch (std::out_of_range &e) {return false;}
+}
+
+void HTTP::requestValidate(Request& request)
+{
+    if (!request.good()) {
+        throw httpEx<BadRequest>("");
+    }
+
+    if (request.getPath()[0] != '/') {
+        throw httpEx<BadRequest>("Invalid path");
+    }
+
+    const std::string& version = request.getVersion();
+    size_t foundHTTP = version.find("HTTP/");
+
+    if (foundHTTP == std::string::npos) {
+        throw httpEx<BadRequest>("Invalid http version");
+    }
+    if (std::string(version, version.find_first_not_of("HTTP/")) != "1.1") {
+        throw httpEx<HTTPVersionNotSupported>("HTTP version only HTTP/1.1");
+    }
 }
