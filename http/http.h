@@ -67,6 +67,7 @@ protected:
     void recvCGIChunked(Request& request, Response& response);
     void sendFileChunked(Request& request, Response& response, const std::string& path);
 
+    void requestValidate(Request& request);
 
 
 	typedef std::map<int, Session> tdSessionMap;
@@ -84,9 +85,11 @@ private:
 	void methodOPTIONS(const Request&, Response&, Route*);
 	void methodTRACE(const Request&, Response&, Route*);
 	void methodPATCH(const Request&, Response&, Route*);
-	void checkIfAllowed(const Request&, Route*);
+    void checkIfAllowed(const std::string&, Route*);
 //	void methodNotAllowed(const Request&, Response&);
 //	void BadRequest(Response&);
+
+    void methodsCaller(Request& request, Response& response, Route* route);
 
 
 	typedef std::map<std::string, void (HTTP::*)(const Request &, Response&, Route*)> MethodHttp;
