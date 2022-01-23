@@ -218,6 +218,8 @@ void HTTP::defaultReadFunc(int socket, Session *session)
         session->request.reset();
         session->request.parse(std::string(rbuf, 0, pos));
         rbuf.erase(0, pos);
+//		session->request.setBody(rbuf);
+//		rbuf.erase();
 
         session->bind(&HTTP::defaultWriteFunc);
 		LOG_DEBUG("REDIRECTION IN defaultReadFunction line208");

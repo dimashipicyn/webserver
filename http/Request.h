@@ -27,7 +27,10 @@ public:
     const std::string&      getPath() const;
     const std::string&      getQueryString() const;
     const std::string&      getBody() const;
-    const std::string&      getHost() const;
+
+	void setBody(const std::string &body);
+
+	const std::string&      getHost() const;
     const headersMap&       getHeaders() const;
     int                     getID() const;
 

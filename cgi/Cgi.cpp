@@ -46,7 +46,7 @@ void Cgi::convertMeta(const Request &request)
 	meta["SERVER_NAME"] = headers.find("Hostname") == headers.end() ? host.first : headers["Hostname"];
 	meta["SERVER_PORT"] = host.second;
 	meta["SERVER_PROTOCOL"] = "HTTP/1.1";
-	meta["SERVER_SOFTWARE"] = "HTTP/1.1";
+	meta["SERVER_SOFTWARE"] = "webserv/1.0";
 
 
 	size_t i = 0;

@@ -232,3 +232,8 @@ void Request::setID(int id) {
 int Request::getID() const {
     return id_;
 }
+
+void Request::setBody(const std::string &body)
+{
+	body_ = body;
+}
