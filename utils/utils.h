@@ -55,6 +55,16 @@ namespace utils
 	 */
 	std::string glueUri(const std::string &first, const std::string &second);
 
+	/**
+	 * @brief ищет в uri расширение сжи.
+	 * @param resource - uri
+	 * @param cgiExtension - расширение сжи
+	 * @return позицию следующего за расширением символа в uri
+	 */
+	size_t checkCgiExtension(const std::string &resource, const std::string &cgiExtension);
+
+	std::string getPathInfo(const std::string &resource, size_t cgiEndsAt);
+
     template<typename T>
     std::string to_string(const T &t)
     {

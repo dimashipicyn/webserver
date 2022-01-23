@@ -558,9 +558,11 @@ void HTTP::cgiCaller(int socket, Session* session)
 ///////////////////////////////////////////////////////////////////////////
 
 bool HTTP::cgi(const Request &request, Response& response, Route* route) {
-    const std::string& path = request.getPath();
-    bool isCGI = route != nullptr && utils::getExtension(path) == route->getCgi();
+    std::string path = request.getPath();
+	size_t cgiAt = utils::checkCgiExtension(path, route->getCgi());
+    bool isCGI = route != nullptr && cgiAt != std::string::npos;
     if (isCGI) {
+		path = path.substr(0, cgiAt);
 		std::string body;
         if (!utils::isFile(route->getFullPath(path)))
             throw httpEx<NotFound>("CGI script not found");
