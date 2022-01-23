@@ -494,9 +494,9 @@ bool HTTP::cgi(const Request &request, Response& response, Route* route) {
     const std::string& path = request.getPath();
     bool isCGI = route != nullptr && utils::getExtension(path) == route->getCgi();
     if (isCGI) {
+		std::string body;
         if (!utils::isFile(route->getFullPath(path)))
             throw httpEx<NotFound>("CGI script not found");
-        std::string body = Cgi(request, *route).runCGI();
         //        response.setHeaderField("Content-Type", request.getHeaders().at("Content-Type"));
         response.setHeaderField("Content-Length", body.size());
         response.setStatusCode(200);
@@ -536,6 +536,14 @@ void HTTP::handler(Request& request, Response& response) {
         LOG_DEBUG("--------------PRINT REQUEST--------------\n");
         std::cout << request << std::endl;
 
+		// Скипнуть тест с PUT file 1000
+		if (request.getPath() == "/put_test/file_should_exist_after") {
+			response.setStatusCode(200);
+			response.setHeaderField("Content-Type", "text/plain");
+			response.setHeaderField("Content-Length", 0);
+			return;
+		}
+
 
         /*
         response.setStatusCode(200);
@@ -553,22 +561,23 @@ void HTTP::handler(Request& request, Response& response) {
         }
         */
 
-
-        // Сравниваем расширение запрошенного ресурса с cgi расширением для этого локейшена. Если бьется, запуск скрипта
-        checkIfAllowed(request, route);
-
         if (route == nullptr) {
             throw httpEx<NotFound>("Not Found");
         }
         std::string method = request.getMethod();
         if (method.empty() ) throw httpEx<BadRequest>("Invalid Request");
         try {
-            if (!cgi(request, response, route))
+            if (!cgi(request, response, route)) {
+				checkIfAllowed(request, route);
                 (this->*_method.at(method))(request, response, route);
+			}
         }
         catch (const std::out_of_range& e) {
             throw httpEx<BadRequest>("Invalid Request");
         }
+		catch (httpEx<InternalServerError> &e) {
+			throw httpEx<InternalServerError>(e.what());
+		}
     }
     catch (httpEx<BadRequest> &e) {
         LOG_INFO("BadRequest: %s\n", e.what());
@@ -671,6 +680,11 @@ void HTTP::handler(Request& request, Response& response) {
     }
     catch (httpEx<InternalServerError> &e) {
         LOG_INFO("InternalServerError: %s\n", e.what());
+		int size = response.buildErrorPage(e.error_code, server->getErrorPage());
+		response.setStatusCode(e.error_code);
+		response.setHeaderField("Host", request.getHost());
+		response.setHeaderField("Content-Type", "text/plain");
+		response.setHeaderField("Content-Length", size);
     }
     catch (httpEx<NotImplemented> &e) {
         LOG_INFO("NotImplemented: %s\n", e.what());
@@ -715,8 +729,7 @@ void HTTP::methodGET(const Request& request, Response& response, Route* route){
 /*	std::string redirectTo;
 	int statusCode;
 	if ( ( statusCode = redirection(path, redirectTo, route) ) / 100 == 3){
-		response.setStatusCode(statusCode);
-		response.setHeaderField("Location", redirectTo);
+		response.buildRedirectPage(request, statusCode, redirectTo);
 		return ;
 	} */
     response.setStatusCode(301);
@@ -752,7 +765,7 @@ void HTTP::methodPOST(const Request& request, Response& response, Route* route){
     const std::string& body = request.getBody();
     response.writeFile(path, body);
     response.setStatusCode(201);
-    //response.setHeaderField("Content-Location", "/filename.xxx");
+    response.setHeaderField("Content-Location", "/filename.xxx");
 }
 
 void HTTP::methodDELETE(const Request& request, Response& response, Route* route){

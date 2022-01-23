@@ -92,6 +92,23 @@ void Response::buildDelPage(const Request& request) {
 	setHeaderField("Content-Type", "text/html");
 }
 
+void Response::buildRedirectPage(const Request& request, int status, const std::string &location) {
+	std::ostringstream os;
+	os << "<html>\r\n";
+	os << "<head><title>" << status << " " << reasonPhrase[status] << "</title></head>\r\n";
+	os << "<body>\r\n";
+	os << "<center><h1>" << status << " " << reasonPhrase[status] << "</h1></center>\r\n";
+	os << "</body>\r\n";
+	os << "</html>";
+	setStatusCode(status);
+	setHeaderField("Server", "webserv");
+	setHeaderField("Date", utils::getDate());
+	setHeaderField("Content-Type", "text/html");
+	setHeaderField("Content-Length", os.str().size());
+	setHeaderField("Location", location);
+	setBody(os.str());
+}
+
 
 void    Response::writeFile(const std::string& path, const std::string body){
     std::ofstream	file;

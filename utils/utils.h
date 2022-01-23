@@ -47,6 +47,14 @@ namespace utils
      */
     std::string getExtension(std::string const &resource);
 
+	/**
+	 * @brief правильно склеивает две части адреса, что бы между двумя кусками всегда был только один слэш
+	 * @param first кусок начала
+	 * @param second кусок в конец
+	 * @return строка first + / + second
+	 */
+	std::string glueUri(const std::string &first, const std::string &second);
+
     template<typename T>
     std::string to_string(const T &t)
     {
