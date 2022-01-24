@@ -9,7 +9,12 @@
 #include "Route.hpp"
 #include "Request.h"
 
-Response::Response() {
+Response::Response()
+    : content_()
+    , body_()
+    , header_()
+    , statusCode_(0)
+{
 
 }
 
@@ -28,10 +33,13 @@ const std::string& Response::getContent() {
             + "\r\n";
 
     if (!header_.empty()) {
-        content_ += header_
-                + "\r\n"
-                + body_;
+    content_ += header_
+            + "\r\n"
+            + body_;
     }
+//    else {
+//        content_.clear();
+//    }
 	return content_;
 }
 
@@ -90,6 +98,23 @@ void Response::buildDelPage(const Request& request) {
 	setHeaderField("Host", request.getHost() );
 	setHeaderField("Content-Length", os.str().size());
 	setHeaderField("Content-Type", "text/html");
+}
+
+void Response::buildRedirectPage(const Request& request, int status, const std::string &location) {
+	std::ostringstream os;
+	os << "<html>\r\n";
+	os << "<head><title>" << status << " " << reasonPhrase[status] << "</title></head>\r\n";
+	os << "<body>\r\n";
+	os << "<center><h1>" << status << " " << reasonPhrase[status] << "</h1></center>\r\n";
+	os << "</body>\r\n";
+	os << "</html>";
+	setStatusCode(status);
+	setHeaderField("Server", "webserv");
+	setHeaderField("Date", utils::getDate());
+	setHeaderField("Content-Type", "text/html");
+	setHeaderField("Content-Length", os.str().size());
+	setHeaderField("Location", location);
+	setBody(os.str());
 }
 
 
@@ -163,7 +188,7 @@ std::map<int, std::string>	Response::initErrorMap(){
 	reasonPhrase[200] = "OK";
 	reasonPhrase[201] = "Created";
 	reasonPhrase[204] = "No Content";
-	reasonPhrase[301] = "MovedPermanently";
+	reasonPhrase[301] = "Moved Permanently";
 	reasonPhrase[302] = "Found";
 	reasonPhrase[400] = "Bad Request";
 	reasonPhrase[403] = "Forbidden";

@@ -31,21 +31,62 @@ protected:
 	virtual void asyncWrite(int socket);
 	virtual void asyncEvent(int socket, uint16_t flags);
 
-	void defaultReadFunc(int socket, Session* session);
-	void defaultWriteFunc(int socket, Session* session);
-	void doneFunc(int socket, Session* session);
-	void sendFileFunc(int socket, Session* session);
-	void recvFileFunc(int socket, Session* session);
-	void cgiCaller(int socket, Session* session);
-    void recvChunkedReadFromSocket(int socket, Session* session);
-    void recvChunkedWriteToFile(int socket, Session* session);
-    void recvChunkedWriteToSocket(int socket, Session* session);
-    void recvChunkedReadFromFile(int socket, Session* session);
+    void defaultReadCallback(int socket, Session* session);
+
+    void readBodyEventRead(int socket, Session* session);
+    void readBodyEventWrite(int socket, Session* session);
+
+    void readBodyChunkedEventRead(int socket, Session* session);
+    void readBodyChunkedEventWrite(int socket, Session* session);
+
+
+    void defaultWriteCallback(int socket, Session* session);
+    void doneWriteCallback(int socket, Session* session);
+
+    void sendFileEventWrite(int socket, Session* session);
+    void sendFileChunkedEventWrite(int socket, Session* session);
+
+
+    /*
+    void recvFileCallback(int socket, Session* session);
+    void recvChunkedFileCallback(int socket, Session* session);
+
+
+    void recvCGICallback(int socket, Session* session);
+    void recvChunkedCGICallback(int socket, Session* session);
+
+    void sendCGIChunkedCallback(int socket, Session* session);
+    void sendCGICallback(int socket, Session* session);
+
+    void doneWriteCGICallback(int socket, Session *session);
+
+
+    void sendFile(Request& request, Response& response, const std::string& path);
+    void sendFileChunked(Request& request, Response& response, const std::string& path);
+
+    void recvFile(Request& request, Response& response, const std::string& path);
+    void recvFileChunked(const Request& request, Response& response, const std::string& path);
+
+    std::pair<int, int> recvCGI(const Request& request);
+    void recvCGIChunked(Request& request, Response& response);
+
+    std::pair<int, int> sendCGI(const Request& request);
+    std::pair<int, int> sendCGIChunked(const Request& request);
+    */
+
+    bool saveToFile(int fd, const std::string& path);
+
+    void sendFile(const Request& request, Response& response, const std::string& path, bool chunked);
+    void sendFile(const Request& request, Response& response, int fd, bool chunked);
+
+
+
+
+
 
 	Session*    getSessionByID(int id);
 	void        closeSessionByID(int id);
-	void        newSessionByID(int id, Session& session);
-
+    void        newSessionByID(int id, Session& session);
 
 
 
@@ -55,15 +96,10 @@ protected:
 	void	handler(Request& request, Response &response);
 	bool	cgi(const Request &request, Response& response, Route* route);
 	bool	autoindex(const Request &request, Response& response, Route* route);
-	int		redirection(const std::string &from, std::string &to, Route* route);
-
-	void	sendFile(Request& request, Response& response, const std::string& path);
-	void	recvFile(Request& request, Response& response, const std::string& path);
-
-	void recvFileChunked(Request& request, Response& response, const std::string& path);
-	void sendFileChunked(Request& request, Response& response, const std::string& path);
+    int		redirection(const std::string &from, std::string &to, Route* route);
 
 
+    void requestValidate(Request& request);
 
 
 	typedef std::map<int, Session> tdSessionMap;
@@ -81,9 +117,11 @@ private:
 	void methodOPTIONS(const Request&, Response&, Route*);
 	void methodTRACE(const Request&, Response&, Route*);
 	void methodPATCH(const Request&, Response&, Route*);
-	void checkIfAllowed(const Request&, Route*);
+    void checkIfAllowed(const std::string&, Route*);
 //	void methodNotAllowed(const Request&, Response&);
 //	void BadRequest(Response&);
+
+    void methodsCaller(Request& request, Response& response, Route* route);
 
 
 	typedef std::map<std::string, void (HTTP::*)(const Request &, Response&, Route*)> MethodHttp;

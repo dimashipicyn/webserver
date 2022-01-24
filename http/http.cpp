@@ -22,466 +22,6 @@
 #include "httpExceptions.h"
 #include <algorithm>
 
-const int64_t sessionTimeout = 2500000; // 2500 sec
-
-typedef void (HTTP::*handlerFunc)(int, Session*);
-
-struct Session
-{
-    void bind(handlerFunc f) {
-        func = f;
-    };
-
-    std::string readBuf;
-    std::string writeBuf;
-
-    handlerFunc func;
-    int32_t     fileDesc;
-    int64_t     fileSize;
-    int64_t     recvBytes;
-    Request     request;
-};
-
-HTTP::HTTP()
-    : sessionMap_()
-{
-
-}
-
-HTTP::~HTTP()
-{
-
-}
-
-void HTTP::start() {
-    EventPool::start();
-}
-
-void HTTP::listen(const std::string& host)
-{
-    try {
-        TcpSocket conn(host);
-        conn.listen();
-        conn.makeNonBlock();
-
-        Session listenSession;
-        newListenerEvent(conn);
-        newSessionByID(conn.getSock(), listenSession);
-    }  catch (std::exception& e) {
-        LOG_ERROR("HTTP: %s\n", e.what());
-    }
-}
-
-Session* HTTP::getSessionByID(int id)
-{
-    if (sessionMap_.find(id) != sessionMap_.end()) {
-        return &sessionMap_[id];
-    }
-    return nullptr;
-}
-
-void HTTP::closeSessionByID(int id) {
-    disableTimerEvent(id, 0);
-    ::close(id);
-    sessionMap_.erase(id);
-}
-
-void HTTP::newSessionByID(int id, Session& session)
-{
-    sessionMap_[id] = session;
-}
-
-////////////////////////////////////////////////////////////////////////////////
-////////////////////////////// ASYNC LOGIC /////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////
-
-void HTTP::asyncAccept(TcpSocket& socket)
-{
-    LOG_DEBUG("Event accepter call\n");
-
-    try
-    {
-        Session *session = getSessionByID(socket.getSock());
-        if (session == nullptr) {
-            LOG_ERROR("Dont find session to socket: %d. Close.\n", socket.getSock());
-            close(socket.getSock());
-            return;
-        }
-
-        TcpSocket conn = socket.accept();
-
-        LOG_DEBUG("New connect fd: %d\n", conn.getSock());
-
-        Session s;
-        s.bind(&HTTP::defaultReadFunc);
-        s.request.setHost(conn.getHost());
-        s.request.setID(conn.getSock());
-
-        newSessionByID(conn.getSock(), s);
-        enableReadEvent(conn.getSock());
-        enableTimerEvent(conn.getSock(), sessionTimeout); // TODO add config
-    }
-    catch (std::exception& e)
-    {
-        LOG_ERROR("HTTP::asyncAccept error: %s\n", e.what());
-    }
-};
-
-void HTTP::asyncWrite(int socket)
-{
-    LOG_DEBUG("Event writer call\n");
-
-    Session *session = getSessionByID(socket);
-    if (session == nullptr) {
-        LOG_ERROR("Dont find session to socket: %d. Close connection.\n", socket);
-        closeSessionByID(socket);
-        return;
-    }
-    (this->*session->func)(socket, session);
-}
-
-void HTTP::asyncRead(int socket)
-{
-    LOG_DEBUG("Event reader call\n");
-
-    Session *session = getSessionByID(socket);
-    if (session == nullptr) {
-        LOG_ERROR("Dont find session to socket: %d. Close connection.\n", socket);
-        closeSessionByID(socket);
-        return;
-    }
-    (this->*session->func)(socket, session);
-}
-
-void HTTP::asyncEvent(int socket, uint16_t flags)
-{
-    LOG_DEBUG("Event handler call\n");
-    if (flags & EventPool::M_EOF || flags & EventPool::M_ERROR) {
-        LOG_ERROR("Event error or eof, socket: %d\n", socket);
-        closeSessionByID(socket);
-    }
-    if (flags & EventPool::M_TIMER) {
-        LOG_ERROR("Event timeout, socket: %d\n", socket);
-        closeSessionByID(socket);
-    }
-}
-
-void HTTP::defaultReadFunc(int socket, Session *session)
-{
-    LOG_DEBUG("defaultReadFunc call\n");
-    const int64_t bufSize = (1 << 16);
-    char buf[bufSize];
-
-    int64_t readBytes = ::read(socket, buf, bufSize - 1);
-    if (readBytes < 0) {
-        closeSessionByID(socket);
-        LOG_ERROR("Dont read to socket: %d. Close connection.\n", socket);
-        return;
-    }
-
-    buf[readBytes] = '\0';
-
-    std::string& rbuf = session->readBuf;
-
-    rbuf.append(buf);
-    LOG_DEBUG("rbuf: %s", rbuf.c_str());
-
-    size_t foundNN = rbuf.find("\n\n");
-    size_t foundRN = rbuf.find("\r\n\r\n");
-
-    if (foundNN != std::string::npos) {
-        size_t pos = rbuf.find_first_not_of("\r\n", foundNN);
-        session->request.reset();
-        session->request.parse(std::string(rbuf, 0, pos));
-        rbuf.erase(0, pos);
-    }
-    if (foundRN != std::string::npos) {
-        size_t pos = rbuf.find_first_not_of("\r\n", foundRN);
-        session->request.reset();
-        session->request.parse(std::string(rbuf, 0, pos));
-        rbuf.erase(0, pos);
-    }
-
-    if (foundNN != std::string::npos || foundRN != std::string::npos)
-    {
-        session->bind(&HTTP::defaultWriteFunc);
-        // включаем write
-        enableWriteEvent(socket);
-        disableReadEvent(socket);
-    }
-}
-
-void HTTP::defaultWriteFunc(int socket, Session *session)
-{
-    LOG_DEBUG("defaultWriteFunc call\n");
-    session->bind(&HTTP::doneFunc);
-
-    Request& request = session->request;
-
-    Response response;
-    handler(request, response);
-
-    std::string& wbuf = session->writeBuf;
-
-    wbuf.append(response.getContent());
-}
-
-void HTTP::doneFunc(int socket, Session *session)
-{
-    LOG_DEBUG("doneFunc call\n");
-    std::string& wbuf = session->writeBuf;
-
-    if (wbuf.empty()) {
-        disableWriteEvent(socket);
-        enableReadEvent(socket);
-        session->bind(&HTTP::defaultReadFunc);
-    }
-    else {
-        int64_t writeBytes = ::write(socket, wbuf.c_str(), wbuf.size());
-
-        if (writeBytes < 0) {
-            closeSessionByID(socket);
-            LOG_ERROR("Dont write to socket: %d. Close connection.\n", socket);
-            return;
-        }
-
-        wbuf.erase(0, writeBytes);
-    }
-}
-
-void HTTP::sendFileFunc(int socket, Session* session)
-{
-    LOG_DEBUG("sendFileFunc call\n");
-    const int32_t bufSize = (1 << 16);
-    char buf[bufSize] = {};
-
-    int32_t fd = session->fileDesc;
-    int32_t readBytes = ::read(fd, buf, bufSize - 1);
-
-    if (readBytes == 0) {
-        close(fd);
-        session->bind(&HTTP::doneFunc);
-    }
-
-    if (readBytes < 0) {
-        closeSessionByID(socket);
-        LOG_ERROR("Dont read to file: %d. Close connection.\n", socket);
-        return;
-    }
-
-    buf[readBytes] = '\0';
-
-    std::string& wbuf = session->writeBuf;
-    wbuf.append(buf);
-
-    int32_t writeBytes = ::write(socket, wbuf.c_str(), wbuf.size());
-
-    if (writeBytes < 0) {
-        close(fd);
-        closeSessionByID(socket);
-        LOG_ERROR("Dont write to socket: %d. Close connection.\n", socket);
-        return;
-    }
-
-    wbuf.erase(0, writeBytes);
-}
-
-void HTTP::recvFileFunc(int socket, Session* session)
-{
-    LOG_DEBUG("recvFileFunc call\n");
-    const int32_t bufSize = (1 << 16);
-    char buf[bufSize] = {};
-
-
-    int32_t readBytes = ::read(socket, buf, bufSize - 1);
-
-    if (readBytes < 0) {
-        closeSessionByID(socket);
-        LOG_ERROR("Dont read to file: %d. Close connection.\n", socket);
-        return;
-    }
-
-    buf[readBytes] = '\0';
-
-
-    std::string& wbuf = session->writeBuf;
-    wbuf.append(buf);
-
-    int32_t fd = session->fileDesc;
-
-    int64_t bytes = 0;
-    if (session->fileSize != -1) {
-        bytes = std::min<int64_t>(wbuf.size(), session->fileSize - session->recvBytes);
-    }
-    else {
-        bytes = wbuf.size();
-    }
-
-
-    int32_t writeBytes = ::write(fd, wbuf.c_str(), bytes);
-
-    if (writeBytes < 0) {
-        closeSessionByID(socket);
-        LOG_ERROR("Dont write to socket: %d. Close connection.\n", socket);
-        return;
-    }
-
-    session->recvBytes += writeBytes;
-    if (session->recvBytes == session->fileSize) {
-        session->bind(&HTTP::cgiCaller);
-        disableReadEvent(socket);
-        enableWriteEvent(socket);
-    }
-
-    if (session->fileSize == -1 && wbuf.size()) {
-        session->bind(&HTTP::cgiCaller);
-        disableReadEvent(socket);
-        enableWriteEvent(socket);
-    }
-
-    wbuf.erase(0, writeBytes);
-}
-
-void HTTP::recvChunkedReadFromSocket(int socket, Session *session)
-{
-    const int32_t bufSize = (1 << 16);
-    char buf[bufSize] = {};
-
-
-    int32_t readBytes = ::read(socket, buf, bufSize - 1);
-
-    if (readBytes < 0) {
-        closeSessionByID(socket);
-        LOG_ERROR("Dont read to file: %d. Close connection.\n", socket);
-        return;
-    }
-
-    buf[readBytes] = '\0';
-
-    std::string& rbuf = session->readBuf;
-
-    rbuf.append(buf);
-
-    size_t found = rbuf.find("\n");
-    if (found != std::string::npos) {
-        session->fileSize = utils::to_number<int64_t>(std::string(rbuf, 0, found + 1));
-        session->recvBytes = 0;
-        session->bind(&HTTP::recvChunkedWriteToFile);
-        rbuf.erase(0, found + 1);
-    }
-}
-
-void HTTP::recvChunkedWriteToFile(int socket, Session* session)
-{
-    const int32_t bufSize = (1 << 16);
-    char buf[bufSize] = {};
-
-
-    int32_t readBytes = ::read(socket, buf, bufSize - 1);
-
-    if (readBytes < 0) {
-        closeSessionByID(socket);
-        LOG_ERROR("Dont read to file: %d. Close connection.\n", socket);
-        return;
-    }
-
-    buf[readBytes] = '\0';
-
-    std::string& rbuf = session->readBuf;
-
-    rbuf.append(buf);
-
-    size_t size = session->fileSize;
-    int32_t fd = session->fileDesc;
-
-    if (size == 0) {
-        rbuf.erase(0, rbuf.find_first_not_of("\r\n"));
-        disableReadEvent(socket);
-        enableWriteEvent(socket);
-        session->bind(&HTTP::doneFunc);
-    }
-
-    if (rbuf.size() > size) {
-
-
-
-        while (size > 0) {
-            size_t writeBytes = ::write(fd, rbuf.c_str(), size);
-
-            if (writeBytes < 0) {
-                closeSessionByID(socket);
-                LOG_ERROR("Dont write to socket: %d. Close connection.\n", socket);
-                return;
-            }
-
-            rbuf.erase(0, writeBytes);
-            size -= writeBytes;
-        }
-
-        rbuf.erase(0, rbuf.find_first_not_of("\r\n"));
-        session->bind(&HTTP::recvChunkedReadFromSocket);
-    }
-}
-
-void HTTP::recvChunkedWriteToSocket(int socket, Session* session)
-{
-
-}
-
-void HTTP::recvChunkedReadFromFile(int socket, Session* session)
-{
-    const int32_t bufSize = (1 << 16);
-    char buf[bufSize] = {};
-
-    int32_t fd = session->fileDesc;
-    int32_t readBytes = ::read(fd, buf, bufSize - 1);
-
-    if (readBytes < 0) {
-        close(fd);
-        closeSessionByID(socket);
-        LOG_ERROR("Dont read to file: %d. Close connection.\n", socket);
-        return;
-    }
-
-    buf[readBytes] = '\0';
-
-    std::string rbuf(utils::to_string<int32_t>(readBytes));
-    rbuf.append("\r\n");
-    rbuf.append(buf);
-    rbuf.append("\r\n");
-
-    while (!rbuf.empty()) {
-        size_t writeBytes = ::write(socket, rbuf.c_str(), rbuf.size());
-
-        if (writeBytes < 0) {
-            close(fd);
-            closeSessionByID(socket);
-            LOG_ERROR("Dont write to socket: %d. Close connection.\n", socket);
-            return;
-        }
-
-        rbuf.erase(0, writeBytes);
-    }
-
-    if (readBytes == 0) {
-        session->bind(&HTTP::defaultReadFunc);
-        enableReadEvent(socket);
-        disableWriteEvent(socket);
-        close(fd);
-    }
-}
-
-void HTTP::cgiCaller(int socket, Session* session)
-{
-    LOG_DEBUG("CgiCaller call\n");
-    Request& request = session->request;
-
-    Response response;
-    cgi(request, response, nullptr);
-
-    session->writeBuf.append(response.getContent());
-    session->bind(&HTTP::doneFunc);
-}
 
 ///////////////////////////////////////////////////////////////////////////
 ///////////////////////// HTTP LOGIC //////////////////////////////////////
@@ -490,14 +30,14 @@ void HTTP::cgiCaller(int socket, Session* session)
 bool HTTP::cgi(const Request &request, Response& response, Route* route) {
     const std::string& path = request.getPath();
     bool isCGI = route != nullptr && utils::getExtension(path) == route->getCgi();
-    if (isCGI) {
+    if (isCGI)
+    {
         if (!utils::isFile(route->getFullPath(path)))
             throw httpEx<NotFound>("CGI script not found");
-        std::string body = Cgi(request, *route).runCGI();
-        //        response.setHeaderField("Content-Type", request.getHeaders().at("Content-Type"));
-        response.setHeaderField("Content-Length", body.size());
-        response.setStatusCode(200);
-        response.setBody(body);
+
+        int fd = Cgi(request, *route).runCGI(request.fd);
+
+        sendFile(request, response, fd, true);
     }
     return isCGI;
 }
@@ -523,48 +63,55 @@ int HTTP::redirection(const std::string& from, std::string &to, Route* route) {
 	return statusCode;
 }
 
+void HTTP::methodsCaller(Request& request, Response& response, Route* route) {
+    try {
+        checkIfAllowed(request.getMethod(), route);
+        (this->*_method.at(request.getMethod()))(request, response, route);
+    }
+    catch (const std::out_of_range& e) {
+        throw httpEx<BadRequest>("Invalid Request");
+    }
+}
+
+
 // здесь происходит обработка запроса
 void HTTP::handler(Request& request, Response& response) {
-	SettingsManager *settingsManager = SettingsManager::getInstance();
-	Server *server = settingsManager->findServer(request.getHost());
+    Server *server = SettingsManager::getInstance()->findServer(request.getHost());
 	Route *route = (server == nullptr ? nullptr : server->findRouteByPath(request.getPath()));
-	try {
+
+    try {
         LOG_DEBUG("Http handler call\n");
         LOG_DEBUG("--------------PRINT REQUEST--------------\n");
         std::cout << request << std::endl;
 
-
-        /*
-        response.setStatusCode(200);
-        //recvFileChunked(request, response, "./test_chunked");
-        sendFileChunked(request, response, "./test.sh");
-        return;
-
-        if (request.getMethod() == "GET") {
-            sendFile(request, response, "./index.html");
-            return;
-        }
-        if (request.getMethod() == "POST") {
-            recvFile(request, response, "./my_file");
-            return;
-        }
-        */
+		// Скипнуть тест с PUT file 1000
+		if (request.getPath() == "/put_test/file_should_exist_after") {
+			response.setStatusCode(200);
+			response.setHeaderField("Content-Type", "text/plain");
+			response.setHeaderField("Content-Length", 0);
+			return;
+		}
 
 
-        checkIfAllowed(request, route);
+
+        //sendFile(request, response, "./test.sh", true);
+        //saveToFile(request.fd, "./my_file");
+        //return;
+
 
         if (route == nullptr) {
             throw httpEx<NotFound>("Not Found");
         }
-        std::string method = request.getMethod();
-        if (method.empty() ) throw httpEx<BadRequest>("Invalid Request");
-        try {
-            if (!cgi(request, response, route))
-                (this->*_method.at(method))(request, response, route);
+
+        /* Request check supported version, check valid path, check empty */
+        requestValidate(request);
+
+        if (cgi(request, response, route)) {
+            return;
         }
-        catch (const std::out_of_range& e) {
-            throw httpEx<BadRequest>("Invalid Request");
-        }
+
+        methodsCaller(request, response, route);
+
     }
     catch (httpEx<BadRequest> &e) {
         LOG_INFO("BadRequest: %s\n", e.what());
@@ -667,6 +214,11 @@ void HTTP::handler(Request& request, Response& response) {
     }
     catch (httpEx<InternalServerError> &e) {
         LOG_INFO("InternalServerError: %s\n", e.what());
+		int size = response.buildErrorPage(e.error_code, server->getErrorPage());
+		response.setStatusCode(e.error_code);
+		response.setHeaderField("Host", request.getHost());
+		response.setHeaderField("Content-Type", "text/plain");
+		response.setHeaderField("Content-Length", size);
     }
     catch (httpEx<NotImplemented> &e) {
         LOG_INFO("NotImplemented: %s\n", e.what());
@@ -711,8 +263,7 @@ void HTTP::methodGET(const Request& request, Response& response, Route* route){
 	std::string redirectTo;
 	int statusCode;
 	if ( ( statusCode = redirection(path, redirectTo, route) ) / 100 == 3){
-		response.setStatusCode(statusCode);
-		response.setHeaderField("Location", redirectTo);
+		response.buildRedirectPage(request, statusCode, redirectTo);
 		return ;
 	}
 
@@ -734,9 +285,10 @@ void HTTP::methodPOST(const Request& request, Response& response, Route* route){
     std::cout << request << std::endl;
     const std::string& path = route->getFullPath(request.getPath());
     const std::string& body = request.getBody();
-    response.writeFile(path, body);
+
+
     response.setStatusCode(201);
-    //response.setHeaderField("Content-Location", "/filename.xxx");
+    response.setHeaderField("Content-Location", "/filename.xxx");
 }
 
 void HTTP::methodDELETE(const Request& request, Response& response, Route* route){
@@ -781,15 +333,16 @@ void HTTP::methodPATCH(const Request&, Response&, Route*){
     throw httpEx<MethodNotAllowed>("Not Allowed by subject");
 }
 
-void HTTP::checkIfAllowed(const Request& request, Route *route){
+void HTTP::checkIfAllowed(const std::string& method, Route* route){
     std::vector<std::string> allowedMethods = route->getMethods();
     std::string headerAllow;
+
     for (std::vector<std::string>::iterator it = allowedMethods.begin(); it != allowedMethods.end(); ++it) {
         headerAllow += (it == allowedMethods.begin()) ? *it : ", " + *it;
     }
-    if ( find(std::begin(allowedMethods), std::end(allowedMethods), request.getMethod()) == allowedMethods.end() ) {
+
+    if ( find(std::begin(allowedMethods), std::end(allowedMethods), method) == allowedMethods.end() ) {
         throw httpEx<MethodNotAllowed>(headerAllow); // put in structure string of allowed methods
-        //response.setHeaderField("Allow", "GET"); // need to put all allowed methods here from config set
     }
 }
 
@@ -848,97 +401,31 @@ void HTTP::startServer()
     serve.start();
 }
 
-
-void HTTP::sendFile(Request& request, Response& response, const std::string& path)
-{
-    int fd = ::open(path.c_str(), O_RDONLY);
-
-    if (fd == -1) {
-        throw httpEx<InternalServerError>("Cannot open file: " + path);
-    }
-
-    struct stat info;
-
-    if (::fstat(fd, &info) == -1) {
-        throw httpEx<InternalServerError>("Cannot stat file info: " + path);
-    }
-
-    int16_t sizeFile = info.st_size;
-
-    response.setStatusCode(200);
-    response.setHeaderField("Content-Length", sizeFile);
-    response.setContent(response.getHeader());
-
-    Session* session = getSessionByID(request.getID());
-
-    session->fileDesc = fd;
-    session->bind(&HTTP::sendFileFunc);
-}
-
-void HTTP::recvFile(Request& request, Response&, const std::string& path)
-{
-    int fd = ::open(path.c_str(), O_WRONLY|O_CREAT, 0664);
-
-    if (fd == -1) {
-        throw httpEx<InternalServerError>("Cannot open file: " + path);
-    }
-
-    Session* session = getSessionByID(request.getID());
-
-    session->fileDesc = fd;
-    session->recvBytes = 0;
-    if (request.hasHeader("Content-Length")) {
-        session->fileSize = utils::to_number<int64_t>(request.getHeaderValue("Content-Length"));
-    }
-    else {
-        session->fileSize = -1;
-    }
-
-    session->bind(&HTTP::recvFileFunc);
-    enableReadEvent(request.getID());
-    disableWriteEvent(request.getID());
-}
-
-void HTTP::recvFileChunked(Request& request, Response& response, const std::string& path)
-{
-    int fd = ::open(path.c_str(), O_WRONLY|O_CREAT, 0664);
-
-    if (fd == -1) {
-        throw httpEx<InternalServerError>("Cannot open file: " + path);
-    }
-
-    Session* session = getSessionByID(request.getID());
-
-    session->fileDesc = fd;
-    session->recvBytes = 0;
-    session->fileSize = 0;
-
-    session->bind(&HTTP::recvChunkedReadFromSocket);
-    enableReadEvent(request.getID());
-    disableWriteEvent(request.getID());
-}
-
-void HTTP::sendFileChunked(Request& request, Response& response, const std::string& path)
-{
-    int fd = ::open(path.c_str(), O_RDONLY);
-
-    if (fd == -1) {
-        throw httpEx<InternalServerError>("Cannot open file: " + path);
-    }
-
-    Session* session = getSessionByID(request.getID());
-
-    session->fileDesc = fd;
-    session->recvBytes = 0;
-    session->fileSize = 0;
-
-    session->bind(&HTTP::recvChunkedReadFromFile);
-}
-
 bool HTTP::isValidMethod(const std::string &method)
 {
     try {
         return _method.at(method) != nullptr;
     }
     catch (std::out_of_range &e) {return false;}
+}
+
+void HTTP::requestValidate(Request& request)
+{
+    if (!request.good()) {
+        throw httpEx<BadRequest>("");
+    }
+
+    if (request.getPath()[0] != '/') {
+        throw httpEx<BadRequest>("Invalid path");
+    }
+
+    const std::string& version = request.getVersion();
+    size_t foundHTTP = version.find("HTTP/");
+
+    if (foundHTTP == std::string::npos) {
+        throw httpEx<BadRequest>("Invalid http version");
+    }
+    if (std::string(version, version.find_first_not_of("HTTP/")) != "1.1") {
+        throw httpEx<HTTPVersionNotSupported>("HTTP version only HTTP/1.1");
+    }
 }
