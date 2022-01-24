@@ -726,24 +726,12 @@ void HTTP::methodGET(const Request& request, Response& response, Route* route){
     std::cout << request << std::endl;
     std::string path = request.getPath();
 
-/*	std::string redirectTo;
+    std::string redirectTo;
 	int statusCode;
 	if ( ( statusCode = redirection(path, redirectTo, route) ) / 100 == 3){
 		response.buildRedirectPage(request, statusCode, redirectTo);
 		return ;
-	} */
-    response.setStatusCode(301);
-    response.setHeaderField("Location", "localhost:1234/YoupiBanane");
-    std::string body =  "<html></html>";
-                body += "<head>";
-                body += "<title></title>";
-                body += "</head>";
-                body += "<body>";
-                body += "a href=\"http://yandex.ru\"";
-                body += "</body>";
-                body += "</html>";
-                response.setBody(body);
-                return;
+	}
 
 	std::string fullPath = route->getFullPath(path);
     if (!utils::isFile(fullPath) && !autoindex(request, response, route)) // если не файл и автоиндекс не отработал
