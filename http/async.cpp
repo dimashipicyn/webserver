@@ -389,7 +389,6 @@ void HTTP::defaultWriteCallback(int socket, Session *session)
     Response response;
     handler(request, response);
 
-    close(session->fds[0]);
     std::string& wbuf = session->writeBuf;
     LOG_DEBUG("REDIRECTION HERE\n");
     std::cout << response.getContent();
@@ -457,7 +456,7 @@ void HTTP::sendFileChunkedEventWrite(int socket, Session *session)
 
     std::string& buf = session->readBuf;
 
-    waitpid(-1, nullptr, 0);
+   //waitpid(-1, nullptr, 0);
     ssize_t readBytes = readToBuf(socket, buf);
     if (readBytes < 0) {
         close(session->fd);
@@ -622,12 +621,14 @@ void HTTP::saveFileEventRead(int fd, Session* session) {
     std::string& rbuf = session->readBuf;
 
     if (readToBuf(fd, rbuf) < 0) {
+        close(session->fd);
         closeSessionByID(fd);
-        LOG_ERROR("Dont read to socket: %d. Close connection.\n", socket);
+        LOG_ERROR("Dont read to socket: %d. Close connection.\n", fd);
         return;
     }
 
     if (rbuf.empty()) {
+        close(session->fd);
         closeSessionByID(fd);
         return;
     }
@@ -643,7 +644,7 @@ void HTTP::saveFileEventRead(int fd, Session* session) {
 
 bool HTTP::saveToFile(const Request& request, const std::string& path)
 {
-    int fd = ::open(path.c_str(), O_RDONLY);
+    int fd = ::open(path.c_str(), O_WRONLY|O_CREAT|O_TRUNC, 0644);
 
     if (fd == -1) {
         throw httpEx<InternalServerError>("Cannot open file: " + path);
