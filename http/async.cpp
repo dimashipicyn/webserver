@@ -210,9 +210,6 @@ ssize_t writeFromBuf(int fd, std::string& wBuf, size_t nBytes)
     return writeBytes;
 }
 
-static int32_t writeChunk(std::string& rbuf, Session* session);
-
-
 void HTTP::defaultReadCallback(int socket, Session *session)
 {
     LOG_DEBUG("defaultReadFunc call\n");
@@ -239,15 +236,14 @@ void HTTP::defaultReadCallback(int socket, Session *session)
         enableWriteEvent(socket);
         disableReadEvent(socket);
 
+        pipe(session->fds);
         if (session->request.hasHeader("Content-Length")) {
-            pipe(session->fds);
             session->size = utils::to_number<size_t>(session->request.getHeaderValue("Content-Length"));
             session->bind(&HTTP::readBodyEventWrite);
             return;
         }
 
         if (session->request.hasHeader("Transfer-Encoding") && session->request.getHeaderValue("Transfer-Encoding") == "chunked") {
-            pipe(session->fds);
             session->chunk = 0;
             session->sizeChunked = 0;
             session->bind(&HTTP::readBodyChunkedEventWrite);
