@@ -67,6 +67,17 @@ namespace utils
     }
 
     template<typename T>
+    std::string to_hex_string(const T &t)
+    {
+        std::stringstream ss;
+        std::string result;
+
+        ss << std::hex << t;
+        ss >> result;
+        return result;
+    }
+
+    template<typename T>
     T to_number(const std::string &s)
     {
         std::stringstream ss;

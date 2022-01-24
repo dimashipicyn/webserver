@@ -450,6 +450,14 @@ void HTTP::sendFileEventWrite(int socket, Session *session)
     }
 }
 
+std::string int_to_hex( size_t i )
+{
+  std::stringstream stream;
+  stream << std::hex << i;
+  return stream.str();
+}
+
+
 void HTTP::sendFileChunkedEventWrite(int socket, Session *session)
 {
     LOG_DEBUG("sendFileFunc call\n");
@@ -468,7 +476,7 @@ void HTTP::sendFileChunkedEventWrite(int socket, Session *session)
     }
 
     std::string& wbuf = session->writeBuf;
-    wbuf += (utils::to_string<ssize_t>(buf.size()) + "\r\n");
+    wbuf += (int_to_hex(buf.size()) + "\r\n");
     wbuf.append(buf + "\r\n");
 
     ssize_t writeBytes = writeFromBuf(session->fd, wbuf, wbuf.size());
@@ -494,7 +502,7 @@ void HTTP::sendCGIChunkedEventWrite(int socket, Session *session)
 
     std::string& rbuf = session->readBuf;
 
-    waitpid(-1, nullptr, 0);
+    //waitpid(-1, nullptr, 0);
     ssize_t readBytes = readToBuf(socket, rbuf);
     if (readBytes < 0) {
         close(session->fd);
