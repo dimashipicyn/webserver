@@ -44,7 +44,7 @@ void Cgi::convertMeta(const Request &request)
 //	if (!meta_["AUTH_TYPE"].empty()) meta_["REMOTE_USER"] = "USER_ID";
 
 	meta["REQUEST_METHOD"] = request.getMethod();
-	meta["SCRIPT_NAME"] = request.getPath();
+    //meta["SCRIPT_NAME"] = request.getPath();
 	meta["SERVER_NAME"] = headers.find("Hostname") == headers.end() ? host.first : headers["Hostname"];
 	meta["SERVER_PORT"] = host.second;
 	meta["SERVER_PROTOCOL"] = "HTTP/1.1";
@@ -60,55 +60,41 @@ void Cgi::convertMeta(const Request &request)
 	env_.push_back(nullptr);
 }
 
-std::string Cgi::runCGI()
+int Cgi::runCGI(int fd)
 {
 	pid_t pid;
 	script_ = "./cgi_tester";
-	FILE *fileIn = tmpfile();
-	FILE *fileOut = tmpfile();
-	int cgiIn = fileno(fileIn);
-	int cgiOut = fileno(fileOut);
-	int status = 0;
-	std::string errorInternal = "Status: 500 Internal Server Error\r\n\r\n";
 
-	std::string result;
+    int fds[2];
+    pipe(fds);
 
-	write(cgiIn, body_.c_str(), body_.size());
-	lseek(cgiIn, 0, SEEK_SET);
+    int from = fd;
+    int to = fds[1];
+
+    waitpid(-1, nullptr, 0);
 
 	pid = fork();
 
 	if (pid < 0) {
 		LOG_ERROR("Internal server error: cannot fork!\n");
-		return errorInternal;
+        throw httpEx<InternalServerError>("Fork error");
 	}
 	if (pid == 0) {
-		dup2(cgiIn, STDIN_FILENO);
-		dup2(cgiOut, STDOUT_FILENO);
+        dup2(from, STDIN_FILENO);
+        close(from);
 
-		if (execve(script_.c_str(), nullptr, env_.data()) < 0)
-		{
-//			LOG_ERROR("Execve fail!\n");
-//			write(STDOUT_FILENO, errorInternal.c_str(), errorInternal.size());
-			exit(1);
-		}
-		exit(0);
-	} else {
-		int ret = 1;
-		char buf[BUFFER];
+        dup2(to, STDOUT_FILENO);
+        close(to);
 
-		waitpid(-1, &status, 0);
-		lseek(cgiOut, 0, SEEK_SET);
+        close(fds[0]);
 
-		while (ret > 0) {
-			bzero(buf, BUFFER);
-			ret = read(cgiOut, buf, BUFFER - 1);
-			result += buf;
-		}
-	}
-	if (WIFEXITED(status) != 0)
-		throw httpEx<InternalServerError>("Cannot execute cgi script");
-	return result;
+        execve(script_.c_str(), nullptr, env_.data());
+        exit(-1);
+    } else {
+        close(to);
+    }
+
+    return fds[0];
 }
 
 Cgi::~Cgi()
