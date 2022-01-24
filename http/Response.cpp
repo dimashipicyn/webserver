@@ -9,7 +9,12 @@
 #include "Route.hpp"
 #include "Request.h"
 
-Response::Response() {
+Response::Response()
+    : content_()
+    , body_()
+    , header_()
+    , statusCode_(0)
+{
 
 }
 
@@ -28,10 +33,13 @@ const std::string& Response::getContent() {
             + "\r\n";
 
     if (!header_.empty()) {
-        content_ += header_
-                + "\r\n"
-                + body_;
+    content_ += header_
+            + "\r\n"
+            + body_;
     }
+//    else {
+//        content_.clear();
+//    }
 	return content_;
 }
 
@@ -55,7 +63,7 @@ void Response::setContentType(const std::string& path) {
 	header_ += "Content-Type: " + value + "\n";
 }
 
-std::string		Response::getHeader(){
+std::string&		Response::getHeader(){
 	return	header_;
 }
 

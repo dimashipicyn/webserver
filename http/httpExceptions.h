@@ -7,13 +7,13 @@
 
 #include <string>
 
-template<class T>
-struct httpEx : public std::exception
+
+struct httpExBase : public std::exception
 {
-    explicit httpEx(const std::string& err) : error(err) {
-        error_code = T::error_code;
+    explicit httpExBase(const std::string& err) : error(err) {
+        error_code = 0;
     }
-    virtual ~httpEx() _NOEXCEPT {
+    virtual ~httpExBase() _NOEXCEPT {
 
     }
 
@@ -24,6 +24,16 @@ struct httpEx : public std::exception
     int         error_code;
 };
 
+template<class T>
+struct httpEx : public httpExBase
+{
+    explicit httpEx(const std::string& err) : httpExBase(err) {
+        error_code = T::error_code;
+    }
+    virtual ~httpEx() _NOEXCEPT {
+
+    }
+};
 
 struct Unauthorized {enum {error_code = 401};};
 struct BadRequest {enum {error_code = 400};};
