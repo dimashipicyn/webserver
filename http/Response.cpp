@@ -63,7 +63,7 @@ void Response::setContentType(const std::string& path) {
 	header_ += "Content-Type: " + value + "\n";
 }
 
-std::string		Response::getHeader(){
+std::string&		Response::getHeader(){
 	return	header_;
 }
 

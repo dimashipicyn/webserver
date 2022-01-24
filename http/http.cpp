@@ -26,6 +26,36 @@
 ///////////////////////// HTTP LOGIC //////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////
 
+std::map<std::string, std::string> parse_headers(const std::string& s)
+{
+    std::stringstream ss(s);
+    std::map<std::string, std::string> headers;
+    std::string line;
+    size_t pos;
+
+    std::getline(ss, line, '\n');
+    if ((pos = line.find_last_of("\r")) != std::string::npos) {
+        line.erase(pos);
+    }
+    while (!line.empty())
+    {
+        pos = line.find_first_of(":");
+        if (pos == std::string::npos) {
+            continue;
+        }
+
+        headers[line.substr(0, pos)] = utils::trim(line.substr(pos + 1), " \t\n\r");
+
+        std::getline(ss, line, '\n');
+        if ((pos = line.find_last_of("\r")) != std::string::npos) {
+            line.erase(pos);
+        }
+    }
+    return headers;
+}
+ssize_t writeFromBuf(int fd, std::string& wBuf, size_t nBytes);
+ssize_t readToBuf(int fd, std::string& rBuf);
+
 bool HTTP::cgi(const Request &request, Response& response, Route* route) {
     const std::string& path = request.getPath();
     bool isCGI = route != nullptr && utils::getExtension(path) == route->getCgi();
@@ -36,7 +66,23 @@ bool HTTP::cgi(const Request &request, Response& response, Route* route) {
 
         int fd = Cgi(request, *route).runCGI(request.fd);
 
-        sendFile(request, response, fd, true);
+        int fds[2];
+        pipe(fds);
+        std::string buf;
+
+        readToBuf(fd, buf);
+        size_t found = buf.find("\r\n\r\n");
+        response.getHeader() += std::string(buf, 0, found) + "\r\n";
+        buf.erase(0, buf.find_first_not_of("\r\n", found));
+        writeFromBuf(fds[1], buf, buf.size());
+
+        while (readToBuf(fd, buf) > 0) {
+            writeFromBuf(fds[1], buf, buf.size());
+        }
+        close(fd);
+        close(fds[1]);
+
+        sendFile(request, response, fds[0], true);
     }
     return isCGI;
 }

@@ -183,7 +183,7 @@ void HTTP::asyncEvent(int socket, uint16_t flags)
 
 
 
-static ssize_t readToBuf(int fd, std::string& rBuf)
+ssize_t readToBuf(int fd, std::string& rBuf)
 {
     const size_t bufSize = (1 << 16);
     char buf[bufSize];
@@ -198,7 +198,7 @@ static ssize_t readToBuf(int fd, std::string& rBuf)
     return readBytes;
 }
 
-static ssize_t writeFromBuf(int fd, std::string& wBuf, size_t nBytes)
+ssize_t writeFromBuf(int fd, std::string& wBuf, size_t nBytes)
 {
     ssize_t writeBytes = ::write(fd, wBuf.c_str(), nBytes);
     if (writeBytes < 0) {
