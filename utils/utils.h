@@ -77,6 +77,17 @@ namespace utils
         return result;
     }
 
+    template<typename T>
+    T to_hex_number(const std::string &s)
+    {
+        std::stringstream ss;
+        T result;
+
+        ss << s;
+        ss >> std::hex >> result;
+        return result;
+    }
+
 	bool isFile(const std::string& path);
 
 	std::string		getDate(void);

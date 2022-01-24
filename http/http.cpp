@@ -64,8 +64,10 @@ bool HTTP::cgi(const Request &request, Response& response, Route* route) {
         if (!utils::isFile(route->getFullPath(path)))
             throw httpEx<NotFound>("CGI script not found");
 
-        int fd = Cgi(request, *route).runCGI(request.fd);
+        int fd = Cgi(request, *route).runCGI(request.fd, request.fd1);
 
+        /*
+        waitpid(-1, nullptr, 0);
         int fds[2];
         pipe(fds);
         std::string buf;
@@ -81,8 +83,8 @@ bool HTTP::cgi(const Request &request, Response& response, Route* route) {
         }
         close(fd);
         close(fds[1]);
-
-        sendFile(request, response, fds[0], true);
+        */
+        sendCGI(request, response, fd, true);
     }
     return isCGI;
 }
@@ -130,13 +132,14 @@ void HTTP::handler(Request& request, Response& response) {
         std::cout << request << std::endl;
 
 		// Скипнуть тест с PUT file 1000
+        /*
 		if (request.getPath() == "/put_test/file_should_exist_after") {
 			response.setStatusCode(200);
 			response.setHeaderField("Content-Type", "text/plain");
 			response.setHeaderField("Content-Length", 0);
 			return;
 		}
-
+*/
 
 
         //sendFile(request, response, "./test.sh", true);
@@ -350,7 +353,16 @@ void HTTP::methodDELETE(const Request& request, Response& response, Route* route
 
 void HTTP::methodPUT(const Request & request, Response & response, Route *route) {
     const std::string& path = route->getFullPath(request.getPath());
-    response.writeContent(path, request);
+
+    std::ifstream file(path);
+    if (file.is_open()) {
+        response.setStatusCode(204);
+    }
+    else {
+        response.setStatusCode(201);
+    }
+    response.setHeaderField("Content-Length", 0);
+    saveToFile(request, path);
 }
 
 void HTTP::methodHEAD(const Request& request, Response& response, Route* route) {

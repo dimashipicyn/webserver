@@ -162,7 +162,18 @@ void HTTP::asyncRead(int socket)
 void HTTP::asyncEvent(int socket, uint16_t flags)
 {
     LOG_DEBUG("Event handler call\n");
-    if (flags & EventPool::M_EOF || flags & EventPool::M_ERROR) {
+
+    if (flags & EventPool::M_EOF) {
+        Session *session = getSessionByID(socket);
+        if (session == nullptr) {
+            LOG_ERROR("Dont find session to socket: %d. Close connection.\n", socket);
+            closeSessionByID(socket);
+            return;
+        }
+        (this->*session->func)(socket, session);
+    }
+
+    if (flags & EventPool::M_ERROR) {
         LOG_ERROR("Event error or eof, socket: %d\n", socket);
         closeSessionByID(socket);
     }
@@ -185,7 +196,7 @@ void HTTP::asyncEvent(int socket, uint16_t flags)
 
 ssize_t readToBuf(int fd, std::string& rBuf)
 {
-    const size_t bufSize = (1 << 16);
+    const size_t bufSize = (1 << 12);
     char buf[bufSize];
 
     ssize_t readBytes = ::read(fd, buf, bufSize);
@@ -200,6 +211,8 @@ ssize_t readToBuf(int fd, std::string& rBuf)
 
 ssize_t writeFromBuf(int fd, std::string& wBuf, size_t nBytes)
 {
+    nBytes = std::min<size_t>(wBuf.size(), nBytes);
+    nBytes = std::min<size_t>(nBytes, 1 << 12);
     ssize_t writeBytes = ::write(fd, wBuf.c_str(), nBytes);
     if (writeBytes < 0) {
         return writeBytes;
@@ -216,7 +229,7 @@ void HTTP::defaultReadCallback(int socket, Session *session)
 
     std::string& rbuf = session->readBuf;
 
-    if (readToBuf(socket, rbuf) < 0) {
+    if (readToBuf(socket, rbuf) <= 0) {
         closeSessionByID(socket);
         LOG_ERROR("Dont read to socket: %d. Close connection.\n", socket);
         return;
@@ -237,6 +250,9 @@ void HTTP::defaultReadCallback(int socket, Session *session)
         disableReadEvent(socket);
 
         pipe(session->fds);
+
+        defaultWriteCallback(socket, session);
+
         if (session->request.hasHeader("Content-Length")) {
             session->size = utils::to_number<size_t>(session->request.getHeaderValue("Content-Length"));
             session->bind(&HTTP::readBodyEventWrite);
@@ -250,7 +266,7 @@ void HTTP::defaultReadCallback(int socket, Session *session)
             return;
         }
 
-        session->bind(&HTTP::defaultWriteCallback);
+        session->bind(&HTTP::doneWriteCallback);
     }
 }
 
@@ -282,13 +298,14 @@ void HTTP::readBodyEventWrite(int socket, Session* session)
         close(session->fds[0]);
         close(session->fds[1]);
         closeSessionByID(socket);
+        return;
     }
 
     session->size -= bytes;
 
     if (session->size == 0) {
         close(session->fds[1]);
-        session->bind(&HTTP::defaultWriteCallback);
+        session->bind(&HTTP::doneWriteCallback);
         return;
     }
     if (rbuf.empty()) {
@@ -327,7 +344,7 @@ void HTTP::readBodyChunkedEventWrite(int socket, Session* session)
             size_t found = rbuf.find("\n");
             if (found != std::string::npos) {
                 size_t pos = rbuf.find_first_not_of("\r\n", found);
-                session->chunk = utils::to_number<size_t>(std::string(rbuf, 0, pos));
+                session->chunk = utils::to_hex_number<size_t>(std::string(rbuf, 0, pos));
                 rbuf.erase(0, pos);
             }
             else {
@@ -337,7 +354,7 @@ void HTTP::readBodyChunkedEventWrite(int socket, Session* session)
 
 
         if (session->chunk == 0) {
-            session->bind(&HTTP::defaultWriteCallback);
+            session->bind(&HTTP::doneWriteCallback);
             return;
         }
 
@@ -348,6 +365,7 @@ void HTTP::readBodyChunkedEventWrite(int socket, Session* session)
                 close(session->fds[0]);
                 close(session->fds[1]);
                 closeSessionByID(socket);
+                return;
             }
 
             session->chunk -= writeBytes;
@@ -359,24 +377,6 @@ void HTTP::readBodyChunkedEventWrite(int socket, Session* session)
     disableWriteEvent(socket);
 }
 
-
-bool HTTP::saveToFile(int fd, const std::string& path)
-{
-    std::ofstream file(path);
-    if (file.is_open()) {
-        char buf[1 << 16];
-        ssize_t bytes;
-        while ((bytes = read(fd, buf, 1 << 16)) > 0) {
-            buf[bytes] = '\0';
-            file << buf;
-        }
-        if (bytes == 0) {
-            return true;
-        }
-    }
-    return false;
-}
-
 void HTTP::defaultWriteCallback(int socket, Session *session)
 {
     LOG_DEBUG("defaultWriteFunc call\n");
@@ -384,13 +384,12 @@ void HTTP::defaultWriteCallback(int socket, Session *session)
 
     Request& request = session->request;
     request.fd = session->fds[0];
+    request.fd1 = session->fds[1];
 
-    close(session->fds[1]);
     Response response;
     handler(request, response);
 
     close(session->fds[0]);
-
     std::string& wbuf = session->writeBuf;
     LOG_DEBUG("REDIRECTION HERE\n");
     std::cout << response.getContent();
@@ -404,6 +403,8 @@ void HTTP::doneWriteCallback(int socket, Session *session)
     std::string& wbuf = session->writeBuf;
 
     if (wbuf.empty()) {
+        close(session->fds[0]);
+        close(session->fds[1]);
         disableWriteEvent(socket);
         enableReadEvent(socket);
         session->bind(&HTTP::defaultReadCallback);
@@ -454,10 +455,10 @@ void HTTP::sendFileChunkedEventWrite(int socket, Session *session)
 {
     LOG_DEBUG("sendFileFunc call\n");
 
-    std::string buf;
+    std::string& buf = session->readBuf;
 
     waitpid(-1, nullptr, 0);
-    ssize_t readBytes = readToBuf(session->fd, buf);
+    ssize_t readBytes = readToBuf(socket, buf);
     if (readBytes < 0) {
         close(session->fd);
         close(session->fds[0]);
@@ -468,10 +469,10 @@ void HTTP::sendFileChunkedEventWrite(int socket, Session *session)
     }
 
     std::string& wbuf = session->writeBuf;
-    wbuf += (utils::to_string<ssize_t>(readBytes) + "\r\n");
+    wbuf += (utils::to_string<ssize_t>(buf.size()) + "\r\n");
     wbuf.append(buf + "\r\n");
 
-    ssize_t writeBytes = writeFromBuf(socket, wbuf, wbuf.size());
+    ssize_t writeBytes = writeFromBuf(session->fd, wbuf, wbuf.size());
     if (writeBytes < 0) {
         close(session->fd);
         close(session->fds[0]);
@@ -481,10 +482,49 @@ void HTTP::sendFileChunkedEventWrite(int socket, Session *session)
         return;
     }
 
-    if (readBytes == 0) {
-        session->bind(&HTTP::doneWriteCallback);
-        enableReadEvent(socket);
-        disableWriteEvent(socket);
+    if (buf.size() == 0) {
+        closeSessionByID(socket);
+        return;
+    }
+    buf.clear();
+}
+
+void HTTP::sendCGIChunkedEventWrite(int socket, Session *session)
+{
+    LOG_DEBUG("sendCGIchunkedEventWrite call\n");
+
+    std::string& rbuf = session->readBuf;
+
+    waitpid(-1, nullptr, 0);
+    ssize_t readBytes = readToBuf(socket, rbuf);
+    if (readBytes < 0) {
+        close(session->fd);
+        close(session->fds[0]);
+        close(session->fds[1]);
+        closeSessionByID(socket);
+        LOG_ERROR("Dont read to file: %d. Close connection.\n", socket);
+        return;
+    }
+
+    size_t found = rbuf.find("\r\n\r\n");
+
+    if (found != std::string::npos) {
+        size_t pos = rbuf.find_first_not_of("\r\n", found);
+
+        std::string s = "HTTP/1.1 200 OK\r\nTransfer-Encoding:chunked\r\n";
+        s.append(rbuf, 0, pos);
+        rbuf.erase(0, pos);
+        ssize_t writeBytes = writeFromBuf(session->fd, s, s.size());
+        if (writeBytes < 0) {
+            close(session->fd);
+            close(session->fds[0]);
+            close(session->fds[1]);
+            closeSessionByID(socket);
+            LOG_ERROR("Dont write to socket: %d. Close connection.\n", socket);
+            return;
+        }
+
+        session->bind(&HTTP::sendFileChunkedEventWrite);
     }
 }
 
@@ -524,15 +564,14 @@ void HTTP::sendFile(const Request& request, Response& response, const std::strin
 
 void HTTP::sendFile(const Request& request, Response& response, int fd, bool chunked)
 {
-    Session* session = getSessionByID(request.getID());
-
+    Session s;
+    s.fd = request.getID();
     response.setStatusCode(200);
 
-    session->fd = fd;
 
     if (chunked) {
         response.setHeaderField("Transfer-Encoding", "chunked");
-        session->bind(&HTTP::sendFileChunkedEventWrite);
+        s.bind(&HTTP::sendFileChunkedEventWrite);
     }
     else {
         struct stat info;
@@ -543,11 +582,83 @@ void HTTP::sendFile(const Request& request, Response& response, int fd, bool chu
 
         response.setHeaderField("Content-Length", info.st_size);
 
-        session->size = info.st_size;
-        session->bind(&HTTP::sendFileEventWrite);
+        s.size = info.st_size;
+        s.bind(&HTTP::sendFileEventWrite);
     }
+    newSessionByID(fd, s);
+    enableReadEvent(fd);
+    enableTimerEvent(fd, sessionTimeout);
 }
 
+void HTTP::sendCGI(const Request& request, Response& response, int fd, bool chunked)
+{
+    Session s;
+    s.fd = request.getID();
+    response.setStatusCode(200);
+
+
+    if (chunked) {
+        s.bind(&HTTP::sendCGIChunkedEventWrite);
+    }
+    else {
+        struct stat info;
+
+        if (::fstat(fd, &info) == -1) {
+            throw httpEx<InternalServerError>("Cannot stat file info: %d" + utils::to_string<int>(fd));
+        }
+
+        response.setHeaderField("Content-Length", info.st_size);
+
+        s.size = info.st_size;
+        s.bind(&HTTP::sendFileEventWrite);
+    }
+    newSessionByID(fd, s);
+    enableReadEvent(fd);
+    enableTimerEvent(fd, sessionTimeout);
+}
+
+
+void HTTP::saveFileEventRead(int fd, Session* session) {
+    std::string& rbuf = session->readBuf;
+
+    if (readToBuf(fd, rbuf) < 0) {
+        closeSessionByID(fd);
+        LOG_ERROR("Dont read to socket: %d. Close connection.\n", socket);
+        return;
+    }
+
+    if (rbuf.empty()) {
+        closeSessionByID(fd);
+        return;
+    }
+
+    ssize_t bytes = writeFromBuf(session->fd, rbuf, rbuf.size());
+    if (bytes < 0) {
+        close(session->fd);
+        closeSessionByID(fd);
+        return;
+    }
+
+}
+
+bool HTTP::saveToFile(const Request& request, const std::string& path)
+{
+    int fd = ::open(path.c_str(), O_RDONLY);
+
+    if (fd == -1) {
+        throw httpEx<InternalServerError>("Cannot open file: " + path);
+    }
+
+
+    Session s;
+    s.fd = fd;
+    s.bind(&HTTP::saveFileEventRead);
+
+
+    newSessionByID(request.fd, s);
+    enableReadEvent(request.fd);
+    enableTimerEvent(request.fd, sessionTimeout);
+}
 
 /*
 void HTTP::recvFileCallback(int socket, Session *session)

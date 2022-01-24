@@ -37,9 +37,9 @@ const std::string& Response::getContent() {
             + "\r\n"
             + body_;
     }
-//    else {
-//        content_.clear();
-//    }
+    else {
+        content_.clear();
+    }
 	return content_;
 }
 
