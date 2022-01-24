@@ -126,7 +126,7 @@ std::string utils::glueUri(const std::string &first, const std::string &second)
 
 size_t utils::checkCgiExtension(const std::string &resource, const std::string &cgiExtension)
 {
-	size_t extensionAt = resource.find_first_of(cgiExtension);
+	size_t extensionAt = resource.find(cgiExtension);
 	return extensionAt == std::string::npos ? std::string::npos : resource.find_first_of(cgiExtension) + cgiExtension
 	.size();
 }

@@ -9,7 +9,12 @@
 #include "Route.hpp"
 #include "Request.h"
 
-Response::Response() {
+Response::Response()
+    : content_()
+    , body_()
+    , header_()
+    , statusCode_(0)
+{
 
 }
 
@@ -28,10 +33,13 @@ const std::string& Response::getContent() {
             + "\r\n";
 
     if (!header_.empty()) {
-        content_ += header_
-                + "\r\n"
-                + body_;
+    content_ += header_
+            + "\r\n"
+            + body_;
     }
+//    else {
+//        content_.clear();
+//    }
 	return content_;
 }
 

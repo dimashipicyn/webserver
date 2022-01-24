@@ -10,6 +10,7 @@
 #include <vector>
 
 class Request;
+class Response;
 class Route;
 
 class Cgi
@@ -19,7 +20,7 @@ public:
 
 	virtual ~Cgi();
 
-	std::string runCGI();
+    int runCGI(int fd);
 private:
 	std::string script_;
 	std::string body_;

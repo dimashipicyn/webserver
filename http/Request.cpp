@@ -86,6 +86,7 @@ static void skipNewLines(std::stringstream& ss)
 
 void Request::parse_first_line()
 {
+    skipNewLines(buffer_);
     std::string line;
     std::getline(buffer_, line, '\n');
 

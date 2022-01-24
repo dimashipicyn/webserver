@@ -58,49 +58,41 @@ void Cgi::convertMeta(const Request &request)
 	env_.push_back(nullptr);
 }
 
-std::string Cgi::runCGI()
+int Cgi::runCGI(int fd)
 {
 	pid_t pid;
 	script_ = "./cgi_tester";
-	FILE *fileIn = tmpfile();
-	FILE *fileOut = tmpfile();
-	int cgiIn = fileno(fileIn);
-	int cgiOut = fileno(fileOut);
-	int status = 0;
 
-	std::string result;
+    int fds[2];
+    pipe(fds);
 
-	write(cgiIn, body_.c_str(), body_.size());
-	lseek(cgiIn, 0, SEEK_SET);
+    int from = fd;
+    int to = fds[1];
+
+    waitpid(-1, nullptr, 0);
 
 	pid = fork();
 
 	if (pid < 0) {
 		LOG_ERROR("Internal server error: cannot fork!\n");
-		throw httpEx<InternalServerError>("Internal server error: cannot fork!");
+        throw httpEx<InternalServerError>("Fork error");
 	}
 	if (pid == 0) {
-		std::cout << script_.c_str() << std::endl;
-		dup2(cgiIn, STDIN_FILENO);
-		dup2(cgiOut, STDOUT_FILENO);
+        dup2(from, STDIN_FILENO);
+        close(from);
 
-		if (execve(script_.c_str(), nullptr, env_.data()) < 0) {exit(1);}
-		exit(0);
-	} else {
-		int ret = 1;
-		char buf[BUFFER];
+        dup2(to, STDOUT_FILENO);
+        close(to);
 
-		waitpid(-1, &status, 0);
-		lseek(cgiOut, 0, SEEK_SET);
-		if (WIFEXITED(status) == 0)
-			throw httpEx<InternalServerError>("Cannot execute cgi script");
-		while (ret > 0) {
-			bzero(buf, BUFFER);
-			ret = read(cgiOut, buf, BUFFER - 1);
-			result += buf;
-		}
-	}
-	return result;
+        close(fds[0]);
+
+        execve(script_.c_str(), nullptr, env_.data());
+        exit(-1);
+    } else {
+        close(to);
+    }
+
+    return fds[0];
 }
 
 Cgi::~Cgi()

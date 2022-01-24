@@ -42,6 +42,8 @@ public:
     void parse(const std::string& s);
     void reset();
 
+    int fd;
+
 private:
     void parse_first_line();
     void parse_headers();
@@ -58,6 +60,7 @@ private:
     headersMap          headers_;
     int                 id_;
     bool                isGood_;
+
 };
 
 std::ostream& operator<<(std::ostream& os, const Request& request);
