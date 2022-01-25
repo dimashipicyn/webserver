@@ -60,6 +60,9 @@ void ConfigParser::parseConfig(const std::string &fileName)
 				currentServer->setHost(map.second);
 				break;
 			case PORT:
+				if (currentServer->getPort())
+					throw std::runtime_error(formConfigErrorText(
+							"One port per server! Setup another with same host to handle multiple ports"));
 				currentServer->setPort(atoi(map.second.c_str()));
 				break;
 			case SERVER_NAME:

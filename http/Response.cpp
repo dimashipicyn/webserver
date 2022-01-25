@@ -98,6 +98,7 @@ void Response::buildDelPage(const Request& request) {
 	setHeaderField("Host", request.getHost() );
 	setHeaderField("Content-Length", os.str().size());
 	setHeaderField("Content-Type", "text/html");
+	setBody(os.str());
 }
 
 void Response::buildRedirectPage(const Request& request, int status, const std::string &location) {
