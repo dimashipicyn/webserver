@@ -81,6 +81,7 @@ bool Server::isValid() const
 void Server::addRoute()
 {
 	routes_.push_back(Route());
+	routes_.back().setMaxBodySize(maxBodySize_);
 }
 
 void Server::addRoute(Route &route)

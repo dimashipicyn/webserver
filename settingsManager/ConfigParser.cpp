@@ -213,6 +213,9 @@ std::string ConfigParser::parseRoute(std::ifstream &config, Server &server)
 			case CGI:
 				currentRoute->setCgi(map.second);
 				break;
+			case MAX_BODY_SIZE:
+				currentRoute->setMaxBodySize(parseBodySize(map.second));
+				break;
 			default:
 				return line;
 		}

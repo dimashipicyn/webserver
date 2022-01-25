@@ -231,3 +231,13 @@ std::string Route::getDefaultFileName(const std::string &resource)
 	}
 	throw DefaultFileNotFoundException("There is no default files at directory");
 }
+
+size_t Route::getMaxBodySize() const
+{
+	return maxBodySize_;
+}
+
+void Route::setMaxBodySize(size_t maxBodySize)
+{
+	maxBodySize_ = maxBodySize;
+}
