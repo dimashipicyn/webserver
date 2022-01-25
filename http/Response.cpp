@@ -37,9 +37,9 @@ const std::string& Response::getContent() {
             + "\r\n"
             + body_;
     }
-//    else {
-//        content_.clear();
-//    }
+    else {
+        content_.clear();
+    }
 	return content_;
 }
 
@@ -63,7 +63,7 @@ void Response::setContentType(const std::string& path) {
 	header_ += "Content-Type: " + value + "\n";
 }
 
-std::string		Response::getHeader(){
+std::string&		Response::getHeader(){
 	return	header_;
 }
 

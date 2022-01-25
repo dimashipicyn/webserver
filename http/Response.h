@@ -22,7 +22,7 @@ public:
 	void	buildRedirectPage(const Request& request, int status, const std::string &location);
 
 	std::string 		getErrorPath(const Request&) const;
-	std::string			getHeader();
+    std::string&			getHeader();
 	void 				setStatusCode(int);
 	void 				setHeaderField(const std::string&, const std::string&);
 	void 				setHeaderField(const std::string&, int);

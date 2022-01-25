@@ -46,7 +46,9 @@ protected:
     void sendFileEventWrite(int socket, Session* session);
     void sendFileChunkedEventWrite(int socket, Session* session);
 
+    void sendCGIChunkedEventWrite(int socket, Session *session);
 
+    void saveFileEventRead(int fd, Session* session);
     /*
     void recvFileCallback(int socket, Session* session);
     void recvChunkedFileCallback(int socket, Session* session);
@@ -74,11 +76,12 @@ protected:
     std::pair<int, int> sendCGIChunked(const Request& request);
     */
 
-    bool saveToFile(int fd, const std::string& path);
+    bool saveToFile(const Request& request, const std::string& path);
 
     void sendFile(const Request& request, Response& response, const std::string& path, bool chunked);
     void sendFile(const Request& request, Response& response, int fd, bool chunked);
 
+    void sendCGI(const Request& request, Response& response, int fd, bool chunked);
 
 
 
