@@ -58,7 +58,7 @@ void Cgi::convertMeta(const Request &request)
 	env_.push_back(nullptr);
 }
 
-int Cgi::runCGI(int fd)
+int Cgi::runCGI(int fd, int fd1)
 {
 	pid_t pid;
 	script_ = "./cgi_tester";
@@ -78,6 +78,7 @@ int Cgi::runCGI(int fd)
         throw httpEx<InternalServerError>("Fork error");
 	}
 	if (pid == 0) {
+        close(fd1);
         dup2(from, STDIN_FILENO);
         close(from);
 

@@ -43,6 +43,7 @@ public:
     void reset();
 
     int fd;
+    int fd1;
 
 private:
     void parse_first_line();
