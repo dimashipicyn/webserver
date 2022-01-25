@@ -22,6 +22,7 @@
 #include "httpExceptions.h"
 #include <algorithm>
 
+
 ///////////////////////////////////////////////////////////////////////////
 ///////////////////////// HTTP LOGIC //////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////
@@ -323,7 +324,7 @@ void HTTP::methodGET(const Request& request, Response& response, Route* route){
     }
     response.setStatusCode(200);
     response.setHeaderField("Host", request.getHost());
-    response.setHeaderField("Content-Length", response.getBody().size() );
+	response.setHeaderField("Content-Length", response.getBody().size() );
 }
 
 void HTTP::methodPOST(const Request& request, Response& response, Route* route){
