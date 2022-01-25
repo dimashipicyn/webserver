@@ -396,8 +396,6 @@ void HTTP::defaultWriteCallback(int socket, Session *session)
     close(session->fds[0]);
 
     std::string& wbuf = session->writeBuf;
-    LOG_DEBUG("REDIRECTION HERE\n");
-    std::cout << response.getContent();
 
     wbuf.append(response.getContent());
 }
