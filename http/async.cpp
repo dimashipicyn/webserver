@@ -196,7 +196,7 @@ void HTTP::asyncEvent(int socket, uint16_t flags)
 
 ssize_t readToBuf(int fd, std::string& rBuf)
 {
-    const size_t bufSize = (1 << 12);
+    const size_t bufSize = (1 << 15);
     char buf[bufSize];
 
     ssize_t readBytes = ::read(fd, buf, bufSize);
@@ -246,6 +246,7 @@ void HTTP::defaultReadCallback(int socket, Session *session)
         rbuf.erase(0, pos);
 
 
+
         enableWriteEvent(socket);
         disableReadEvent(socket);
 
@@ -260,11 +261,13 @@ void HTTP::defaultReadCallback(int socket, Session *session)
         }
 
         if (session->request.hasHeader("Transfer-Encoding") && session->request.getHeaderValue("Transfer-Encoding") == "chunked") {
+            //tcp::makeNonBlock(std::pair<int, sockaddr_in>(session->fds[1], sockaddr_in()));
             session->chunk = 0;
             session->sizeChunked = 0;
             session->bind(&HTTP::readBodyChunkedEventWrite);
             return;
         }
+
 
         session->bind(&HTTP::doneWriteCallback);
     }
@@ -318,6 +321,7 @@ void HTTP::readBodyEventWrite(int socket, Session* session)
 
 void HTTP::readBodyChunkedEventRead(int socket, Session* session)
 {
+    LOG_DEBUG("readBodyChunkedEventRead call\n");
     std::string& rbuf = session->readBuf;
 
     if (readToBuf(socket, rbuf) < 0) {
@@ -328,6 +332,8 @@ void HTTP::readBodyChunkedEventRead(int socket, Session* session)
         return;
     }
 
+
+
     session->bind(&HTTP::readBodyChunkedEventWrite);
     enableWriteEvent(socket);
     disableReadEvent(socket);
@@ -335,46 +341,52 @@ void HTTP::readBodyChunkedEventRead(int socket, Session* session)
 
 void HTTP::readBodyChunkedEventWrite(int socket, Session* session)
 {
+    LOG_DEBUG("readBodyChunkedEventWrite call\n");
     std::string& rbuf = session->readBuf;
 
-    while (!rbuf.empty()) {
-
-        if (session->chunk == 0) {
-            rbuf.erase(0, rbuf.find_first_not_of("\r\n"));
-            size_t found = rbuf.find("\n");
-            if (found != std::string::npos) {
-                size_t pos = rbuf.find_first_not_of("\r\n", found);
-                session->chunk = utils::to_hex_number<size_t>(std::string(rbuf, 0, pos));
-                rbuf.erase(0, pos);
-            }
-            else {
-                break;
-            }
-        }
+    //while (!rbuf.empty()) {
 
 
-        if (session->chunk == 0) {
-            session->bind(&HTTP::doneWriteCallback);
-            return;
-        }
+    if (session->chunk == 0) {
+        rbuf.erase(0, rbuf.find_first_not_of("\r\n"));
+        size_t found = rbuf.find("\n");
+        if (found != std::string::npos) {
+            size_t pos = rbuf.find_first_not_of("\r\n", found);
+            session->chunk = utils::to_hex_number<size_t>(std::string(rbuf, 0, pos));
+            rbuf.erase(0, pos);
 
-
-        while (!rbuf.empty() && session->chunk > 0) {
-            ssize_t writeBytes = writeFromBuf(session->fds[1], rbuf, session->chunk);
-            if (writeBytes < 0) {
-                close(session->fds[0]);
-                close(session->fds[1]);
-                closeSessionByID(socket);
+            if (session->chunk == 0) {
+                session->bind(&HTTP::doneWriteCallback);
                 return;
             }
-
-            session->chunk -= writeBytes;
-            session->sizeChunked += writeBytes;
         }
     }
-    session->bind(&HTTP::readBodyChunkedEventRead);
-    enableReadEvent(socket);
-    disableWriteEvent(socket);
+
+
+
+
+
+        //while (!rbuf.empty() && session->chunk > 0) {
+            ssize_t writeBytes = writeFromBuf(session->fds[1], rbuf, session->chunk);
+            if (writeBytes < 0) {
+                //close(session->fds[0]);
+                //close(session->fds[1]);
+                //closeSessionByID(socket);
+                //return;
+            }
+            else {
+                session->chunk -= writeBytes;
+                session->sizeChunked += writeBytes;
+            }
+
+
+        //}
+    //}
+    if (rbuf.empty()) {
+        session->bind(&HTTP::readBodyChunkedEventRead);
+        enableReadEvent(socket);
+        disableWriteEvent(socket);
+    }
 }
 
 void HTTP::defaultWriteCallback(int socket, Session *session)
@@ -402,8 +414,10 @@ void HTTP::doneWriteCallback(int socket, Session *session)
     std::string& wbuf = session->writeBuf;
 
     if (wbuf.empty()) {
+
         close(session->fds[0]);
         close(session->fds[1]);
+        waitpid(-1, nullptr, 0);
         disableWriteEvent(socket);
         enableReadEvent(socket);
         session->bind(&HTTP::defaultReadCallback);
@@ -457,10 +471,90 @@ std::string int_to_hex( size_t i )
   return stream.str();
 }
 
+void HTTP::sendCGIChunkedEventWrite(int socket, Session *session)
+{
+    LOG_DEBUG("sendCGIChunkedEventWrite call\n");
+    std::string& wbuf = session->writeBuf;
+
+    if (wbuf.empty()) {
+        closeSessionByID(socket);
+    }
+    else {
+        if (writeFromBuf(socket, wbuf, wbuf.size()) < 0) {
+            closeSessionByID(socket);
+            LOG_ERROR("Dont write to socket: %d. Close connection.\n", socket);
+            return;
+        }
+    }
+}
+
+void HTTP::readCGIEventRead(int socket, Session *session)
+{
+    LOG_DEBUG("readCGIEventRead call\n");
+
+    std::string& buf = session->readBuf;
+
+   //waitpid(-1, nullptr, 0);
+    ssize_t readBytes = readToBuf(socket, buf);
+    if (readBytes < 0) {
+        close(session->fd);
+        closeSessionByID(socket);
+        LOG_ERROR("Dont read to socket: %d. Close connection.\n", socket);
+        return;
+    }
+
+    std::string& wbuf = session->writeBuf;
+    wbuf += (int_to_hex(buf.size()) + "\r\n");
+    wbuf.append(buf + "\r\n");
+
+
+    session->sizeChunked += buf.size();
+
+    if (buf.size() == 0) {
+        session->bind(&HTTP::sendCGIChunkedEventWrite);
+        newSessionByID(session->fd, *session);
+        enableWriteEvent(session->fd);
+        closeSessionByID(socket);
+        return;
+    }
+    buf.clear();
+}
+
+void HTTP::readCGIHeadersEventRead(int socket, Session *session)
+{
+    LOG_DEBUG("readCGIHeadersEventReadcall\n");
+
+    std::string& rbuf = session->readBuf;
+
+    //waitpid(-1, nullptr, 0);
+    ssize_t readBytes = readToBuf(socket, rbuf);
+    if (readBytes < 0) {
+        close(session->fd);
+        close(session->fds[0]);
+        close(session->fds[1]);
+        closeSessionByID(socket);
+        LOG_ERROR("Dont read to file: %d. Close connection.\n", socket);
+        return;
+    }
+
+    size_t found = rbuf.find("\r\n\r\n");
+
+    if (found != std::string::npos) {
+        size_t pos = rbuf.find_first_not_of("\r\n", found);
+
+        std::string s = "HTTP/1.1 200 OK\r\nTransfer-Encoding:chunked\r\n";
+        s.append(rbuf, 0, pos);
+        rbuf.erase(0, pos);
+
+        session->writeBuf.append(s);
+
+        session->bind(&HTTP::readCGIEventRead);
+    }
+}
 
 void HTTP::sendFileChunkedEventWrite(int socket, Session *session)
 {
-    LOG_DEBUG("sendFileFunc call\n");
+    LOG_DEBUG("sendFileChunkedEventWrite call\n");
 
     std::string& buf = session->readBuf;
 
@@ -494,45 +588,6 @@ void HTTP::sendFileChunkedEventWrite(int socket, Session *session)
         return;
     }
     buf.clear();
-}
-
-void HTTP::sendCGIChunkedEventWrite(int socket, Session *session)
-{
-    LOG_DEBUG("sendCGIchunkedEventWrite call\n");
-
-    std::string& rbuf = session->readBuf;
-
-    //waitpid(-1, nullptr, 0);
-    ssize_t readBytes = readToBuf(socket, rbuf);
-    if (readBytes < 0) {
-        close(session->fd);
-        close(session->fds[0]);
-        close(session->fds[1]);
-        closeSessionByID(socket);
-        LOG_ERROR("Dont read to file: %d. Close connection.\n", socket);
-        return;
-    }
-
-    size_t found = rbuf.find("\r\n\r\n");
-
-    if (found != std::string::npos) {
-        size_t pos = rbuf.find_first_not_of("\r\n", found);
-
-        std::string s = "HTTP/1.1 200 OK\r\nTransfer-Encoding:chunked\r\n";
-        s.append(rbuf, 0, pos);
-        rbuf.erase(0, pos);
-        ssize_t writeBytes = writeFromBuf(session->fd, s, s.size());
-        if (writeBytes < 0) {
-            close(session->fd);
-            close(session->fds[0]);
-            close(session->fds[1]);
-            closeSessionByID(socket);
-            LOG_ERROR("Dont write to socket: %d. Close connection.\n", socket);
-            return;
-        }
-
-        session->bind(&HTTP::sendFileChunkedEventWrite);
-    }
 }
 
 
@@ -599,29 +654,15 @@ void HTTP::sendFile(const Request& request, Response& response, int fd, bool chu
 
 void HTTP::sendCGI(const Request& request, Response& response, int fd, bool chunked)
 {
-    Session s;
-    s.fd = request.getID();
     response.setStatusCode(200);
 
+    tcp::makeNonBlock(std::pair<int, sockaddr_in>(fd, sockaddr_in()));
 
-    if (chunked) {
-        s.bind(&HTTP::sendCGIChunkedEventWrite);
-    }
-    else {
-        struct stat info;
-
-        if (::fstat(fd, &info) == -1) {
-            throw httpEx<InternalServerError>("Cannot stat file info: %d" + utils::to_string<int>(fd));
-        }
-
-        response.setHeaderField("Content-Length", info.st_size);
-
-        s.size = info.st_size;
-        s.bind(&HTTP::sendFileEventWrite);
-    }
-    newSessionByID(fd, s);
+    Session scgi;
+    scgi.fd = dup(request.getID());
+    scgi.bind(&HTTP::readCGIHeadersEventRead);;
+    newSessionByID(fd, scgi);
     enableReadEvent(fd);
-    enableTimerEvent(fd, sessionTimeout);
 }
 
 

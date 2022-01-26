@@ -47,6 +47,10 @@ protected:
     void sendFileChunkedEventWrite(int socket, Session* session);
 
     void sendCGIChunkedEventWrite(int socket, Session *session);
+    void sendCGIChunkedEventRead(int socket, Session *session);
+
+    void readCGIHeadersEventRead(int socket, Session* session);
+    void readCGIEventRead(int socket, Session* session);
 
     void saveFileEventRead(int fd, Session* session);
     /*
