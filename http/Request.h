@@ -42,6 +42,7 @@ public:
     int fd;
     int fd1;
 
+        std::string         body_;
 private:
     void parse_first_line();
     void parse_headers();
@@ -54,7 +55,7 @@ private:
     std::string         version_;
     std::string         path_;
     std::string         query_string_;
-    std::string         body_;
+
     headersMap          headers_;
     int                 id_;
     bool                isGood_;

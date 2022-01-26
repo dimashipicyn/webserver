@@ -16,7 +16,7 @@ Request::Request()
     , method_()
     , version_()
     , path_()
-    , query_string_()
+    //, query_string_()
     , body_()
     , headers_()
     , id_(-1)
@@ -35,7 +35,7 @@ Request::Request(const Request& request)
     , version_(request.version_)
     , path_(request.path_)
     , query_string_(request.query_string_)
-    , body_(request.body_)
+    //, body_(request.body_)
     , headers_(request.headers_)
     , id_(-1)
     , isGood_(true)
@@ -219,6 +219,7 @@ void Request::reset() {
     buffer_.str("");
     buffer_.clear();
     headers_.clear();
+    body_.clear();
     isGood_ = true;
 }
 

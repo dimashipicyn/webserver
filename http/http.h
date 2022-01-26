@@ -32,63 +32,14 @@ protected:
 	virtual void asyncEvent(int socket, uint16_t flags);
 
     void defaultReadCallback(int socket, Session* session);
+    void defaultWriteCallback(int socket, Session* session);
+    void doneWriteCallback(int socket, Session* session);
 
     void readBodyEventRead(int socket, Session* session);
     void readBodyEventWrite(int socket, Session* session);
 
     void readBodyChunkedEventRead(int socket, Session* session);
     void readBodyChunkedEventWrite(int socket, Session* session);
-
-
-    void defaultWriteCallback(int socket, Session* session);
-    void doneWriteCallback(int socket, Session* session);
-
-    void sendFileEventWrite(int socket, Session* session);
-    void sendFileChunkedEventWrite(int socket, Session* session);
-
-    void sendCGIChunkedEventWrite(int socket, Session *session);
-    void sendCGIChunkedEventRead(int socket, Session *session);
-
-    void readCGIHeadersEventRead(int socket, Session* session);
-    void readCGIEventRead(int socket, Session* session);
-
-    void saveFileEventRead(int fd, Session* session);
-    /*
-    void recvFileCallback(int socket, Session* session);
-    void recvChunkedFileCallback(int socket, Session* session);
-
-
-    void recvCGICallback(int socket, Session* session);
-    void recvChunkedCGICallback(int socket, Session* session);
-
-    void sendCGIChunkedCallback(int socket, Session* session);
-    void sendCGICallback(int socket, Session* session);
-
-    void doneWriteCGICallback(int socket, Session *session);
-
-
-    void sendFile(Request& request, Response& response, const std::string& path);
-    void sendFileChunked(Request& request, Response& response, const std::string& path);
-
-    void recvFile(Request& request, Response& response, const std::string& path);
-    void recvFileChunked(const Request& request, Response& response, const std::string& path);
-
-    std::pair<int, int> recvCGI(const Request& request);
-    void recvCGIChunked(Request& request, Response& response);
-
-    std::pair<int, int> sendCGI(const Request& request);
-    std::pair<int, int> sendCGIChunked(const Request& request);
-    */
-
-    bool saveToFile(const Request& request, const std::string& path);
-
-    void sendFile(const Request& request, Response& response, const std::string& path, bool chunked);
-    void sendFile(const Request& request, Response& response, int fd, bool chunked);
-
-    void sendCGI(const Request& request, Response& response, int fd, bool chunked);
-
-
-
 
 
 	Session*    getSessionByID(int id);
