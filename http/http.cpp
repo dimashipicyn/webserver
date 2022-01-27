@@ -127,10 +127,7 @@ void HTTP::handler(Request& request, Response& response) {
 			headers << (*i).first.c_str() << ": " << (*i).second.c_str() << std::endl;
 		}
 		LOG_INFO("Request Data:\n%s %s\n%s\n", request.getMethod().c_str(), request.getPath().c_str(), headers.str()
-		.c_str());
-
-		if (request.getBody().size() > route->getMaxBodySize())
-			request.setBody("");
+        .c_str());
 
         if (route == nullptr) {
             throw httpEx<NotFound>("Not Found");
@@ -317,12 +314,21 @@ void HTTP::methodGET(const Request& request, Response& response, Route* route){
 void HTTP::methodPOST(const Request& request, Response& response, Route* route){
     std::cout << request << std::endl;
     const std::string& path = route->getFullPath(request.getPath());
-    const std::string& body = request.getBody();
 
 
-    response.setStatusCode(201);
-    response.setHeaderField("Content-Location", "/filename.xxx");
-	response.setHeaderField("Content-Length", 0);
+
+    if (request.getBody().size() <= route->getMaxBodySize()) {
+        std::ofstream realfile(path);
+        realfile << request.getBody();
+
+        response.setStatusCode(201);
+        response.setHeaderField("Content-Location", request.getPath());
+        response.setHeaderField("Content-Length", 0);
+    }
+    else {
+        response.setStatusCode(413);
+        response.setHeaderField("Content-Length", 0);
+    }
 }
 
 void HTTP::methodDELETE(const Request& request, Response& response, Route* route){
@@ -347,6 +353,13 @@ void HTTP::methodPUT(const Request & request, Response & response, Route *route)
     else {
         response.setStatusCode(201);
     }
+
+    file.close();
+
+    std::ofstream realfile(path);
+    realfile << request.getBody();
+
+    response.setHeaderField("Content-Location", request.getPath());
     response.setHeaderField("Content-Length", 0);
 }
 
