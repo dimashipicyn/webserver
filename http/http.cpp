@@ -76,8 +76,7 @@ bool HTTP::cgi(const Request &request, Response& response, Route* route) {
         else {
             size = "0";
         }
-
-        response.setBody("HTTP/1.1 200 OK\r\nContent-Length:" + size + "\r\n" + ret);
+		interpretResponseString(ret, response);
     }
     return isCGI;
 }
@@ -478,4 +477,37 @@ void HTTP::requestValidate(Request& request)
     if (std::string(version, version.find_first_not_of("HTTP/")) != "1.1") {
         throw httpEx<HTTPVersionNotSupported>("HTTP version only HTTP/1.1");
     }
+}
+
+void HTTP::interpretResponseString(const std::string &responseString, Response &response)
+{
+	size_t foundNN = responseString.find("\n\n");
+	size_t foundRN = responseString.find("\r\n\r\n");
+
+	size_t found = std::min<size_t>(foundNN, foundRN);
+	if (found != std::string::npos)
+	{
+		std::string line;
+		size_t pos = responseString.find_first_not_of("\r\n", found);
+		std::stringstream headers(std::string(responseString, 0, pos));
+		while (true) {
+			if (headers.eof()) break;
+			std::getline(headers, line, '\n');
+			std::pair<std::string, std::string> header = utils::breakPair(line, ':');
+			if (header.first == "Status")
+			{
+				response.setStatusCode(atoi(header.second.c_str()));
+				continue;
+			}
+			if (header.first.empty() || header.first == "Content-Length")
+				continue;
+			response.setHeaderField(header.first, header.second);
+		}
+		std::string body = "";
+		if (pos != std::string::npos) {
+			body = std::string(responseString, pos, responseString.size());
+		}
+		response.setHeaderField("Content-Length", body.size());
+		response.setBody(body);
+	}
 }
