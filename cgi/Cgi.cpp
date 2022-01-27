@@ -48,6 +48,11 @@ void Cgi::convertMeta(const Request &request)
 	meta["SERVER_PROTOCOL"] = "HTTP/1.1";
 	meta["SERVER_SOFTWARE"] = "webserv/1.0";
 
+	for (Request::headersMap::const_iterator i = request.getHeaders().begin(); i != request.getHeaders().end(); i++) {
+		std::string key = (*i).first;
+		std::transform(key.begin(), key.end(),key.begin(), ::toupper);
+		meta[std::string("HTTP_") + key] = (*i).second;
+	}
 
 	size_t i = 0;
 	for (std::map<std::string, std::string>::iterator iter = meta.begin(); iter != meta.end(); iter++) {

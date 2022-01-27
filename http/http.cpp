@@ -128,17 +128,9 @@ void HTTP::handler(Request& request, Response& response) {
 		}
 		LOG_INFO("Request Data:\n%s %s\n%s\n", request.getMethod().c_str(), request.getPath().c_str(), headers.str()
 		.c_str());
-        //std::cout << request << std::endl;
 
-		// Скипнуть тест с PUT file 1000
-        /*
-		if (request.getPath() == "/put_test/file_should_exist_after") {
-			response.setStatusCode(200);
-			response.setHeaderField("Content-Type", "text/plain");
-			response.setHeaderField("Content-Length", 0);
-			return;
-		}
-*/
+		if (request.getBody().size() > route->getMaxBodySize())
+			request.setBody("");
 
         if (route == nullptr) {
             throw httpEx<NotFound>("Not Found");
@@ -330,6 +322,7 @@ void HTTP::methodPOST(const Request& request, Response& response, Route* route){
 
     response.setStatusCode(201);
     response.setHeaderField("Content-Location", "/filename.xxx");
+	response.setHeaderField("Content-Length", 0);
 }
 
 void HTTP::methodDELETE(const Request& request, Response& response, Route* route){
