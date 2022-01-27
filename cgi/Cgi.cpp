@@ -58,42 +58,75 @@ void Cgi::convertMeta(const Request &request)
 	env_.push_back(nullptr);
 }
 
-int Cgi::runCGI(int fd, int fd1)
+#include <fcntl.h>
+
+std::string Cgi::runCGI()
 {
-	pid_t pid;
-	script_ = "./cgi_tester";
+    script_ = "./cgi_tester";
+    pid_t pid;
 
-    int fds[2];
-    pipe(fds);
+    int in[2];
+    int out[2];
 
-    int from = fd;
-    int to = fds[1];
+    pipe(in);
+    pipe(out);
 
-    waitpid(-1, nullptr, 0);
+    std::string errorInternal = "Status: 500 Internal Server Error\r\n\r\n";
 
-	pid = fork();
+    std::string result;
 
-	if (pid < 0) {
-		LOG_ERROR("Internal server error: cannot fork!\n");
-        throw httpEx<InternalServerError>("Fork error");
-	}
-	if (pid == 0) {
-        close(fd1);
-        dup2(from, STDIN_FILENO);
-        close(from);
+    pid = fork();
 
-        dup2(to, STDOUT_FILENO);
-        close(to);
+    if (pid < 0) {
+        LOG_ERROR("Internal server error: cannot fork!\n");
+        return errorInternal;
+    }
+    if (pid == 0) {
+        dup2(in[0], STDIN_FILENO);
+        //close(in[0]);
+        close(in[1]);
 
-        close(fds[0]);
+        dup2(out[1], STDOUT_FILENO);
+        //close(out[0]);
+        //close(out[1]);
 
-        execve(script_.c_str(), nullptr, env_.data());
-        exit(-1);
+        if (execve(script_.c_str(), nullptr, env_.data()) < 0)
+        {
+            LOG_ERROR("Execve fail!\n");
+            write(STDOUT_FILENO, errorInternal.c_str(), errorInternal.size());
+            exit(1);
+        }
+        exit(0);
     } else {
-        close(to);
+
+        close(in[0]);
+        close(out[1]);
+
+        std::string buf;
+        buf.resize(65536);
+
+        ssize_t sizew = 1;
+        ssize_t sizer = 1;
+        while (sizew > 0 || sizer > 0) {
+            sizew = write(in[1], body_.c_str(), std::min<size_t>(body_.size(), 65536));
+            body_.erase(0, sizew);
+
+            if (sizew == 0) {
+                close(in[1]);
+            }
+
+            sizer = read(out[0], &buf[0], 65536);
+            result.append(buf, 0, sizer);
+        }
+
+
+
+        waitpid(-1, nullptr, 0);
+
+        close(out[0]);
     }
 
-    return fds[0];
+    return result;
 }
 
 Cgi::~Cgi()

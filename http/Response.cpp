@@ -34,13 +34,13 @@ const std::string& Response::getContent() {
 
     if (!header_.empty()) {
     content_ += header_
-            + "\r\n"
-            + body_;
+            + "\r\n";
     }
     else {
         content_.clear();
     }
-	return content_;
+    content_ += body_;
+    return content_;
 }
 
 //Change: take from config errorfile paths

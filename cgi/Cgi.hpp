@@ -20,7 +20,7 @@ public:
 
 	virtual ~Cgi();
 
-    int runCGI(int fd, int fd1);
+    std::string runCGI();
 private:
 	std::string script_;
 	std::string body_;

@@ -66,27 +66,18 @@ bool HTTP::cgi(const Request &request, Response& response, Route* route) {
         if (!utils::isFile(route->getFullPath(path)))
             throw httpEx<NotFound>("CGI script not found");
 
-        int fd = Cgi(request, *route).runCGI(request.fd, request.fd1);
+        std::string ret = Cgi(request, *route).runCGI();
+        size_t pos = ret.find_first_not_of("\r\n", ret.find("\r\n\r\n"));
 
-        /*
-        waitpid(-1, nullptr, 0);
-        int fds[2];
-        pipe(fds);
-        std::string buf;
-
-        readToBuf(fd, buf);
-        size_t found = buf.find("\r\n\r\n");
-        response.getHeader() += std::string(buf, 0, found) + "\r\n";
-        buf.erase(0, buf.find_first_not_of("\r\n", found));
-        writeFromBuf(fds[1], buf, buf.size());
-
-        while (readToBuf(fd, buf) > 0) {
-            writeFromBuf(fds[1], buf, buf.size());
+        std::string size;
+        if (pos != std::string::npos) {
+            size = utils::to_string<size_t>(ret.size() - pos);
         }
-        close(fd);
-        close(fds[1]);
-        */
-        sendCGI(request, response, fd, true);
+        else {
+            size = "0";
+        }
+
+        response.setBody("HTTP/1.1 200 OK\r\nContent-Length:" + size + "\r\n" + ret);
     }
     return isCGI;
 }
@@ -131,7 +122,7 @@ void HTTP::handler(Request& request, Response& response) {
     try {
         LOG_DEBUG("Http handler call\n");
         LOG_DEBUG("--------------PRINT REQUEST--------------\n");
-        std::cout << request << std::endl;
+        //std::cout << request << std::endl;
 
 		// Скипнуть тест с PUT file 1000
         /*
@@ -142,12 +133,6 @@ void HTTP::handler(Request& request, Response& response) {
 			return;
 		}
 */
-
-
-        //sendFile(request, response, "./test.sh", true);
-        //saveToFile(request.fd, "./my_file");
-        //return;
-
 
         if (route == nullptr) {
             throw httpEx<NotFound>("Not Found");
@@ -307,7 +292,7 @@ void HTTP::handler(Request& request, Response& response) {
 void HTTP::methodGET(const Request& request, Response& response, Route* route){
     LOG_DEBUG("Http handler call\n");
     LOG_DEBUG("--------------PRINT REQUEST--------------\n");
-    std::cout << request << std::endl;
+    //std::cout << request << std::endl;
     std::string path = request.getPath();
 
 	std::string redirectTo;
@@ -364,7 +349,6 @@ void HTTP::methodPUT(const Request & request, Response & response, Route *route)
         response.setStatusCode(201);
     }
     response.setHeaderField("Content-Length", 0);
-    saveToFile(request, path);
 }
 
 void HTTP::methodHEAD(const Request& request, Response& response, Route* route) {
