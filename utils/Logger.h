@@ -17,7 +17,8 @@ enum LogLevel {
 };
 
 #define LOG(loglevel, log, args...) webservlogger(loglevel, log, args);
-#define LOG_DEBUG(args...) webservlogger(DEBUG_LOG_LVL, args);
+//#define LOG_DEBUG(args...) webservlogger(DEBUG_LOG_LVL, args);
+#define LOG_DEBUG(args...)
 #define LOG_INFO(args...) webservlogger(INFO_LOG_LVL, args);
 #define LOG_WARNING(args...) webservlogger(WARNING_LOG_LVL, args);
 #define LOG_ERROR(args...) webservlogger(ERROR_LOG_LVL, args);

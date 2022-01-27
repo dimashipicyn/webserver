@@ -63,8 +63,8 @@ bool HTTP::cgi(const Request &request, Response& response, Route* route) {
     bool isCGI = route != nullptr && cgiAt != std::string::npos;
     if (isCGI) {
 		path = path.substr(0, cgiAt);
-        if (!utils::isFile(route->getFullPath(path)))
-            throw httpEx<NotFound>("CGI script not found");
+//        if (!utils::isFile(route->getFullPath(path)))
+//            throw httpEx<NotFound>("CGI script not found");
 
         std::string ret = Cgi(request, *route).runCGI();
         size_t pos = ret.find_first_not_of("\r\n", ret.find("\r\n\r\n"));
@@ -122,6 +122,13 @@ void HTTP::handler(Request& request, Response& response) {
     try {
         LOG_DEBUG("Http handler call\n");
         LOG_DEBUG("--------------PRINT REQUEST--------------\n");
+
+		std::ostringstream headers;
+		for (Request::headersMap::const_iterator i = request.getHeaders().begin(); i != request.getHeaders().end(); i++) {
+			headers << (*i).first.c_str() << ": " << (*i).second.c_str() << std::endl;
+		}
+		LOG_INFO("Request Data:\n%s %s\n%s\n", request.getMethod().c_str(), request.getPath().c_str(), headers.str()
+		.c_str());
         //std::cout << request << std::endl;
 
 		// Скипнуть тест с PUT file 1000

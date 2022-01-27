@@ -37,7 +37,7 @@ void Cgi::convertMeta(const Request &request)
 	meta["CONTENT_LENGTH"] = std::to_string(request.getBody().length());
 	meta["CONTENT_TYPE"] = headers["Content-Type"];
 	meta["GATEWAY_INTERFACE"] = "CGI/1.1";
-	meta["PATH_INFO"] = pathInfo;
+	meta["PATH_INFO"] = path;
 	meta["REQUEST_METHOD"] = request.getMethod();
 	meta["PATH_TRANSLATED"] = path;
 	meta["QUERY_STRING"] = request.getQueryString();
