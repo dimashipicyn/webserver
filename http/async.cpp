@@ -225,42 +225,16 @@ void HTTP::defaultReadCallback(int socket, Session *session)
 
     std::string& rbuf = session->readBuf;
 
-    if (readToBuf(socket, rbuf) <= 0) {
+
+    if (readToBuf(socket, rbuf) < 0) {
         closeSessionByID(socket);
         LOG_ERROR("Dont read to socket: %d. Close connection.\n", socket);
         return;
     }
 
-    size_t foundNN = rbuf.find("\n\n");
-    size_t foundRN = rbuf.find("\r\n\r\n");
-
-    size_t found = std::min<size_t>(foundNN, foundRN);
-    if (found != std::string::npos) {
-        size_t pos = rbuf.find_first_not_of("\r\n", found);
-        session->request.reset();
-        session->request.parse(std::string(rbuf, 0, pos));
-        rbuf.erase(0, pos);
-
-
-        disableReadEvent(socket);
-        enableWriteEvent(socket);
-
-        if (session->request.hasHeader("Content-Length")) {
-            session->size = utils::to_number<size_t>(session->request.getHeaderValue("Content-Length"));
-            session->bind(&HTTP::readBodyEventWrite);
-            return;
-        }
-
-        if (session->request.hasHeader("Transfer-Encoding") && session->request.getHeaderValue("Transfer-Encoding") == "chunked") {
-            session->chunk = 0;
-            session->sizeChunked = 0;
-            session->bind(&HTTP::readBodyChunkedEventWrite);
-            return;
-        }
-
-
-        session->bind(&HTTP::defaultWriteCallback);
-    }
+    session->bind(&HTTP::defaultWriteCallback);
+    enableWriteEvent(socket);
+    disableReadEvent(socket);
 }
 
 void HTTP::readBodyEventRead(int socket, Session* session)
@@ -285,12 +259,12 @@ void HTTP::readBodyEventWrite(int socket, Session* session)
     size_t size = std::min<size_t>(rbuf.size(), session->size);
 
 
-    session->request.body_.append(std::string(rbuf, 0, size));
+    session->request.setBody(session->request.getBody() + std::string(rbuf, 0, size));
     rbuf.erase(0, size);
     session->size -= size;
 
     if (session->size == 0) {
-        session->bind(&HTTP::defaultWriteCallback);
+        session->bind(&HTTP::handlerCallback);
         return;
     }
 
@@ -338,12 +312,12 @@ void HTTP::readBodyChunkedEventWrite(int socket, Session* session)
         }
 
         if (session->chunk == 0) {
-            session->bind(&HTTP::defaultWriteCallback);
+            session->bind(&HTTP::handlerCallback);
             return;
         }
 
         size_t bytes = std::min<size_t>(rbuf.size(), session->chunk);
-        session->request.body_.append(std::string(rbuf, 0, bytes));
+        session->request.setBody(session->request.getBody() + std::string(rbuf, 0, bytes));
         session->sizeChunked += bytes;
         rbuf.erase(0, bytes);
         session->chunk -= bytes;
@@ -354,10 +328,8 @@ void HTTP::readBodyChunkedEventWrite(int socket, Session* session)
     disableWriteEvent(socket);
 }
 
-void HTTP::defaultWriteCallback(int socket, Session *session)
+void HTTP::handlerCallback(int, Session *session)
 {
-    LOG_DEBUG("defaultWriteFunc call\n");
-
     Request& request = session->request;
 
     Response response;
@@ -366,7 +338,49 @@ void HTTP::defaultWriteCallback(int socket, Session *session)
     std::string& wbuf = session->writeBuf;
 
     wbuf.append(response.getContent());
+
     session->bind(&HTTP::doneWriteCallback);
+}
+
+void HTTP::defaultWriteCallback(int socket, Session *session)
+{
+    LOG_DEBUG("defaultWriteFunc call\n");
+
+
+    std::string& rbuf = session->readBuf;
+
+    size_t foundNN = rbuf.find("\n\n");
+    size_t foundRN = rbuf.find("\r\n\r\n");
+
+    size_t found = std::min<size_t>(foundNN, foundRN);
+    if (found != std::string::npos) {
+        size_t pos = rbuf.find_first_not_of("\r\n", found);
+        session->request.reset();
+        session->request.parse(std::string(rbuf, 0, pos));
+        rbuf.erase(0, pos);
+
+
+        if (session->request.hasHeader("Content-Length")) {
+            session->size = utils::to_number<size_t>(session->request.getHeaderValue("Content-Length"));
+            session->bind(&HTTP::readBodyEventWrite);
+            return;
+        }
+
+        if (session->request.hasHeader("Transfer-Encoding") && session->request.getHeaderValue("Transfer-Encoding") == "chunked") {
+            session->chunk = 0;
+            session->sizeChunked = 0;
+            session->bind(&HTTP::readBodyChunkedEventWrite);
+            return;
+        }
+
+        session->bind(&HTTP::handlerCallback);
+
+    }
+    else {
+        session->bind(&HTTP::defaultReadCallback);
+        enableReadEvent(socket);
+        disableWriteEvent(socket);
+    }
 }
 
 void HTTP::doneWriteCallback(int socket, Session *session)
@@ -375,9 +389,7 @@ void HTTP::doneWriteCallback(int socket, Session *session)
     std::string& wbuf = session->writeBuf;
 
     if (wbuf.empty()) {
-        disableWriteEvent(socket);
-        enableReadEvent(socket);
-        session->bind(&HTTP::defaultReadCallback);
+        session->bind(&HTTP::defaultWriteCallback);
     }
     else {
         if (writeFromBuf(socket, wbuf, wbuf.size()) < 0) {

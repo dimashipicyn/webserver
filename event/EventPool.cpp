@@ -49,7 +49,7 @@ void EventPool::writeHandler(int socket)
 }
 
 void EventPool::start() {
-    int sizeEvents = 1024;
+    int sizeEvents = 8192;
     std::vector<Kqueue::ev> events(sizeEvents);
 
     LOG_INFO("Run event loop\n");

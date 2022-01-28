@@ -44,7 +44,7 @@ const std::string& Response::getContent() {
 }
 
 //Change: take from config errorfile paths
-std::string Response::getErrorPath(const Request &request) const {
+std::string Response::getErrorPath(const Request &) const {
 	return ".\\root\\www\\page404.html";
 }
 
@@ -101,7 +101,7 @@ void Response::buildDelPage(const Request& request) {
 	setBody(os.str());
 }
 
-void Response::buildRedirectPage(const Request& request, int status, const std::string &location) {
+void Response::buildRedirectPage(const Request&, int status, const std::string &location) {
 	std::ostringstream os;
 	os << "<html>\r\n";
 	os << "<head><title>" << status << " " << reasonPhrase[status] << "</title></head>\r\n";
@@ -184,20 +184,20 @@ std::map<std::string, std::string> Response::_contentType
 		= Response::initContentType();
 
 std::map<int, std::string>	Response::initErrorMap(){
-	std::map<int, std::string> reasonPhrase;
-	reasonPhrase[100] = "Continue";
-	reasonPhrase[200] = "OK";
-	reasonPhrase[201] = "Created";
-	reasonPhrase[204] = "No Content";
-	reasonPhrase[301] = "Moved Permanently";
-	reasonPhrase[302] = "Found";
-	reasonPhrase[400] = "Bad Request";
-	reasonPhrase[403] = "Forbidden";
-	reasonPhrase[404] = "Not Found";
-	reasonPhrase[405] = "Method Not Allowed";
-	reasonPhrase[413] = "Payload Too Large";
-	reasonPhrase[500] = "Internal Server Error";
-	return reasonPhrase;
+    std::map<int, std::string> statusMap;
+    statusMap[100] = "Continue";
+    statusMap[200] = "OK";
+    statusMap[201] = "Created";
+    statusMap[204] = "No Content";
+    statusMap[301] = "Moved Permanently";
+    statusMap[302] = "Found";
+    statusMap[400] = "Bad Request";
+    statusMap[403] = "Forbidden";
+    statusMap[404] = "Not Found";
+    statusMap[405] = "Method Not Allowed";
+    statusMap[413] = "Payload Too Large";
+    statusMap[500] = "Internal Server Error";
+    return statusMap;
 }
 
 std::map<int, std::string> Response::reasonPhrase = Response::initErrorMap();

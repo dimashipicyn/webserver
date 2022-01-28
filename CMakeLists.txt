@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.20)
 project(webserv)
 
-SET(CMAKE_CXX_FLAGS "-Wall -Wextra -fsanitize=address")
+SET(CMAKE_CXX_FLAGS "-Wall -Wextra -Werror -fsanitize=address")
 
 set(CMAKE_CXX_STANDARD 98)
 
