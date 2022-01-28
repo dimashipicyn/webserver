@@ -22,7 +22,7 @@
 #include "httpExceptions.h"
 #include <algorithm>
 
-const int64_t sessionTimeout = 25000; // 2500 sec
+const int64_t sessionTimeout = 2500000; // 2500 sec
 
 typedef void (HTTP::*handlerFunc)(int, Session*);
 
