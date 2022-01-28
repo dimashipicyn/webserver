@@ -33,6 +33,7 @@ protected:
 
     void defaultReadCallback(int socket, Session* session);
     void defaultWriteCallback(int socket, Session* session);
+    void handlerCallback(int socket, Session* session);
     void doneWriteCallback(int socket, Session* session);
 
     void readBodyEventRead(int socket, Session* session);
