@@ -22,7 +22,7 @@
 #include "httpExceptions.h"
 #include <algorithm>
 
-const int64_t sessionTimeout = 2500000; // 2500 sec
+const int64_t sessionTimeout = 1000; // 2500 sec
 
 typedef void (HTTP::*handlerFunc)(int, Session*);
 
@@ -225,7 +225,7 @@ void HTTP::defaultReadCallback(int socket, Session *session)
 
     std::string& rbuf = session->readBuf;
 
-    if (readToBuf(socket, rbuf) <= 0) {
+    if (readToBuf(socket, rbuf) < 0) {
         closeSessionByID(socket);
         LOG_ERROR("Dont read to socket: %d. Close connection.\n", socket);
         return;

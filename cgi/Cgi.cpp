@@ -15,10 +15,9 @@
 
 #define BUFFER 1024
 
-Cgi::Cgi(const Request &request, const Route &route)
+Cgi::Cgi(const Request &request, const Route &route) : body_(const_cast<std::string &>(request.getBody()))
 {
 	script_ = route.getFullPath(request.getPath());
-	body_ = request.getBody();
 	convertMeta(request);
 }
 
@@ -50,7 +49,7 @@ void Cgi::convertMeta(const Request &request)
 
 	for (Request::headersMap::const_iterator i = request.getHeaders().begin(); i != request.getHeaders().end(); i++) {
 		std::string key = (*i).first;
-		std::transform(key.begin(), key.end(),key.begin(), ::toupper);
+		utils::transform(key.begin(), key.end(),key.begin(), ::toupper);
 		meta[std::string("HTTP_") + key] = (*i).second;
 	}
 
