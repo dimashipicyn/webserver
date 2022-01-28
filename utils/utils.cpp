@@ -124,6 +124,18 @@ std::string utils::glueUri(const std::string &first, const std::string &second)
 			+ (second[0] == '/' ? second : ("/" + second));
 }
 
+size_t utils::checkCgiExtension(const std::string &resource, const std::string &cgiExtension)
+{
+	size_t extensionAt = resource.find(cgiExtension);
+	return extensionAt == std::string::npos ? std::string::npos : extensionAt + cgiExtension.size();
+}
+
+std::string utils::getPathInfo(const std::string &resource, size_t cgiEndsAt)
+{
+	std::string result = resource.substr(cgiEndsAt, resource.length());
+	return result.empty() ? "/" : result;
+}
+
 /*
 int main() {
     std::string s = "hello world bro";

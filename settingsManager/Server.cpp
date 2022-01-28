@@ -5,7 +5,7 @@
 #include "utils.h"
 #include "Server.hpp"
 
-Server::Server() : maxBodySize_(1 * MB)
+Server::Server() : port_(0), maxBodySize_(1 * MB)
 {}
 
 const std::string &Server::getHost() const
@@ -81,6 +81,7 @@ bool Server::isValid() const
 void Server::addRoute()
 {
 	routes_.push_back(Route());
+	routes_.back().setMaxBodySize(maxBodySize_);
 }
 
 void Server::addRoute(Route &route)

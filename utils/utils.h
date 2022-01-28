@@ -55,6 +55,16 @@ namespace utils
 	 */
 	std::string glueUri(const std::string &first, const std::string &second);
 
+	/**
+	 * @brief ищет в uri расширение сжи.
+	 * @param resource - uri
+	 * @param cgiExtension - расширение сжи
+	 * @return позицию следующего за расширением символа в uri
+	 */
+	size_t checkCgiExtension(const std::string &resource, const std::string &cgiExtension);
+
+	std::string getPathInfo(const std::string &resource, size_t cgiEndsAt);
+
     template<typename T>
     std::string to_string(const T &t)
     {
@@ -104,6 +114,17 @@ namespace utils
 	std::string		getDate(void);
 
 	std::string readFile(const std::string &path);
+
+	template< class InputIt,
+			class OutputIt,
+			class UnaryOperation >
+	OutputIt transform( InputIt first1, InputIt last1, OutputIt d_first, UnaryOperation unary_op )
+	{
+		while (first1 != last1) {
+			*d_first++ = unary_op(*first1++);
+		}
+		return d_first;
+	}
 }
 
 #endif //WEBSERV_UTILS_H

@@ -94,6 +94,11 @@ private:
 
 	void operator=(SettingsManager const &);
 
+	/*
+	 * @brief пост проверка на валидность
+	 */
+	void validate();
+
 	// сервера, первый дефолтный
 	std::vector<Server> servers_;
 	// парсер

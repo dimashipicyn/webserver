@@ -22,6 +22,7 @@
 #include "httpExceptions.h"
 #include <algorithm>
 
+
 ///////////////////////////////////////////////////////////////////////////
 ///////////////////////// HTTP LOGIC //////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////
@@ -57,12 +58,13 @@ ssize_t writeFromBuf(int fd, std::string& wBuf, size_t nBytes);
 ssize_t readToBuf(int fd, std::string& rBuf);
 
 bool HTTP::cgi(const Request &request, Response& response, Route* route) {
-    const std::string& path = request.getPath();
-    bool isCGI = route != nullptr && utils::getExtension(path) == route->getCgi();
-    if (isCGI)
-    {
-        if (!utils::isFile(route->getFullPath(path)))
-            throw httpEx<NotFound>("CGI script not found");
+    std::string path = request.getPath();
+	size_t cgiAt = utils::checkCgiExtension(path, route->getCgi());
+    bool isCGI = route != nullptr && cgiAt != std::string::npos;
+    if (isCGI) {
+		path = path.substr(0, cgiAt);
+//        if (!utils::isFile(route->getFullPath(path)))
+//            throw httpEx<NotFound>("CGI script not found");
 
         std::string ret = Cgi(request, *route).runCGI();
         size_t pos = ret.find_first_not_of("\r\n", ret.find("\r\n\r\n"));
@@ -74,8 +76,7 @@ bool HTTP::cgi(const Request &request, Response& response, Route* route) {
         else {
             size = "0";
         }
-
-        response.setBody("HTTP/1.1 200 OK\r\nContent-Length:" + size + "\r\n" + ret);
+		interpretResponseString(ret, response);
     }
     return isCGI;
 }
@@ -120,17 +121,13 @@ void HTTP::handler(Request& request, Response& response) {
     try {
         LOG_DEBUG("Http handler call\n");
         LOG_DEBUG("--------------PRINT REQUEST--------------\n");
-        //std::cout << request << std::endl;
 
-		// Скипнуть тест с PUT file 1000
-        /*
-		if (request.getPath() == "/put_test/file_should_exist_after") {
-			response.setStatusCode(200);
-			response.setHeaderField("Content-Type", "text/plain");
-			response.setHeaderField("Content-Length", 0);
-			return;
+		std::ostringstream headers;
+		for (Request::headersMap::const_iterator i = request.getHeaders().begin(); i != request.getHeaders().end(); i++) {
+			headers << (*i).first.c_str() << ": " << (*i).second.c_str() << std::endl;
 		}
-*/
+		LOG_INFO("Request Data:\n%s %s\n%s\n", request.getMethod().c_str(), request.getPath().c_str(), headers.str()
+        .c_str());
 
         if (route == nullptr) {
             throw httpEx<NotFound>("Not Found");
@@ -317,11 +314,21 @@ void HTTP::methodGET(const Request& request, Response& response, Route* route){
 void HTTP::methodPOST(const Request& request, Response& response, Route* route){
     std::cout << request << std::endl;
     const std::string& path = route->getFullPath(request.getPath());
-    const std::string& body = request.getBody();
 
 
-    response.setStatusCode(201);
-    response.setHeaderField("Content-Location", "/filename.xxx");
+
+    if (request.getBody().size() <= route->getMaxBodySize()) {
+        std::ofstream realfile(path);
+        realfile << request.getBody();
+
+        response.setStatusCode(201);
+        response.setHeaderField("Content-Location", request.getPath());
+        response.setHeaderField("Content-Length", 0);
+    }
+    else {
+        response.setStatusCode(413);
+        response.setHeaderField("Content-Length", 0);
+    }
 }
 
 void HTTP::methodDELETE(const Request& request, Response& response, Route* route){
@@ -346,6 +353,13 @@ void HTTP::methodPUT(const Request & request, Response & response, Route *route)
     else {
         response.setStatusCode(201);
     }
+
+    file.close();
+
+    std::ofstream realfile(path);
+    realfile << request.getBody();
+
+    response.setHeaderField("Content-Location", request.getPath());
     response.setHeaderField("Content-Length", 0);
 }
 
@@ -469,4 +483,37 @@ void HTTP::requestValidate(Request& request)
     if (std::string(version, version.find_first_not_of("HTTP/")) != "1.1") {
         throw httpEx<HTTPVersionNotSupported>("HTTP version only HTTP/1.1");
     }
+}
+
+void HTTP::interpretResponseString(const std::string &responseString, Response &response)
+{
+	size_t foundNN = responseString.find("\n\n");
+	size_t foundRN = responseString.find("\r\n\r\n");
+
+	size_t found = std::min<size_t>(foundNN, foundRN);
+	if (found != std::string::npos)
+	{
+		std::string line;
+		size_t pos = responseString.find_first_not_of("\r\n", found);
+		std::stringstream headers(std::string(responseString, 0, pos));
+		while (true) {
+			if (headers.eof()) break;
+			std::getline(headers, line, '\n');
+			std::pair<std::string, std::string> header = utils::breakPair(line, ':');
+			if (header.first == "Status")
+			{
+				response.setStatusCode(atoi(header.second.c_str()));
+				continue;
+			}
+			if (header.first.empty() || header.first == "Content-Length")
+				continue;
+			response.setHeaderField(header.first, header.second);
+		}
+		std::string body = "";
+		if (pos != std::string::npos) {
+			body = std::string(responseString, pos, responseString.size());
+		}
+		response.setHeaderField("Content-Length", body.size());
+		response.setBody(body);
+	}
 }

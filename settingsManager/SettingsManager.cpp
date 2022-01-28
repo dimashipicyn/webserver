@@ -46,6 +46,7 @@ Server *SettingsManager::getLastServer()
 void SettingsManager::parseConfig(const std::string &fileName)
 {
 	configParser_.parseConfig(fileName);
+	validate();
 }
 
 void SettingsManager::clear()
@@ -75,4 +76,20 @@ Server *SettingsManager::findServer(const std::string &hostFull)
 	std::pair<std::string, std::string> map = utils::breakPair(hostFull, ':');
 	return findServer(map.first, utils::to_number<uint16_t>(map.second));
 
+}
+
+void SettingsManager::validate()
+{
+	for (std::vector<Server>::iterator i = servers_.begin(); i != servers_.end(); i++) {
+		std::vector<Server> duplicates;
+		std::string host = (*i).getHost();
+		uint16_t port = (*i).getPort();
+		for (std::vector<Server>::iterator j = servers_.begin(); j != servers_.end(); j++) {
+
+			if (host == (*j).getHost() && port == (*j).getPort())
+				duplicates.push_back((*j));
+		}
+		if (duplicates.size() > 1)
+			throw std::runtime_error("Config error: duplicates servers!");
+	}
 }

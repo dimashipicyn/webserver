@@ -55,6 +55,7 @@ protected:
 	bool	cgi(const Request &request, Response& response, Route* route);
 	bool	autoindex(const Request &request, Response& response, Route* route);
     int		redirection(const std::string &from, std::string &to, Route* route);
+	void 	interpretResponseString(std::string const &responseString, Response &response);
 
 
     void requestValidate(Request& request);

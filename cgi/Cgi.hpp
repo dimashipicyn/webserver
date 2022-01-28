@@ -23,7 +23,7 @@ public:
     std::string runCGI();
 private:
 	std::string script_;
-	std::string body_;
+	std::string &body_;
 	std::vector<char *> env_;
 
 	/**

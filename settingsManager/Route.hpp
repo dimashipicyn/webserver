@@ -60,6 +60,13 @@ private:
 	bool autoindex_;
 	// расширение по которому будет работать cgi
 	std::string cgi_;
+	// максимальный размер боди
+	size_t maxBodySize_;
+public:
+	size_t getMaxBodySize() const;
+
+	void setMaxBodySize(size_t maxBodySize);
+
 public:
 
 	/**
